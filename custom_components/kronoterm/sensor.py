@@ -220,6 +220,10 @@ class KronotermBinarySensor(BinarySensorEntity):
         self._coordinator.async_remove_listener(self._handle_coordinator_update)
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def is_on(self):
         """Determine if the binary sensor is 'on'."""
         modbus_regs = self._coordinator.data.get("ModbusReg", [])
