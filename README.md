@@ -3,7 +3,9 @@
 ## Overview
 This custom integration provides support for Kronoterm heat pumps in Home Assistant. It fetches and displays various sensor data and operational statuses from the Kronoterm API, offering users valuable insights into their heat pump's performance and status.
 
-Tested with Hydro S + Adapt 0416-K3 HT / HK 3F
+Tested with: 
+- Hydro S + Adapt 0416-K3 HT / HK 3F
+- Hydro C 2 + Adapt 0312-K3 HT / HK 1F
 
 ## Features
 - Integration with Kronoterm's API to fetch sensor and binary sensor data.
