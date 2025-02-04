@@ -12,8 +12,8 @@ Tested with:
 - Provides detailed information such as temperatures, pressures, energy consumption, and operational statuses.
 - Configurable update intervals for main and auxiliary data.
 
+![dashboard](https://github.com/Favio25/Kronoterm-homeassistant/blob/main/images/dashboard.png)
 ![integration](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/integration.png)
-![hp_load](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/HP_load.png)
 ![outside_temp](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/Outside_temp.png)
 
 ## Installation
