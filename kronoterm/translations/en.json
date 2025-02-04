@@ -1,0 +1,19 @@
+{
+    "config": {
+      "step": {
+        "user": {
+          "title": "Kronoterm Heat Pump Setup",
+          "description": "Enter your Home Cloud username and password, plus scan interval if desired.",
+          "data": {
+            "username": "Home Cloud Username",
+            "password": "Home Cloud Password",
+            "scan_interval": "Update Interval (minutes)"
+          }
+        }
+      },
+      "error": {
+        "invalid_credentials": "Invalid username or password."
+      }
+    }
+  }
+  
