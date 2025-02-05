@@ -29,63 +29,63 @@ async def async_setup_entry(
     # Define Modbus register sensors
     sensor_entities = [
         KronotermModbusRegSensor(
-            main_coordinator, 2023, "Desired DHW Temperature", "",
+            main_coordinator, 2023, "Desired DHW Temperature", "°C",
             shared_device_info, icon="mdi:water-boiler"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2051, "Desired loop 2 temperature", "",
+            main_coordinator, 2051, "Desired loop 2 temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2090, "Operating Hours Compressor Heating", "",
+            main_coordinator, 2090, "Operating Hours Compressor Heating", "h",
             shared_device_info, icon="mdi:timer-outline"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2091, "Operating Hours Compressor DHW", "",
+            main_coordinator, 2091, "Operating Hours Compressor DHW", "h",
             shared_device_info, icon="mdi:timer-outline"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2095, "Operating Hours Additional Source 1", "",
+            main_coordinator, 2095, "Operating Hours Additional Source 1", "h",
             shared_device_info, icon="mdi:timer-outline"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2101, "Reservoir Temperature", "",
+            main_coordinator, 2101, "Reservoir Temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2102, "DHW Temperature", "",
+            main_coordinator, 2102, "DHW Temperature", "°C",
             shared_device_info, icon="mdi:water-boiler"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2103, "Outside Temperature", "",
+            main_coordinator, 2103, "Outside Temperature", "°C",
             shared_device_info, icon="mdi:weather-sunny"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2104, "HP Outlet Temperature", "",
+            main_coordinator, 2104, "HP Outlet Temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2105, "Compressor Inlet Temperature", "",
+            main_coordinator, 2105, "Compressor Inlet Temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2106, "Compressor Outlet Temperature", "",
+            main_coordinator, 2106, "Compressor Outlet Temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2107, "Alternative Source Temperature", "",
+            main_coordinator, 2107, "Alternative Source Temperature", "°C",
             shared_device_info, icon="mdi:fire"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2109, "Pool Temperature", "",
+            main_coordinator, 2109, "Pool Temperature", "°C",
             shared_device_info, icon="mdi:pool"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2187, "Desired loop 1 temperature", "",
+            main_coordinator, 2187, "Desired loop 1 temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2129, "Current Power Consumption", "",
+            main_coordinator, 2129, "Current Power Consumption", "W",
             shared_device_info, icon="mdi:power-plug"
         ),
         KronotermModbusRegSensor(
@@ -93,39 +93,39 @@ async def async_setup_entry(
             shared_device_info, icon="mdi:thermometer", scale=0.1
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2110, "Loop 2 Temperature", "",
+            main_coordinator, 2110, "Loop 2 Temperature", "°C",
             shared_device_info, icon="mdi:thermometer"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2160, "Loop 1 Thermostat Temperature", "",
+            main_coordinator, 2160, "Loop 1 Thermostat Temperature", "°C",
             shared_device_info, icon="mdi:thermostat"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2161, "Loop 2 Thermostat Temperature", "",
+            main_coordinator, 2161, "Loop 2 Thermostat Temperature", "°C",
             shared_device_info, icon="mdi:thermostat"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2325, "Pressure Setting", "",
+            main_coordinator, 2325, "Pressure Setting", "bar",
             shared_device_info, icon="mdi:gauge"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2326, "Heating System Pressure", "",
+            main_coordinator, 2326, "Heating System Pressure", "bar",
             shared_device_info, icon="mdi:gauge"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2327, "HP Load", "%",
+            main_coordinator, 2327, "HP Load", " %",
             shared_device_info, icon="mdi:engine"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2329, "Current Heating/Cooling Capacity", "",
+            main_coordinator, 2329, "Current Heating/Cooling Capacity", "W",
             shared_device_info, icon="mdi:lightning-bolt"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2347, "Pressure Setting Heating Source", "",
+            main_coordinator, 2347, "Pressure Setting Heating Source", "bar",
             shared_device_info, icon="mdi:gauge"
         ),
         KronotermModbusRegSensor(
-            main_coordinator, 2348, "Source Pressure", "",
+            main_coordinator, 2348, "Source Pressure", "bar",
             shared_device_info, icon="mdi:gauge"
         ),
         KronotermModbusRegSensor(
@@ -181,11 +181,6 @@ async def async_setup_entry(
             main_coordinator, 2007, "Operation Regime",
             {0: "Cooling", 1: "Heating", 2: "Heating and Cooling Off"},
             shared_device_info, icon="mdi:heat-pump"
-        ),
-        KronotermEnumSensor(
-            main_coordinator, 2044, "Loop 1 Status",
-            {0: "OFF", 1: "Normal", 2: "ECO", 3: "COM"},
-            shared_device_info, icon="mdi:radiator"
         ),
     ]
 

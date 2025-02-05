@@ -6,6 +6,7 @@ This file houses all Kronoterm entity classes for improved maintainability.
 
 import logging
 from typing import Any, Dict, List, Optional, Union
+import re
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.sensor import SensorEntity
@@ -119,14 +120,16 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         return self._unit
 
     def _process_value(self, raw_value: Any) -> Union[float, Any]:
-        """Apply scaling if necessary."""
+        """Process and clean raw value, stripping units if needed."""
         try:
+            if isinstance(raw_value, str):
+                raw_value = re.sub(r"[^\d\.]", "", raw_value)  # Remove non-numeric characters
+            raw_value = float(raw_value)
             if self._scale != 1:
-                scaled_value: float = float(raw_value) * self._scale
-                return round(scaled_value, 2)
-            return raw_value
+                raw_value *= self._scale
+            return round(raw_value, 2)
         except (ValueError, TypeError) as ex:
-            _LOGGER.error("Error scaling value for sensor %s: %s", self._name, ex)
+            _LOGGER.error("Error processing value for sensor %s: %s", self._name, ex)
             return UNKNOWN_VALUE
 
     @property
