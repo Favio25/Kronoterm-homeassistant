@@ -27,6 +27,8 @@ QUERY_DHW   = {"TopPage": "1", "Subpage": "9", "Action": "1"}
 QUERY_LOOP1 = {"TopPage": "1", "Subpage": "5", "Action": "1"}
 QUERY_LOOP2 = {"TopPage": "1", "Subpage": "6", "Action": "1"}
 QUERY_SWITCH = {"TopPage": "1", "Subpage": "3", "Action": "1"}
+QUERY_RESERVOIR = {"TopPage": "1", "Subpage": "4", "Action": "1"}
+
 
 
 class KronotermCoordinator:
@@ -86,18 +88,14 @@ class KronotermCoordinator:
         self.shared_device_info = {}
 
     async def async_initialize(self):
-        """
-        Fetch initial data on startup and set up device info.
-        """
-        # Pull main data + info data + consumption data
+        # Refresh all coordinators.
         await self.main_coordinator.async_config_entry_first_refresh()
         await self.info_coordinator.async_config_entry_first_refresh()
         await self.consumption_coordinator.async_config_entry_first_refresh()
 
+        # Extract device info as before...
         info_data = self.info_coordinator.data or {}
         info_data_section = info_data.get("InfoData", {})
-
-        _LOGGER.debug("Full Device Info: %s", info_data)
 
         device_id = info_data_section.get("device_id", "kronoterm_heat_pump")
         pump_model = info_data_section.get("pumpModel", "Unknown Model")
@@ -111,7 +109,13 @@ class KronotermCoordinator:
             "sw_version": firmware_version,
         }
 
-        _LOGGER.info("Final Device Info: %s", self.shared_device_info)
+        # --- New: Extract reservoir installation status ---
+        main_data = self.main_coordinator.data or {}
+        system_config = main_data.get("SystemConfiguration", {})
+        # Adjust the key name if your JSON uses a different one.
+        self.reservoir_installed = bool(system_config.get("reservoir_installed", 0))
+        _LOGGER.info("Reservoir installed: %s", self.reservoir_installed)
+
         _LOGGER.info("Kronoterm integration initialized successfully.")
 
     # -------------------------
@@ -265,13 +269,15 @@ class KronotermCoordinator:
     #  Example for set_temperature (POST)
     # ---------------------------------------
     async def async_set_temperature(self, page: int, new_temp: float):
-        """POST request to change the temperature for DHW (page=9), Loop 1, etc."""
+        """POST request to change the temperature for DHW (page=9), Loop 1 (page=5), Loop 2 (page=6), or Reservoir (page=4)."""
         if page == 9:
             query = QUERY_DHW
         elif page == 5:
             query = QUERY_LOOP1
         elif page == 6:
             query = QUERY_LOOP2
+        elif page == 4:
+            query = QUERY_RESERVOIR
         else:
             _LOGGER.error("❌ Invalid page number %s for set_temperature", page)
             return False
@@ -283,7 +289,6 @@ class KronotermCoordinator:
         }
 
         _LOGGER.info("🔄 Setting temperature (page=%s) to %.1f°C", page, new_temp)
-
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         try:
             async with self.session.post(
@@ -296,7 +301,6 @@ class KronotermCoordinator:
                 text = await response.text()
                 if response.status == 200:
                     _LOGGER.info("✅ Temperature update success. Response: %s", text)
-                    # Refresh main data
                     await self.main_coordinator.async_request_refresh()
                     return True
                 else:
@@ -305,6 +309,7 @@ class KronotermCoordinator:
         except aiohttp.ClientError as err:
             _LOGGER.error("❌ API request error while setting temperature: %s", err)
             return False
+
 
     # ---------------------------------------
     #  Example for set_heatpump_state (POST)

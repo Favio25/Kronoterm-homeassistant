@@ -36,26 +36,25 @@ LOOP2_DESIRED_TEMP_ADDR = 2049    # "Desired Loop 2 Temperature"
 LOOP2_THERMOSTAT_FLAG_ADDR = 2193 # If !=0 => thermostat installed
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback
-) -> bool:
-    """
-    Set up the Kronoterm climate entities from a config entry,
-    but reading temperatures directly from Modbus registers.
-    """
-    # Retrieve the Kronoterm coordinator wrapper from hass.data
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
     parent_coordinator = hass.data[DOMAIN]["coordinator"]
     main_coordinator = parent_coordinator.main_coordinator
 
-    # Create and add the climate entities (DHW, Loop 1, Loop 2)
-    async_add_entities([
+    entities = [
         KronotermDHWClimate(entry, parent_coordinator, main_coordinator),
         KronotermLoop1Climate(entry, parent_coordinator, main_coordinator),
         KronotermLoop2Climate(entry, parent_coordinator, main_coordinator),
-    ])
+    ]
+    
+    # Only add the reservoir climate entity if the reservoir is installed.
+    if getattr(parent_coordinator, "reservoir_installed", False):
+        entities.append(KronotermReservoirClimate(entry, parent_coordinator, main_coordinator))
+    else:
+        _LOGGER.info("Reservoir not installed, skipping Reservoir Climate Entity.")
+    
+    async_add_entities(entities)
     return True
+
 
 
 class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
@@ -308,3 +307,25 @@ class KronotermLoop2Climate(KronotermBaseClimate):
             self.async_write_ha_state()
 
         super()._handle_coordinator_update()
+
+class KronotermReservoirClimate(KronotermBaseClimate):
+    """
+    Climate entity for controlling the Reservoir Temperature.
+    Uses Modbus register 2101 for both current and desired temperatures.
+    Sends control commands using page 4.
+    """
+    def __init__(self, entry, parent_coordinator, coordinator):
+        super().__init__(
+            entry=entry,
+            parent_coordinator=parent_coordinator,
+            coordinator=coordinator,
+            name="Reservoir Temperature",
+            unique_id_suffix="reservoir_climate",
+            min_temp=10,  # Adjust as needed
+            max_temp=90,
+            page=4,       # This tells the coordinator to use the reservoir control query
+        )
+        self._current_temp_address = 2101
+        self._desired_temp_address = 2101
+
+
