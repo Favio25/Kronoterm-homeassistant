@@ -344,3 +344,37 @@ class KronotermCoordinator:
             _LOGGER.error("Error updating heat pump state: %s", err)
 
         return False
+
+    # ---------------------------------------
+    #  Example for set_dhw_circulation (POST)
+    # ---------------------------------------
+    async def async_set_dhw_circulation(self, turn_on: bool):
+        """Turn the DHW circulation ON/OFF with a single base URL + query=QUERY_SWITCH."""
+        payload = {
+            "param_name": "circulation_on",
+            "param_value": "1" if turn_on else "0",
+            "page": "-1",
+        }
+
+        _LOGGER.info("🔄 Setting DHW circulation to %s", "ON" if turn_on else "OFF")
+
+        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+        try:
+            async with self.session.post(
+                BASE_URL,
+                auth=self.auth,
+                params=QUERY_SWITCH,
+                data=payload,
+                timeout=timeout,
+            ) as response:
+                text = await response.text()
+                if response.status == 200:
+                    _LOGGER.info("✅ DHW circulation state changed successfully. Body: %s", text)
+                    await self.main_coordinator.async_request_refresh()
+                    return True
+                else:
+                    _LOGGER.error("Failed to change DHW circulation state (HTTP %s). Body: %s", response.status, text)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error updating DHW circulation state: %s", err)
+
+        return False
