@@ -224,6 +224,14 @@ class KronotermLoop1Climate(KronotermBaseClimate):
         await super().async_added_to_hass()
         self._handle_coordinator_update()
         await self.coordinator.async_request_refresh()
+    
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the scaled current temperature for Loop 1."""
+        raw_temp = self._read_modbus_temp(self._current_temp_address)
+        if raw_temp is not None:
+            return round(raw_temp * 0.1, 1)
+        return None
 
     @callback
     def _handle_coordinator_update(self) -> None:

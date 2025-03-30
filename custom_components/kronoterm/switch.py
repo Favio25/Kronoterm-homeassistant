@@ -9,31 +9,42 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up the Kronoterm switch platform via config entry."""
-    # Get the Kronoterm coordinator wrapper from hass.data
     parent_coordinator = hass.data[DOMAIN]["coordinator"]
-    main_coordinator = parent_coordinator.main_coordinator
+    shortcuts_coordinator = parent_coordinator.shortcuts_coordinator
 
-    # Instantiate our single switch entity (or create a list if needed)
     pump_switch_entity = KronotermHeatPumpSwitch(
         entry,
         parent_coordinator,
-        main_coordinator,
+        parent_coordinator.main_coordinator,
     )
     dhw_circulation_switch_entity = DHWCirculationSwitch(
         entry,
         parent_coordinator,
-        main_coordinator,
+        parent_coordinator.main_coordinator,
+    )
+    fast_heating_switch_entity = FastWaterHeatingSwitch(
+        entry,
+        parent_coordinator,
+        shortcuts_coordinator,
+    )
+    # NEW: Instantiate your Antilegionella switch
+    antilegionella_switch_entity = AntiLegionellaSwitch(
+        entry,
+        parent_coordinator,
+        shortcuts_coordinator,
     )
 
-    
-    async_add_entities([pump_switch_entity, dhw_circulation_switch_entity])
+    async_add_entities([
+        pump_switch_entity,
+        dhw_circulation_switch_entity,
+        fast_heating_switch_entity,
+        antilegionella_switch_entity,
+    ])
     return True
 
 
@@ -160,3 +171,95 @@ class DHWCirculationSwitch(CoordinatorEntity, SwitchEntity):
             await self.coordinator.async_request_refresh()
         else:
             _LOGGER.error("Failed to turn off the DHW circulation via Kronoterm API")
+    
+class FastWaterHeatingSwitch(CoordinatorEntity, SwitchEntity):
+    """
+    Switch to toggle Fast Water Heating ON/OFF.
+
+    Instead of reading a Modbus register, we read 'fast_water_heating'
+    from the 'ShortcutsData' block in coordinator.data.
+    """
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        parent_coordinator,
+        coordinator: DataUpdateCoordinator,
+    ) -> None:
+        """Initialize the Fast Water Heating switch."""
+        super().__init__(coordinator)
+        self._parent_coordinator = parent_coordinator
+        self._entry = entry
+
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_fast_heating_switch"
+        self._attr_name = "Fast Water Heating"
+        self._attr_device_info = parent_coordinator.shared_device_info
+
+    @property
+    def is_on(self) -> bool:
+        """
+        Return True if 'fast_water_heating' in 'ShortcutsData' == 1, else False.
+        """
+        data = self.coordinator.data
+        if not data:
+            return False
+        
+        shortcuts = data.get("ShortcutsData", {})
+        return bool(shortcuts.get("fast_water_heating", 0))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        success = await self._parent_coordinator.async_set_fast_water_heating(True)
+        if success:
+            await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        success = await self._parent_coordinator.async_set_fast_water_heating(False)
+        if success:
+            await self.coordinator.async_request_refresh()
+
+class AntiLegionellaSwitch(CoordinatorEntity, SwitchEntity):
+    """
+    Switch to toggle Antilegionella ON/OFF.
+
+    We'll read 'antilegionella' from 'ShortcutsData' to determine is_on.
+    """
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        parent_coordinator,
+        coordinator: DataUpdateCoordinator,
+    ) -> None:
+        """Initialize the Antilegionella switch."""
+        super().__init__(coordinator)
+        self._parent_coordinator = parent_coordinator
+        self._entry = entry
+
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_antilegionella_switch"
+        self._attr_name = "Antilegionella"
+        self._attr_device_info = parent_coordinator.shared_device_info
+
+    @property
+    def is_on(self) -> bool:
+        """
+        Return True if 'antilegionella' == 1 in 'ShortcutsData', else False.
+        """
+        data = self.coordinator.data
+        if not data:
+            return False
+
+        shortcuts = data.get("ShortcutsData", {})
+        # "antilegionella" is presumably 1 or 0
+        return bool(shortcuts.get("antilegionella", 0))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        """Turn on Antilegionella by calling the parent's method."""
+        success = await self._parent_coordinator.async_set_antilegionella(True)
+        if success:
+            await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        """Turn off Antilegionella by calling the parent's method."""
+        success = await self._parent_coordinator.async_set_antilegionella(False)
+        if success:
+            await self.coordinator.async_request_refresh()

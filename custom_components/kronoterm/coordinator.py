@@ -84,6 +84,16 @@ class KronotermCoordinator:
             update_interval=timedelta(minutes=5),
         )
 
+        # Example of a new coordinator that fetches TopPage=1, Subpage=3
+        self.shortcuts_coordinator = DataUpdateCoordinator(
+            hass,
+            _LOGGER,
+            name="kronoterm_shortcuts",
+            update_method=lambda: self.async_update_data({"TopPage": "1", "Subpage": "3"}),
+            update_interval=timedelta(minutes=5),  # or any refresh interval you like
+        )
+
+
         # Will be set after fetching device info
         self.shared_device_info = {}
 
@@ -92,6 +102,8 @@ class KronotermCoordinator:
         await self.main_coordinator.async_config_entry_first_refresh()
         await self.info_coordinator.async_config_entry_first_refresh()
         await self.consumption_coordinator.async_config_entry_first_refresh()
+        await self.shortcuts_coordinator.async_config_entry_first_refresh()
+
 
         # Extract device info as before...
         info_data = self.info_coordinator.data or {}
@@ -378,3 +390,176 @@ class KronotermCoordinator:
             _LOGGER.error("Error updating DHW circulation state: %s", err)
 
         return False
+
+    async def async_set_fast_water_heating(self, turn_on: bool) -> bool:
+        """
+        Turn ON/OFF 'Fast Water Heating' via param_name = 'fast_water_heating'.
+        Adjust the param_value, page, and query params if your API differs.
+        """
+        payload = {
+            "param_name": "water_heating_on",
+            "param_value": "1" if turn_on else "0",
+            "page": "-1",  # or the page your device's API expects
+        }
+
+        _LOGGER.info("Setting Fast Water Heating to %s", "ON" if turn_on else "OFF")
+
+        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+        try:
+            async with self.session.post(
+                BASE_URL,
+                auth=self.auth,
+                params=QUERY_SWITCH,  # or whatever query dict your device needs
+                data=payload,
+                timeout=timeout,
+            ) as response:
+                text = await response.text()
+                if response.status == 200:
+                    _LOGGER.info("Fast Water Heating changed successfully: %s", text)
+                    # Force a refresh so is_on updates quickly:
+                    await self.shortcuts_coordinator.async_request_refresh()
+                    return True
+                else:
+                    _LOGGER.error(
+                        "Failed to change Fast Water Heating (HTTP %s). Body: %s",
+                        response.status, text
+                    )
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error updating Fast Water Heating state: %s", err)
+
+        return False
+
+    async def async_set_antilegionella(self, turn_on: bool) -> bool:
+        """
+        Turn ON/OFF the 'Antilegionella' feature.
+        """
+        payload = {
+            "param_name": "antilegionella",
+            "param_value": "1" if turn_on else "0",
+            "page": "-1",  # or the page your device's API expects
+        }
+
+        _LOGGER.info("Setting Antilegionella to %s", "ON" if turn_on else "OFF")
+
+        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+        try:
+            async with self.session.post(
+                BASE_URL,
+                auth=self.auth,
+                params=QUERY_SWITCH,  # {TopPage:1,Subpage:3,Action:1}
+                data=payload,
+                timeout=timeout,
+            ) as response:
+                text = await response.text()
+                if response.status == 200:
+                    _LOGGER.info("Antilegionella changed successfully: %s", text)
+                    # Force refresh so .is_on updates quickly:
+                    await self.shortcuts_coordinator.async_request_refresh()
+                    return True
+                else:
+                    _LOGGER.error(
+                        "Failed to change Antilegionella (HTTP %s). Body: %s",
+                        response.status, text
+                    )
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error updating Antilegionella state: %s", err)
+
+        return False
+
+    async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
+        """
+        Example: Send OFF(0), ON(1), AUTO(2) to Kronoterm for page=5/6/9.
+        """
+        if page == 5:
+            query = QUERY_LOOP1
+        elif page == 6:
+            query = QUERY_LOOP2
+        elif page == 9:
+            query = QUERY_DHW
+        else:
+            _LOGGER.error("Unknown page: %s", page)
+            return False
+
+        payload = {
+            "param_name": "circle_status",
+            "param_value": str(new_mode),  # "0","1","2"
+            "page": str(page),
+        }
+
+        try:
+            async with self.session.post(
+                BASE_URL,
+                auth=self.auth,
+                params=query,
+                data=payload,
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            ) as response:
+                text = await response.text()
+                if response.status == 200:
+                    _LOGGER.info("Mode changed successfully for page=%s: %s", page, text)
+                    # Refresh so the select sees updated data
+                    await self.main_coordinator.async_request_refresh()
+                    return True
+                else:
+                    _LOGGER.error("Failed setting mode (page=%s, new_mode=%s). %s: %s",
+                                page, new_mode, response.status, text)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error while updating loop mode: %s", err)
+
+        return False
+    
+    async def async_set_offset(
+        self,
+        page: int,            # 5 => Loop1, 6 => Loop2, 9 => Sanitary
+        param_name: str,      # "circle_eco_offset" or "circle_comfort_offset"
+        new_value: float
+    ) -> bool:
+        """
+        Set the offset parameter (e.g. circle_eco_offset, circle_comfort_offset)
+        by sending param_value=new_value to Kronoterm at ?TopPage=1&Subpage={page}&Action=1
+        """
+        query_params = {
+            "TopPage": "1",
+            "Subpage": str(page),
+            "Action": "1",
+        }
+        payload = {
+            "param_name": param_name,
+            "param_value": str(new_value),   # must be string
+            "page": str(page),
+        }
+
+        _LOGGER.info(
+            "Setting %s=%.1f on page=%d",
+            param_name, new_value, page
+        )
+
+        try:
+            async with self.session.post(
+                BASE_URL,
+                auth=self.auth,
+                params=query_params,
+                data=payload,
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            ) as response:
+                text = await response.text()
+                if response.status == 200:
+                    _LOGGER.info("Offset updated successfully: %s", text)
+                    # Refresh so our .native_value sees the updated offset
+                    await self.main_coordinator.async_request_refresh()
+                    return True
+                else:
+                    _LOGGER.error(
+                        "Failed setting %s=%.1f (page=%d). HTTP %s: %s",
+                        param_name, new_value, page, response.status, text
+                    )
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error while setting offset: %s", err)
+
+        return False
+
+
+
+
+
+
