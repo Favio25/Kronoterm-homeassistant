@@ -1,7 +1,6 @@
 {
   "name": "kronoterm",
   "title": "Kronoterm Integration",
-  "description": "A custom integration for Home Assistant that enables control and monitoring of Kronoterm heat pump systems",
   "domains": [
     "sensor",
     "binary_sensor",
