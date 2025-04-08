@@ -1,0 +1,20 @@
+name: Validate with Hassfest
+
+on:
+  push:
+    paths:
+      - "custom_components/**"
+      - ".github/workflows/**"
+      - "requirements.txt"
+      - "manifest.json"
+  pull_request:
+    paths:
+      - "custom_components/**"
+      - ".github/workflows/**"
+      - "requirements.txt"
+      - "manifest.json"
+
+jobs:
+  hassfest:
+    name: Hassfest validation
+    uses: home-assistant/actions/hassfest@master
