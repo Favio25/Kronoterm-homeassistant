@@ -1,6 +1,9 @@
 """number.py - Defines Number entities for ECO/COMFORT offsets on three loops."""
 
 import logging
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,135 +14,88 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# Loop 1 addresses and page
-LOOP1_PAGE         = 5
-LOOP1_ECO_ADDR     = 2047
-LOOP1_COMFORT_ADDR = 2048
+# Define a configuration data class for offset entities.
+@dataclass
+class OffsetConfig:
+    name: str
+    page: int
+    address: int
+    param_name: str
+    min_value: float
+    max_value: float
 
-# Loop 2 addresses and page
-LOOP2_PAGE         = 6
-LOOP2_ECO_ADDR     = 2057
-LOOP2_COMFORT_ADDR = 2058
+# Define configurations for each offset entity.
+OFFSET_CONFIGS: List[OffsetConfig] = [
+    # Loop 1
+    OffsetConfig("Loop 1 ECO Offset", 5, 2047, "circle_eco_offset", -10.0, 0.0),
+    OffsetConfig("Loop 1 COMFORT Offset", 5, 2048, "circle_comfort_offset", 0.0, 10.0),
+    # Loop 2
+    OffsetConfig("Loop 2 ECO Offset", 6, 2057, "circle_eco_offset", -10.0, 0.0),
+    OffsetConfig("Loop 2 COMFORT Offset", 6, 2058, "circle_comfort_offset", 0.0, 10.0),
+    # Sanitary (DHW)
+    OffsetConfig("Sanitary ECO Offset", 9, 2030, "circle_eco_offset", -10.0, 0.0),
+    OffsetConfig("Sanitary COMFORT Offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0),
+]
 
-# Sanitary (DHW) addresses and page
-SANITARY_PAGE      = 9
-SANITARY_ECO_ADDR  = 2030
-SANITARY_COMFORT_ADDR = 2031
+
+def get_modbus_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Extract the list of Modbus registers from the coordinator data."""
+    return data.get("main", {}).get("ModbusReg", [])
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Number entities for ECO and COMFORT offsets of Loop1, Loop2, Sanitary."""
-    parent_coordinator = hass.data[DOMAIN]["coordinator"]
-    main_coordinator = parent_coordinator.main_coordinator
+    """
+    Set up Number entities for ECO and COMFORT offsets for Loop 1, Loop 2, and Sanitary,
+    using a single Kronoterm coordinator.
+    """
+    coordinator = hass.data.get(DOMAIN, {}).get("coordinator")
+    if not coordinator:
+        _LOGGER.error("No Kronoterm coordinator found in hass.data[%s]", DOMAIN)
+        return
 
-    # We'll define six entities in total
     entities = []
+    modbus_list = get_modbus_list(coordinator.data or {})
 
-    # Loop 1 ECO => -10..0
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Loop 1 ECO Offset",
-            page=LOOP1_PAGE,
-            address=LOOP1_ECO_ADDR,
-            param_name="circle_eco_offset",
-            min_value=-10.0,
-            max_value=0.0,
-        )
-    )
-    # Loop 1 COMFORT => 0..10
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Loop 1 COMFORT Offset",
-            page=LOOP1_PAGE,
-            address=LOOP1_COMFORT_ADDR,
-            param_name="circle_comfort_offset",
-            min_value=0.0,
-            max_value=10.0,
-        )
-    )
-
-    # Loop 2 ECO => -10..0
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Loop 2 ECO Offset",
-            page=LOOP2_PAGE,
-            address=LOOP2_ECO_ADDR,
-            param_name="circle_eco_offset",
-            min_value=-10.0,
-            max_value=0.0,
-        )
-    )
-    # Loop 2 COMFORT => 0..10
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Loop 2 COMFORT Offset",
-            page=LOOP2_PAGE,
-            address=LOOP2_COMFORT_ADDR,
-            param_name="circle_comfort_offset",
-            min_value=0.0,
-            max_value=10.0,
-        )
-    )
-
-    # Sanitary ECO => -10..0
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Sanitary ECO Offset",
-            page=SANITARY_PAGE,
-            address=SANITARY_ECO_ADDR,
-            param_name="circle_eco_offset",
-            min_value=-10.0,
-            max_value=0.0,
-        )
-    )
-    # Sanitary COMFORT => 0..10
-    entities.append(
-        KronotermOffsetNumber(
-            entry=entry,
-            parent_coordinator=parent_coordinator,
-            coordinator=main_coordinator,
-            name="Sanitary COMFORT Offset",
-            page=SANITARY_PAGE,
-            address=SANITARY_COMFORT_ADDR,
-            param_name="circle_comfort_offset",
-            min_value=0.0,
-            max_value=10.0,
-        )
-    )
+    for config in OFFSET_CONFIGS:
+        # Only add the entity if the corresponding register exists.
+        if any(reg.get("address") == config.address for reg in modbus_list):
+            entities.append(
+                KronotermOffsetNumber(
+                    entry=entry,
+                    coordinator=coordinator,
+                    name=config.name,
+                    page=config.page,
+                    address=config.address,
+                    param_name=config.param_name,
+                    min_value=config.min_value,
+                    max_value=config.max_value,
+                )
+            )
+        else:
+            _LOGGER.info(
+                "Register %s not found for %s, skipping entity creation.",
+                config.address,
+                config.name,
+            )
 
     async_add_entities(entities, update_before_add=True)
 
 
 class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
     """
-    A Number entity that represents an offset (ECO or COMFORT) for a loop or DHW.
-
-    - Reads the current offset from 'ModbusReg' at the specified address.
-    - Writes the offset using async_set_offset(page, param_name, new_value).
+    A Number entity that represents an ECO/COMFORT offset for a loop or DHW.
+    
+    Reads the current value from the Modbus register in coordinator.data and writes a new value
+    using coordinator.async_set_offset.
     """
 
     def __init__(
         self,
         entry: ConfigEntry,
-        parent_coordinator,
         coordinator: DataUpdateCoordinator,
         name: str,
         page: int,
@@ -147,66 +103,64 @@ class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
         param_name: str,
         min_value: float,
         max_value: float,
-    ):
+    ) -> None:
         super().__init__(coordinator)
         self._entry = entry
-        self._parent_coordinator = parent_coordinator
         self._page = page
         self._address = address
         self._param_name = param_name
 
         self._attr_name = name
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{page}_{address}"
-        self._attr_device_info = parent_coordinator.shared_device_info
+        self._attr_device_info = coordinator.shared_device_info
 
-        # Set numeric bounds (e.g. ECO => -10..0, COMFORT => 0..10)
+        # Define numeric bounds.
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = 0.1
 
     @property
     def native_unit_of_measurement(self) -> str:
-        """Offsets are typically measured in °C."""
+        """Return the unit of measurement for offsets (°C)."""
         return "°C"
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> Optional[float]:
         """
-        Return the current offset from the coordinator data, reading address=<self._address>.
-        We assume the offset is in 'ModbusReg' => "value".
+        Return the current offset value from the Modbus register at self._address.
+        Expected data is in coordinator.data["main"]["ModbusReg"].
         """
-        data = self.coordinator.data or {}
-        modbus_list = data.get("ModbusReg", [])
-        reg = next((x for x in modbus_list if x["address"] == self._address), None)
+        modbus_list = get_modbus_list(self.coordinator.data or {})
+        reg = next((x for x in modbus_list if x.get("address") == self._address), None)
         if not reg:
+            _LOGGER.debug("Register %s not found for %s", self._address, self._attr_name)
             return None
 
         raw_val = reg.get("value")
         if raw_val is None:
             return None
 
-        # If it's something like "3.0 °C", strip out the "°C" text
         if isinstance(raw_val, str):
             raw_val = raw_val.replace("°C", "").strip()
 
         try:
             return float(raw_val)
         except (ValueError, TypeError):
+            _LOGGER.error("Invalid value %s at register %s for %s", raw_val, self._address, self._attr_name)
             return None
 
     async def async_set_native_value(self, value: float) -> None:
         """
-        Called by HA when the user sets a new offset. We'll call async_set_offset on the coordinator.
+        Called by Home Assistant to set a new offset value.
+        Uses coordinator.async_set_offset() to update the value.
         """
-        # Round to one decimal if desired
-        offset_val = round(value, 1)
-        success = await self._parent_coordinator.async_set_offset(
+        new_offset = round(value, 1)
+        success = await self.coordinator.async_set_offset(
             page=self._page,
             param_name=self._param_name,
-            new_value=offset_val,
+            new_value=new_offset,
         )
         if not success:
-            _LOGGER.error("Failed to update offset for %s to %s", self._attr_name, offset_val)
+            _LOGGER.error("Failed to update offset for %s to %.1f", self._attr_name, new_offset)
         else:
-            # The coordinator refresh should have been called, so the UI updates automatically
-            _LOGGER.debug("Successfully set %s => %.1f", self._attr_name, offset_val)
+            _LOGGER.debug("Successfully set %s => %.1f °C", self._attr_name, new_offset)

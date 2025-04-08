@@ -1,265 +1,167 @@
 import logging
+from typing import Any, Callable, Dict, List, Optional
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    parent_coordinator = hass.data[DOMAIN]["coordinator"]
-    shortcuts_coordinator = parent_coordinator.shortcuts_coordinator
+    """Set up Kronoterm switches based on config entry."""
+    coordinator = hass.data[DOMAIN].get("coordinator")
+    if not coordinator:
+        _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
+        return False
 
-    pump_switch_entity = KronotermHeatPumpSwitch(
-        entry,
-        parent_coordinator,
-        parent_coordinator.main_coordinator,
-    )
-    dhw_circulation_switch_entity = DHWCirculationSwitch(
-        entry,
-        parent_coordinator,
-        parent_coordinator.main_coordinator,
-    )
-    fast_heating_switch_entity = FastWaterHeatingSwitch(
-        entry,
-        parent_coordinator,
-        shortcuts_coordinator,
-    )
-    # NEW: Instantiate your Antilegionella switch
-    antilegionella_switch_entity = AntiLegionellaSwitch(
-        entry,
-        parent_coordinator,
-        shortcuts_coordinator,
-    )
+    # Define switch configurations
+    switch_configs = [
+        {
+            "name": "Heat Pump ON/OFF",
+            "unique_id_suffix": "heatpump_switch",
+            "register_address": 2000,
+            "get_state_method": lambda c: _get_modbus_register_value(c.data, 2000),
+            "turn_on_method": lambda c: c.async_set_heatpump_state(True),
+            "turn_off_method": lambda c: c.async_set_heatpump_state(False),
+        },
+        {
+            "name": "DHW Circulation ON/OFF",
+            "unique_id_suffix": "dhw_circulation_switch",
+            "register_address": 2028,
+            "get_state_method": lambda c: _get_modbus_register_value(c.data, 2028),
+            "turn_on_method": lambda c: c.async_set_dhw_circulation(True),
+            "turn_off_method": lambda c: c.async_set_dhw_circulation(False),
+        },
+        {
+            "name": "Fast Water Heating",
+            "unique_id_suffix": "fast_heating_switch",
+            "get_state_method": lambda c: _get_shortcuts_value(c.data, "fast_water_heating"),
+            "turn_on_method": lambda c: c.async_set_fast_water_heating(True),
+            "turn_off_method": lambda c: c.async_set_fast_water_heating(False),
+        },
+        {
+            "name": "Antilegionella",
+            "unique_id_suffix": "antilegionella_switch",
+            "get_state_method": lambda c: _get_shortcuts_value(c.data, "antilegionella"),
+            "turn_on_method": lambda c: c.async_set_antilegionella(True),
+            "turn_off_method": lambda c: c.async_set_antilegionella(False),
+        },
+    ]
 
-    async_add_entities([
-        pump_switch_entity,
-        dhw_circulation_switch_entity,
-        fast_heating_switch_entity,
-        antilegionella_switch_entity,
-    ])
+    # Create switch entities
+    entities = [
+        KronotermSwitch(
+            entry,
+            coordinator,
+            config["name"],
+            config["unique_id_suffix"],
+            config["get_state_method"],
+            config["turn_on_method"],
+            config["turn_off_method"],
+        )
+        for config in switch_configs
+    ]
+
+    async_add_entities(entities)
     return True
 
 
-class KronotermHeatPumpSwitch(CoordinatorEntity, SwitchEntity):
-    """
-    Switch to turn the Kronoterm heat pump ON/OFF.
-
-    The ON/OFF state is read directly from Modbus register 2000:
-      - 1 => ON
-      - 0 => OFF
-    We call async_set_heatpump_state(True/False) to change it.
-    """
-
-    def __init__(
-        self,
-        entry: ConfigEntry,
-        parent_coordinator,
-        coordinator: DataUpdateCoordinator,
-    ) -> None:
-        """Initialize the Kronoterm heat pump switch."""
-        super().__init__(coordinator)
-
-        self._parent_coordinator = parent_coordinator
-        self._entry = entry
-
-        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_heatpump_switch"
-        self._attr_name = "Heat Pump ON/OFF"
-        self._attr_device_info = parent_coordinator.shared_device_info
-
-    @property
-    def is_on(self) -> bool:
-        """
-        Return True if Modbus register 2000 has value=1, else False.
-        Falls back to OFF if we can't find the register or data is unavailable.
-        """
-        data = self.coordinator.data
-        if not data:
-            return False  # No data yet, assume OFF
-
-        modbus_list = data.get("ModbusReg", [])
-        # Find the register 2000
-        reg_2000 = next((r for r in modbus_list if r.get("address") == 2000), None)
-        if not reg_2000:
-            return False
-
-        raw_value = reg_2000.get("value", 0)
-        return bool(raw_value)
-
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn on the heat pump by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_heatpump_state(True)
-        if success:
-            # Immediately request refresh so is_on updates quickly
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to turn on the heat pump via Kronoterm API")
-
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn off the heat pump by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_heatpump_state(False)
-        if success:
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to turn off the heat pump via Kronoterm API")
-
-class DHWCirculationSwitch(CoordinatorEntity, SwitchEntity):
-    """
-    Switch to turn the DHW Circulation ON/OFF.
-
-    The ON/OFF state is read directly from Modbus register 2028:
-      - 1 => ON
-      - 0 => OFF
-    We call async_set_heatpump_state(True/False) to change it.
-    """
-
-    def __init__(
-        self,
-        entry: ConfigEntry,
-        parent_coordinator,
-        coordinator: DataUpdateCoordinator,
-    ) -> None:
-        """Initialize the DHW Circulation switch."""
-        super().__init__(coordinator)
-
-        self._parent_coordinator = parent_coordinator
-        self._entry = entry
-
-        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_dhw_circulation_switch"
-        self._attr_name = "DHW Circulation ON/OFF"
-        self._attr_device_info = parent_coordinator.shared_device_info
-
-    @property
-    def is_on(self) -> bool:
-        """
-        Return True if Modbus register 2028 has value=1, else False.
-        Falls back to OFF if we can't find the register or data is unavailable.
-        """
-        data = self.coordinator.data
-        if not data:
-            return False  # No data yet, assume OFF
-
-        modbus_list = data.get("ModbusReg", [])
-        # Find the register 2028
-        reg_2028 = next((r for r in modbus_list if r.get("address") == 2028), None)
-        if not reg_2028:
-            return False
-
-        raw_value = reg_2028.get("value", 0)
-        return bool(raw_value)
-
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn on the DHW circulation by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_dhw_circulation(True)
-        if success:
-            # Immediately request refresh so is_on updates quickly
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to turn on the DHW circulation via Kronoterm API")
-
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn off the DHW circulation by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_dhw_circulation(False)
-        if success:
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to turn off the DHW circulation via Kronoterm API")
+def _get_modbus_register_value(data: Optional[Dict[str, Any]], address: int) -> bool:
+    """Extract a value from modbus registers in the coordinator data."""
+    if not data:
+        return False
     
-class FastWaterHeatingSwitch(CoordinatorEntity, SwitchEntity):
-    """
-    Switch to toggle Fast Water Heating ON/OFF.
-
-    Instead of reading a Modbus register, we read 'fast_water_heating'
-    from the 'ShortcutsData' block in coordinator.data.
-    """
-
-    def __init__(
-        self,
-        entry: ConfigEntry,
-        parent_coordinator,
-        coordinator: DataUpdateCoordinator,
-    ) -> None:
-        """Initialize the Fast Water Heating switch."""
-        super().__init__(coordinator)
-        self._parent_coordinator = parent_coordinator
-        self._entry = entry
-
-        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_fast_heating_switch"
-        self._attr_name = "Fast Water Heating"
-        self._attr_device_info = parent_coordinator.shared_device_info
-
-    @property
-    def is_on(self) -> bool:
-        """
-        Return True if 'fast_water_heating' in 'ShortcutsData' == 1, else False.
-        """
-        data = self.coordinator.data
-        if not data:
-            return False
+    main_data = data.get("main", {})
+    modbus_list = main_data.get("ModbusReg", [])
+    
+    reg = next((r for r in modbus_list if r.get("address") == address), None)
+    if not reg:
+        return False
         
-        shortcuts = data.get("ShortcutsData", {})
-        return bool(shortcuts.get("fast_water_heating", 0))
+    return bool(reg.get("value", 0))
 
-    async def async_turn_on(self, **kwargs) -> None:
-        success = await self._parent_coordinator.async_set_fast_water_heating(True)
-        if success:
-            await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs) -> None:
-        success = await self._parent_coordinator.async_set_fast_water_heating(False)
-        if success:
-            await self.coordinator.async_request_refresh()
+def _get_shortcuts_value(data: Optional[Dict[str, Any]], key: str) -> bool:
+    """Extract a value from shortcuts data in the coordinator data."""
+    if not data:
+        return False
+        
+    shortcuts = data.get("ShortcutsData", {})
+    return bool(shortcuts.get(key, 0))
 
-class AntiLegionellaSwitch(CoordinatorEntity, SwitchEntity):
-    """
-    Switch to toggle Antilegionella ON/OFF.
 
-    We'll read 'antilegionella' from 'ShortcutsData' to determine is_on.
-    """
+class KronotermSwitch(CoordinatorEntity, SwitchEntity):
+    """Generic implementation of Kronoterm switch."""
 
     def __init__(
         self,
         entry: ConfigEntry,
-        parent_coordinator,
         coordinator: DataUpdateCoordinator,
+        name: str,
+        unique_id_suffix: str,
+        get_state_method: Callable,
+        turn_on_method: Callable,
+        turn_off_method: Callable,
     ) -> None:
-        """Initialize the Antilegionella switch."""
+        """Initialize the switch."""
         super().__init__(coordinator)
-        self._parent_coordinator = parent_coordinator
         self._entry = entry
+        self._get_state = get_state_method
+        self._turn_on = turn_on_method
+        self._turn_off = turn_off_method
 
-        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_antilegionella_switch"
-        self._attr_name = "Antilegionella"
-        self._attr_device_info = parent_coordinator.shared_device_info
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
+        self._attr_name = name
+        self._attr_device_info = coordinator.shared_device_info
+        self._attr_has_entity_name = True  # Use the device name as a prefix
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        # Entity is available if the coordinator has data and is not in an error state
+        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def is_on(self) -> bool:
-        """
-        Return True if 'antilegionella' == 1 in 'ShortcutsData', else False.
-        """
-        data = self.coordinator.data
-        if not data:
+        """Return true if the switch is on."""
+        try:
+            return self._get_state(self.coordinator)
+        except Exception as err:
+            _LOGGER.error("Error determining switch state: %s", err)
             return False
 
-        shortcuts = data.get("ShortcutsData", {})
-        # "antilegionella" is presumably 1 or 0
-        return bool(shortcuts.get("antilegionella", 0))
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the switch on."""
+        try:
+            success = await self._turn_on(self.coordinator)
+            if success:
+                # Only refresh if the API call was successful
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to turn on %s via Kronoterm API", self.name)
+        except Exception as err:
+            _LOGGER.error("Error turning on %s: %s", self.name, err)
 
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn on Antilegionella by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_antilegionella(True)
-        if success:
-            await self.coordinator.async_request_refresh()
-
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn off Antilegionella by calling the parent's method."""
-        success = await self._parent_coordinator.async_set_antilegionella(False)
-        if success:
-            await self.coordinator.async_request_refresh()
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the switch off."""
+        try:
+            success = await self._turn_off(self.coordinator)
+            if success:
+                # Only refresh if the API call was successful
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to turn off %s via Kronoterm API", self.name)
+        except Exception as err:
+            _LOGGER.error("Error turning off %s: %s", self.name, err)

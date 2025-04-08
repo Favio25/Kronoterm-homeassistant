@@ -1,4 +1,6 @@
 import logging
+from typing import Dict, List, Optional, Union, Any, cast
+
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     ClimateEntityFeature,
@@ -12,61 +14,68 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    # DHW Modbus addresses
+    DHW_CURRENT_TEMP_ADDR,
+    DHW_DESIRED_TEMP_ADDR,
+    # Loop 1 Modbus addresses
+    LOOP1_CURRENT_BASIC_ADDR,
+    LOOP1_CURRENT_THERM_ADDR,
+    LOOP1_DESIRED_TEMP_ADDR,
+    LOOP1_THERMOSTAT_FLAG_ADDR,
+    # Loop 2 Modbus addresses
+    LOOP2_CURRENT_BASIC_ADDR,
+    LOOP2_CURRENT_THERM_ADDR,
+    LOOP2_DESIRED_TEMP_ADDR,
+    LOOP2_THERMOSTAT_FLAG_ADDR,
+    # Reservoir address
+    RESERVOIR_TEMP_ADDR,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-# -----------------------------
-# Modbus addresses for climates
-# -----------------------------
-# DHW
-DHW_CURRENT_TEMP_ADDR = 2102      # "DHW Temperature"
-DHW_DESIRED_TEMP_ADDR = 2023      # "Desired DHW Temperature"
 
-# Loop 1
-LOOP1_CURRENT_BASIC_ADDR = 2130   # "Loop 1 Temperature" (no thermostat)
-LOOP1_CURRENT_THERM_ADDR = 2160   # "Loop 1 Thermostat Temperature" (thermostat installed)
-LOOP1_DESIRED_TEMP_ADDR = 2187    # "Desired Loop 1 Temperature"
-LOOP1_THERMOSTAT_FLAG_ADDR = 2192 # If !=0 => thermostat installed
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback
+) -> bool:
+    """Set up Kronoterm climate entities from config entry."""
+    data = hass.data.get(DOMAIN)
+    if not data:
+        _LOGGER.error("No data found in hass.data for domain %s", DOMAIN)
+        return False
 
-# Loop 2
-LOOP2_CURRENT_BASIC_ADDR = 2110   # "Loop 2 Temperature"
-LOOP2_CURRENT_THERM_ADDR = 2161   # "Loop 2 Thermostat Temperature"
-LOOP2_DESIRED_TEMP_ADDR = 2049    # "Desired Loop 2 Temperature"
-LOOP2_THERMOSTAT_FLAG_ADDR = 2193 # If !=0 => thermostat installed
+    coordinator = data.get("coordinator")
+    if not coordinator:
+        _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
+        return False
 
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
-    parent_coordinator = hass.data[DOMAIN]["coordinator"]
-    main_coordinator = parent_coordinator.main_coordinator
-
+    # Create the climate entities
     entities = [
-        KronotermDHWClimate(entry, parent_coordinator, main_coordinator),
-        KronotermLoop1Climate(entry, parent_coordinator, main_coordinator),
-        KronotermLoop2Climate(entry, parent_coordinator, main_coordinator),
+        KronotermDHWClimate(entry, coordinator),
+        KronotermLoop1Climate(entry, coordinator),
+        KronotermLoop2Climate(entry, coordinator),
     ]
-    
-    # Only add the reservoir climate entity if the reservoir is installed.
-    if getattr(parent_coordinator, "reservoir_installed", False):
-        entities.append(KronotermReservoirClimate(entry, parent_coordinator, main_coordinator))
+
+    # Optionally add reservoir climate if installed
+    if getattr(coordinator, "reservoir_installed", False):
+        entities.append(KronotermReservoirClimate(entry, coordinator))
+        _LOGGER.info("Reservoir climate entity added")
     else:
-        _LOGGER.info("Reservoir not installed, skipping Reservoir Climate Entity.")
-    
+        _LOGGER.info("Reservoir not installed, skipping Reservoir Climate Entity")
+
     async_add_entities(entities)
     return True
 
 
-
 class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
-    """
-    Base class for Kronoterm Climate Entities that reads directly from ModbusReg.
-    Subclasses provide the addresses for current/desired temps (and dynamic logic if needed).
-    """
+    """Base class for Kronoterm Climate Entities."""
 
     def __init__(
         self,
         entry: ConfigEntry,
-        parent_coordinator,
         coordinator: DataUpdateCoordinator,
         name: str,
         unique_id_suffix: str,
@@ -74,13 +83,20 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
         max_temp: float,
         page: int,
     ) -> None:
-        """Initialize the climate entity."""
+        """Initialize the climate entity.
+        
+        Args:
+            entry: The config entry
+            coordinator: The data update coordinator
+            name: The entity name
+            unique_id_suffix: Suffix for the entity unique ID
+            min_temp: Minimum allowed temperature
+            max_temp: Maximum allowed temperature
+            page: The Kronoterm "page" for temperature updates
+        """
         super().__init__(coordinator)
 
-        self._parent_coordinator = parent_coordinator
-        self._page = page  # The Kronoterm "page" for temperature updates
-
-        # Basic climate entity properties
+        self._page = page
         self._attr_name = name
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
@@ -91,101 +107,118 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
         self._attr_precision = 0.1
         self._attr_target_temperature_step = 0.1
 
-        # Attach the same device info as other Kronoterm entities
-        self._attr_device_info = parent_coordinator.shared_device_info
+        # Shared device info from coordinator
+        self._attr_device_info = coordinator.shared_device_info
 
-        # Addresses for current & desired temps (set by child classes)
-        self._current_temp_address: int | None = None
-        self._desired_temp_address: int | None = None
+        # Will be set by subclasses
+        self._current_temp_address: Optional[int] = None
+        self._desired_temp_address: Optional[int] = None
 
     @property
     def temperature_unit(self) -> str:
-        """Return the system's configured temperature unit (°C or °F)."""
+        """Return the unit of measurement."""
         return self.hass.config.units.temperature_unit
 
     @property
-    def current_temperature(self) -> float | None:
-        """Return the current temperature by reading directly from ModbusReg."""
+    def current_temperature(self) -> Optional[float]:
+        """Return the current temperature."""
         return self._read_modbus_temp(self._current_temp_address)
 
     @property
-    def target_temperature(self) -> float | None:
-        """Return the target (desired) temperature by reading from ModbusReg."""
+    def target_temperature(self) -> Optional[float]:
+        """Return the target temperature."""
         return self._read_modbus_temp(self._desired_temp_address)
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """We only support heating in this example."""
+        """Return hvac operation mode."""
         return HVACMode.HEAT
 
-    def _read_modbus_temp(self, address: int | None) -> float | None:
-        """Fetch a numeric temperature from the coordinator data at the given modbus address."""
+    def _read_modbus_temp(self, address: Optional[int]) -> Optional[float]:
+        """
+        Read a temperature value from modbus registers.
+        
+        Args:
+            address: The modbus address to read from
+            
+        Returns:
+            The temperature value as a float, or None if not available
+        """
         if not address:
             return None
-        modbus_data = self.coordinator.data.get("ModbusReg", [])
-        reg = next((r for r in modbus_data if r["address"] == address), None)
-        if not reg:
-            return None
-
-        raw_value = reg.get("value")
-        if not raw_value or raw_value in ("unknown", "unavailable"):
-            return None
-
-        # Sometimes the value might be a string like "45.0 °C"
-        if isinstance(raw_value, str):
-            raw_value = raw_value.replace("°C", "").strip()
 
         try:
+            data = self.coordinator.data or {}
+            main_data = data.get("main", {})
+            if not main_data:
+                _LOGGER.debug("%s: No main data available", self.name)
+                return None
+                
+            modbus_list = main_data.get("ModbusReg", [])
+            if not modbus_list:
+                _LOGGER.debug("%s: No ModbusReg data available", self.name)
+                return None
+
+            reg = next((r for r in modbus_list if r.get("address") == address), None)
+            if not reg:
+                _LOGGER.debug("%s: Register %d not found", self.name, address)
+                return None
+
+            raw_value = reg.get("value")
+            if not raw_value or raw_value in ("unknown", "unavailable"):
+                return None
+
+            if isinstance(raw_value, str):
+                raw_value = raw_value.replace("°C", "").strip()
+
             return float(raw_value)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            _LOGGER.warning("%s: Error reading modbus value at %d: %s", self.name, address, e)
+            return None
+        except Exception as e:
+            _LOGGER.error("%s: Unexpected error reading modbus value: %s", self.name, e)
             return None
 
     async def async_set_temperature(self, **kwargs) -> None:
         """
-        Handle setting a new target temperature by calling the Kronoterm API.
-        If successful, request a refresh from the coordinator.
+        Set a new target temperature for this climate entity.
+        
+        Args:
+            **kwargs: Keyword arguments from HA climate service call.
+                     Contains 'temperature' key with the new target value.
         """
         new_temp = kwargs.get("temperature")
         if new_temp is None:
-            _LOGGER.error("No temperature value provided for %s.", self._attr_name)
+            _LOGGER.error("%s: No temperature value provided", self.name)
+            return
+
+        # Validate temperature range
+        if new_temp < self._attr_min_temp or new_temp > self._attr_max_temp:
+            _LOGGER.error(
+                "%s: Temperature %.1f°C out of range (%.1f-%.1f)",
+                self.name, new_temp, self._attr_min_temp, self._attr_max_temp
+            )
             return
 
         new_temp_rounded = round(new_temp, 1)
-        _LOGGER.info(
-            "🔄 Setting %s temperature to %s°C (Page: %s)",
-            self._attr_name,
-            new_temp_rounded,
-            self._page,
-        )
+        _LOGGER.info("%s: Setting temperature to %.1f°C (page=%d)", 
+                    self.name, new_temp_rounded, self._page)
 
-        success = await self._parent_coordinator.async_set_temperature(
-            self._page,
-            new_temp_rounded
-        )
+        success = await self.coordinator.async_set_temperature(self._page, new_temp_rounded)
         if success:
-            _LOGGER.info(
-                "✅ Successfully updated %s temperature to %s°C.",
-                self._attr_name,
-                new_temp_rounded,
-            )
-            # Force a data refresh to show updated values quickly
-            await self.coordinator.async_request_refresh()
+            _LOGGER.info("%s: Successfully updated temperature to %.1f°C", 
+                        self.name, new_temp_rounded)
         else:
-            _LOGGER.error("❌ Failed to update %s temperature in Kronoterm API.", self._attr_name)
+            _LOGGER.error("%s: Failed to update temperature", self.name)
 
 
 class KronotermDHWClimate(KronotermBaseClimate):
-    """
-    Climate entity for DHW (domestic hot water), reading from Modbus directly:
-      - current = address 2102
-      - desired = address 2023
-      - page = 9
-    """
-
-    def __init__(self, entry, parent_coordinator, coordinator):
+    """Climate entity for domestic hot water (DHW)."""
+    
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        """Initialize the DHW climate entity."""
         super().__init__(
             entry=entry,
-            parent_coordinator=parent_coordinator,
             coordinator=coordinator,
             name="DHW Temperature",
             unique_id_suffix="dhw_climate",
@@ -197,143 +230,155 @@ class KronotermDHWClimate(KronotermBaseClimate):
         self._desired_temp_address = DHW_DESIRED_TEMP_ADDR
 
 
-class KronotermLoop1Climate(KronotermBaseClimate):
-    """
-    Climate entity for Loop 1, choosing between:
-      - Loop 1 Temperature (address 2130) if thermostat is NOT installed (Modbus 2192 == 0)
-      - Loop 1 Thermostat Temperature (address 2160) if thermostat is installed (Modbus 2192 != 0)
-    Desired temperature = address 2187, page=5
-    """
-
-    def __init__(self, entry, parent_coordinator, coordinator):
+class KronotermLoopClimate(KronotermBaseClimate):
+    """Base class for heating loop climate entities with switchable address."""
+    
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        name: str,
+        unique_id_suffix: str,
+        page: int,
+        basic_addr: int,
+        therm_addr: int,
+        desired_addr: int,
+        flag_addr: int,
+        use_scaling: bool = False
+    ) -> None:
+        """Initialize loop climate entity.
+        
+        Args:
+            entry: Config entry
+            coordinator: Data coordinator
+            name: Entity name
+            unique_id_suffix: Unique ID suffix
+            page: Control page number
+            basic_addr: Address for basic temperature reading
+            therm_addr: Address for thermostat temperature reading
+            desired_addr: Address for desired temperature
+            flag_addr: Address for thermostat mode flag
+            use_scaling: Whether to apply scaling to the basic temperature
+        """
         super().__init__(
             entry=entry,
-            parent_coordinator=parent_coordinator,
+            coordinator=coordinator,
+            name=name,
+            unique_id_suffix=unique_id_suffix,
+            min_temp=10,
+            max_temp=90,
+            page=page,
+        )
+        self._basic_addr = basic_addr
+        self._therm_addr = therm_addr
+        self._flag_addr = flag_addr
+        self._desired_temp_address = desired_addr
+        self._current_temp_address = basic_addr  # Default
+        self._use_scaling = use_scaling
+        
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+        await self.coordinator.async_request_refresh()
+        self._handle_coordinator_update()
+
+    @property
+    def current_temperature(self) -> Optional[float]:
+        """Return current temperature with scaling if necessary."""
+        raw_temp = self._read_modbus_temp(self._current_temp_address)
+        if raw_temp is not None and self._use_scaling and self._current_temp_address == self._basic_addr:
+            return round(raw_temp * 0.1, 1)
+        return raw_temp
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        try:
+            data = self.coordinator.data or {}
+            main_data = data.get("main", {})
+            if not main_data:
+                _LOGGER.debug("%s: No main data for address selection", self.name)
+                super()._handle_coordinator_update()
+                return
+                
+            modbus_list = main_data.get("ModbusReg", [])
+            if not modbus_list:
+                _LOGGER.debug("%s: No ModbusReg data for address selection", self.name)
+                super()._handle_coordinator_update()
+                return
+
+            # Find the flag register value
+            flag_reg = next((r for r in modbus_list if r.get("address") == self._flag_addr), None)
+            
+            # Default to basic address
+            new_address = self._basic_addr
+            
+            # If flag is set, use thermostat address
+            if flag_reg and flag_reg.get("value", 0) != 0:
+                new_address = self._therm_addr
+
+            # If address changed, update and notify
+            if self._current_temp_address != new_address:
+                _LOGGER.info("%s: switching current temp address to %s", self.name, new_address)
+                self._current_temp_address = new_address
+                self.async_write_ha_state()
+        except Exception as e:
+            _LOGGER.error("%s: Error updating temperature address: %s", self.name, e)
+            
+        super()._handle_coordinator_update()
+
+
+class KronotermLoop1Climate(KronotermLoopClimate):
+    """Climate entity for heating Loop 1."""
+    
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        """Initialize Loop 1 climate entity."""
+        super().__init__(
+            entry=entry,
             coordinator=coordinator,
             name="Loop 1 Temperature",
             unique_id_suffix="loop1_climate",
-            min_temp=10,
-            max_temp=90,
             page=5,
+            basic_addr=LOOP1_CURRENT_BASIC_ADDR,
+            therm_addr=LOOP1_CURRENT_THERM_ADDR,
+            desired_addr=LOOP1_DESIRED_TEMP_ADDR,
+            flag_addr=LOOP1_THERMOSTAT_FLAG_ADDR,
+            use_scaling=True
         )
-        # Desired always the same address
-        self._desired_temp_address = LOOP1_DESIRED_TEMP_ADDR
 
-    async def async_added_to_hass(self) -> None:
-        """Once added, determine the correct current temp address."""
-        await super().async_added_to_hass()
-        self._handle_coordinator_update()
-        await self.coordinator.async_request_refresh()
+
+class KronotermLoop2Climate(KronotermLoopClimate):
+    """Climate entity for heating Loop 2."""
     
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the scaled current temperature for Loop 1."""
-        raw_temp = self._read_modbus_temp(self._current_temp_address)
-        if raw_temp is not None:
-            return round(raw_temp * 0.1, 1)
-        return None
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Choose which address to use for current temperature based on register 2192."""
-        data = self.coordinator.data
-        if not data:
-            # No data yet; default to basic sensor
-            if not self._current_temp_address:
-                self._current_temp_address = LOOP1_CURRENT_BASIC_ADDR
-            return
-
-        modbus_data = data.get("ModbusReg", [])
-        reg_2192 = next((r for r in modbus_data if r["address"] == LOOP1_THERMOSTAT_FLAG_ADDR), None)
-
-        new_address = LOOP1_CURRENT_BASIC_ADDR
-        if reg_2192 and reg_2192.get("value", 0) != 0:
-            new_address = LOOP1_CURRENT_THERM_ADDR
-
-        if self._current_temp_address != new_address:
-            _LOGGER.info(
-                "Loop 1 climate: switching current temp address to %s",
-                new_address
-            )
-            self._current_temp_address = new_address
-            self.async_write_ha_state()
-
-        # Call parent last
-        super()._handle_coordinator_update()
-
-
-class KronotermLoop2Climate(KronotermBaseClimate):
-    """
-    Climate entity for Loop 2, choosing between:
-      - Loop 2 Temperature (address 2110) if thermostat is NOT installed (Modbus 2193 == 0)
-      - Loop 2 Thermostat Temperature (address 2161) if thermostat is installed (Modbus 2193 != 0)
-    Desired temperature = address 2049, page=6
-    """
-
-    def __init__(self, entry, parent_coordinator, coordinator):
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        """Initialize Loop 2 climate entity."""
         super().__init__(
             entry=entry,
-            parent_coordinator=parent_coordinator,
             coordinator=coordinator,
             name="Loop 2 Temperature",
             unique_id_suffix="loop2_climate",
-            min_temp=10,
-            max_temp=90,
             page=6,
+            basic_addr=LOOP2_CURRENT_BASIC_ADDR,
+            therm_addr=LOOP2_CURRENT_THERM_ADDR,
+            desired_addr=LOOP2_DESIRED_TEMP_ADDR,
+            flag_addr=LOOP2_THERMOSTAT_FLAG_ADDR,
+            use_scaling=False
         )
-        # Desired always the same address
-        self._desired_temp_address = LOOP2_DESIRED_TEMP_ADDR
 
-    async def async_added_to_hass(self) -> None:
-        """Initialize sensor choice once entity is added to HA."""
-        await super().async_added_to_hass()
-        await self.coordinator.async_request_refresh()
-        self._handle_coordinator_update()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Check address 2193 in Modbus to decide which current temp address to use."""
-        data = self.coordinator.data
-        if not data:
-            if not self._current_temp_address:
-                self._current_temp_address = LOOP2_CURRENT_BASIC_ADDR
-            return
-
-        modbus_data = data.get("ModbusReg", [])
-        reg_2193 = next((r for r in modbus_data if r["address"] == LOOP2_THERMOSTAT_FLAG_ADDR), None)
-
-        new_address = LOOP2_CURRENT_BASIC_ADDR
-        if reg_2193 and reg_2193.get("value", 0) != 0:
-            new_address = LOOP2_CURRENT_THERM_ADDR
-
-        if self._current_temp_address != new_address:
-            _LOGGER.info(
-                "Loop 2 climate: switching current temp address to %s",
-                new_address
-            )
-            self._current_temp_address = new_address
-            self.async_write_ha_state()
-
-        super()._handle_coordinator_update()
 
 class KronotermReservoirClimate(KronotermBaseClimate):
-    """
-    Climate entity for controlling the Reservoir Temperature.
-    Uses Modbus register 2101 for both current and desired temperatures.
-    Sends control commands using page 4.
-    """
-    def __init__(self, entry, parent_coordinator, coordinator):
+    """Climate entity for reservoir temperature."""
+    
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        """Initialize reservoir climate entity."""
         super().__init__(
             entry=entry,
-            parent_coordinator=parent_coordinator,
             coordinator=coordinator,
             name="Reservoir Temperature",
             unique_id_suffix="reservoir_climate",
-            min_temp=10,  # Adjust as needed
+            min_temp=10,
             max_temp=90,
-            page=4,       # This tells the coordinator to use the reservoir control query
+            page=4,
         )
-        self._current_temp_address = 2101
-        self._desired_temp_address = 2101
-
-
+        self._current_temp_address = RESERVOIR_TEMP_ADDR
+        self._desired_temp_address = RESERVOIR_TEMP_ADDR
