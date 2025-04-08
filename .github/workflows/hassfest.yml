@@ -17,4 +17,9 @@ on:
 jobs:
   hassfest:
     name: Hassfest validation
-    uses: home-assistant/actions/hassfest@master
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Hassfest
+        uses: home-assistant/actions/hassfest@master
