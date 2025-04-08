@@ -1,25 +1,14 @@
-name: Validate with Hassfest
+name: Validate with hassfest
 
 on:
   push:
-    paths:
-      - "custom_components/**"
-      - ".github/workflows/**"
-      - "requirements.txt"
-      - "manifest.json"
   pull_request:
-    paths:
-      - "custom_components/**"
-      - ".github/workflows/**"
-      - "requirements.txt"
-      - "manifest.json"
+  schedule:
+    - cron:  '0 0 * * *'
 
 jobs:
-  hassfest:
-    name: Hassfest validation
-    runs-on: ubuntu-latest
+  validate:
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Hassfest
-        uses: home-assistant/actions/hassfest@master
+        - uses: "actions/checkout@v4"
+        - uses: "home-assistant/actions/hassfest@master"
