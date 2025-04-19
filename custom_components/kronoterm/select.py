@@ -11,9 +11,11 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def extract_modbus_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Extract the list of Modbus registers from the coordinator data."""
     return data.get("main", {}).get("ModbusReg", [])
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -29,6 +31,7 @@ async def async_setup_entry(
     modbus_list = extract_modbus_list(coordinator.data or {})
 
     # Define the configuration for each select entity.
+    # The 'name' will be converted to a translation key.
     entity_configs = [
         {"name": "Loop 1 Operation", "address": 2042, "page": 5},
         {"name": "Loop 2 Operation", "address": 2052, "page": 6},
@@ -87,7 +90,10 @@ class KronotermModeSelect(CoordinatorEntity, SelectEntity):
         self._address = address
         self._page = page
 
-        self._attr_name = name
+        # Enable entity naming via translation keys.
+        # Convert the given name to a translation key (e.g. "Loop 1 Operation" -> "loop_1_operation").
+        self._attr_has_entity_name = True
+        self._attr_translation_key = name.lower().replace(" ", "_")
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{address}_mode"
         self._attr_device_info = coordinator.shared_device_info
 
@@ -121,4 +127,4 @@ class KronotermModeSelect(CoordinatorEntity, SelectEntity):
         if success:
             await self.coordinator.async_request_refresh()
         else:
-            _LOGGER.error("Failed to set mode for %s", self._attr_name)
+            _LOGGER.error("Failed to set mode for %s", self._attr_translation_key)

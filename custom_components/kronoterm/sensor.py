@@ -55,9 +55,12 @@ class KronotermModbusBase(CoordinatorEntity):
     ) -> None:
         super().__init__(coordinator)
         self._address: int = address
-        self._name: str = name
+        self._name_key: str = name  # Store as translation key
         self._device_info: Dict[str, Any] = device_info
         self._unique_id: Optional[str] = None
+        self._attr_has_entity_name = True
+        self._attr_translation_key = name  # Set translation key directly
+        self._attr_entity_id = f"{DOMAIN}.{name}"
 
     @property
     def modbus_data(self) -> List[Dict[str, Any]]:
@@ -92,7 +95,7 @@ class KronotermModbusBase(CoordinatorEntity):
             _LOGGER.debug(
                 "Error processing value for address %s (%s): %s",
                 self._address,
-                self._name,
+                self._name_key,
                 ex,
             )
             return None
@@ -115,12 +118,6 @@ class KronotermModbusBase(CoordinatorEntity):
     def device_info(self) -> Dict[str, Any]:
         """Return the device info shared by Kronoterm entities."""
         return self._device_info
-
-    @property
-    def name(self) -> str:
-        """Entity name."""
-        return self._name
-
 
 class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
     """
@@ -213,7 +210,7 @@ class KronotermBinarySensor(KronotermModbusBase, BinarySensorEntity):
             _LOGGER.error(
                 "Error processing binary sensor value for address %s (%s): %s",
                 self._address,
-                self._name,
+                self._name_key,
                 ex,
             )
         return False
@@ -237,6 +234,14 @@ class KronotermEnumSensor(KronotermModbusBase, SensorEntity):
         self._options: Dict[Any, str] = options
         self._icon: Optional[str] = icon
         self._unique_id = f"{DOMAIN}_enum_{address}"
+        # Add this line to set the device class to ENUM
+        self._attr_device_class = SensorDeviceClass.ENUM
+        
+        # Define the mapping from raw values to translation keys
+        self._value_to_option = {k: v for k, v in options.items()}
+        
+        # The options property must return the translation keys
+        self._attr_options = list(self._value_to_option.values())
 
     @property
     def unique_id(self) -> str:
@@ -246,14 +251,14 @@ class KronotermEnumSensor(KronotermModbusBase, SensorEntity):
     def icon(self) -> Optional[str]:
         return self._icon
 
-    def _process_value(self, raw_value: Any) -> Optional[str]:
-        """Return the mapped label if present, else None."""
-        return self._options.get(raw_value)
-
     @property
     def native_value(self) -> Optional[str]:
-        """Return the final label, or None if not found."""
-        return self._compute_value()
+        """Return the translation key that corresponds to the raw value"""
+        raw_value = self._get_modbus_value()
+        if raw_value is not None and raw_value in self._value_to_option:
+            # Convert the numeric value to the translation key
+            return self._value_to_option[raw_value]
+        return None
 
 
 async def async_setup_entry(
@@ -348,7 +353,7 @@ async def async_setup_entry(
                     KronotermModbusRegSensor(
                         coordinator=coordinator,
                         address=POOL_TEMP_ADDRESS,
-                        name="Pool Temperature",
+                        name="pool_temperature",  # Use translation key
                         unit="°C",
                         device_info=device_info,
                         icon="mdi:pool",
@@ -367,7 +372,7 @@ async def async_setup_entry(
                     KronotermModbusRegSensor(
                         coordinator=coordinator,
                         address=ALT_SOURCE_TEMP_ADDRESS,
-                        name="Alternative Source Temperature",
+                        name="alternative_source_temperature",  # Use translation key
                         unit="°C",
                         device_info=device_info,
                         icon="mdi:fire",
@@ -382,7 +387,7 @@ async def async_setup_entry(
                 KronotermModbusRegSensor(
                     coordinator=coordinator,
                     address=COMPRESSOR_ACTIVATIONS_COOLING,
-                    name="Compressor Activations - Cooling",
+                    name="compressor_activations_cooling",  # Use translation key
                     unit="",
                     device_info=device_info,
                     icon="mdi:counter",
@@ -400,7 +405,7 @@ async def async_setup_entry(
                     KronotermModbusRegSensor(
                         coordinator=coordinator,
                         address=HEATING_SOURCE_PRESSURE_SET,
-                        name="Pressure Setting Heating Source",
+                        name="pressure_setting_heating_source",  # Use translation key
                         unit="bar",
                         device_info=device_info,
                         icon="mdi:gauge",
@@ -412,7 +417,7 @@ async def async_setup_entry(
                         KronotermModbusRegSensor(
                             coordinator=coordinator,
                             address=SOURCE_PRESSURE,
-                            name="Source Pressure",
+                            name="source_pressure",  # Use translation key
                             unit="bar",
                             device_info=device_info,
                             icon="mdi:gauge",
@@ -423,31 +428,31 @@ async def async_setup_entry(
     daily_energy_sensors = [
         KronotermDailyEnergySensor(
             coordinator=coordinator,
-            name="Heating Energy",
+            name="energy_heating",  # Use translation key
             device_info=device_info,
             data_key="CompHeating",
         ),
         KronotermDailyEnergySensor(
             coordinator=coordinator,
-            name="DHW Energy",
+            name="energy_dhw",  # Use translation key 
             device_info=device_info,
             data_key="CompTapWater",
         ),
         KronotermDailyEnergySensor(
             coordinator=coordinator,
-            name="Pump Energy",
+            name="energy_circulation",  # Use translation key
             device_info=device_info,
             data_key="CPLoops",
         ),
         KronotermDailyEnergySensor(
             coordinator=coordinator,
-            name="Heater Energy",
+            name="energy_heater",  # Use translation key
             device_info=device_info,
             data_key="CPAddSource",
         ),
         KronotermDailyEnergyCombinedSensor(
             coordinator=coordinator,
-            name="Combined Energy",
+            name="energy_combined",  # Use translation key
             device_info=device_info,
             data_keys=["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"],
         ),

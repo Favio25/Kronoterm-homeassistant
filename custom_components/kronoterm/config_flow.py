@@ -6,18 +6,11 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_SCAN_INTERVAL = 5
 SENSITIVE_KEYS = ["username", "password"]
 
 def sanitize_user_input(user_input: dict) -> dict:
     """
     Sanitizes user input by redacting sensitive information for logging purposes.
-
-    Args:
-        user_input (dict): The original user input dictionary.
-    
-    Returns:
-        dict: A new dictionary with sensitive keys redacted.
     """
     return {
         key: ("[REDACTED]" if key in SENSITIVE_KEYS else value)
@@ -27,9 +20,6 @@ def sanitize_user_input(user_input: dict) -> dict:
 class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """
     Handles the configuration flow for the Kronoterm integration.
-
-    Manages the user interactions required to set up and configure
-    the Kronoterm Heat Pump within Home Assistant.
     """
     VERSION = 1
 
@@ -37,19 +27,14 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by the user."""
         _LOGGER.debug("Starting user step in KronotermConfigFlow")
         if user_input is not None:
-            # Log sanitized input for debugging without exposing sensitive data.
             sanitized_input = sanitize_user_input(user_input)
             _LOGGER.debug("User input received: %s", sanitized_input)
             return self.async_create_entry(title="Kronoterm Heat Pump", data=user_input)
 
-        # Define the configuration schema.
-        user_schema = vol.Schema(
-            {
-                vol.Required("username"): str,
-                vol.Required("password"): str,
-                vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
-            }
-        )
+        user_schema = vol.Schema({
+            vol.Required("username"): str,
+            vol.Required("password"): str,
+        })
         return self.async_show_form(step_id="user", data_schema=user_schema)
 
     @staticmethod
@@ -63,9 +48,6 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
     """
     Handles the options flow for the Kronoterm integration.
-
-    Allows users to modify configuration options after the initial setup
-    of the Kronoterm Heat Pump integration.
     """
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize the options flow handler."""
@@ -79,13 +61,5 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
             _LOGGER.debug("User input received in options flow: %s", sanitize_user_input(user_input))
             return self.async_create_entry(title="", data=user_input)
 
-        # Define the options schema.
-        options_schema = vol.Schema(
-            {
-                vol.Optional(
-                    "scan_interval",
-                    default=self.config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL),
-                ): vol.All(int, vol.Range(min=1, max=60)),
-            }
-        )
+        options_schema = vol.Schema({})
         return self.async_show_form(step_id="init", data_schema=options_schema)

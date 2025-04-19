@@ -1,7 +1,5 @@
 import logging
 from typing import Any, Dict, List, Optional
-from datetime import datetime
-
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from .const import DOMAIN
@@ -17,12 +15,13 @@ def _get_daily_energy(trend: Dict[str, List[float]], key: str) -> float:
     if not arr:
         return 0.0
     
-    # The last entry is the current day's accumulating value
+    # The last entry is the current day's accumulated value.
     return arr[-1]
 
 class KronotermDailyEnergySensor(CoordinatorEntity, SensorEntity):
     """
-    Sensor that returns the current day's energy usage for a single consumption key.
+    Sensor that returns the current day's energy usage for a single consumption key,
+    showing the accumulated value as provided by the API.
     """
     def __init__(
         self,
@@ -32,7 +31,8 @@ class KronotermDailyEnergySensor(CoordinatorEntity, SensorEntity):
         data_key: str,
     ) -> None:
         super().__init__(coordinator)
-        self._attr_name = name
+        self._attr_has_entity_name = True
+        self._attr_translation_key = name
         self._attr_unique_id = f"{DOMAIN}_daily_{data_key}"
         self._device_info = device_info
         self._data_key = data_key
@@ -54,7 +54,8 @@ class KronotermDailyEnergySensor(CoordinatorEntity, SensorEntity):
 
 class KronotermDailyEnergyCombinedSensor(CoordinatorEntity, SensorEntity):
     """
-    Sensor that sums the current day's energy usage from multiple consumption keys.
+    Sensor that sums the current day's energy usage from multiple consumption keys,
+    showing the accumulated combined value.
     """
     def __init__(
         self,
@@ -64,7 +65,8 @@ class KronotermDailyEnergyCombinedSensor(CoordinatorEntity, SensorEntity):
         data_keys: List[str],
     ) -> None:
         super().__init__(coordinator)
-        self._attr_name = name
+        self._attr_has_entity_name = True
+        self._attr_translation_key = name
         joined_keys = "_".join(data_keys)
         self._attr_unique_id = f"{DOMAIN}_daily_combined_{joined_keys}"
         self._device_info = device_info
@@ -72,7 +74,7 @@ class KronotermDailyEnergyCombinedSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_native_unit_of_measurement = "kWh"
         self._attr_icon = "mdi:counter"
-        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_state_class = SensorStateClass.TOTAL
 
     @property
     def device_info(self) -> Dict[str, Any]:

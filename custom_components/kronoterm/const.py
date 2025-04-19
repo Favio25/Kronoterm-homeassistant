@@ -8,8 +8,8 @@ MAX_RETRY_ATTEMPTS = 3
 RETRY_DELAY_BASE = 2       # seconds (will be raised to power of attempt number)
 
 # DHW Modbus addresses
-DHW_CURRENT_TEMP_ADDR = 2102      # "DHW Temperature"
-DHW_DESIRED_TEMP_ADDR = 2023      # "Desired DHW Temperature"
+DHW_CURRENT_TEMP_ADDR = 2102      # translation key: sensor.dhw_temperature.name
+DHW_DESIRED_TEMP_ADDR = 2023       # translation key: sensor.desired_dhw_temperature.name
 
 # Loop 1 Modbus addresses
 LOOP1_CURRENT_BASIC_ADDR = 2130
@@ -30,74 +30,88 @@ RESERVOIR_TEMP_ADDR = 2101
 API_QUERIES = {
     "main": {"TopPage": "5", "Subpage": "3"},
     "info": {"TopPage": "1", "Subpage": "1"},
-    "dhw": {"TopPage": "1", "Subpage": "9", "Action": "1"},
-    "loop1": {"TopPage": "1", "Subpage": "5", "Action": "1"},
-    "loop2": {"TopPage": "1", "Subpage": "6", "Action": "1"},
+    "shortcuts": {"TopPage": "1", "Subpage": "3"},
     "switch": {"TopPage": "1", "Subpage": "3", "Action": "1"},
     "reservoir": {"TopPage": "1", "Subpage": "4", "Action": "1"},
-    "shortcuts": {"TopPage": "1", "Subpage": "3"},
+    "loop1": {"TopPage": "1", "Subpage": "5", "Action": "1"},
+    "loop2": {"TopPage": "1", "Subpage": "6", "Action": "1"},
+    "dhw": {"TopPage": "1", "Subpage": "9", "Action": "1"},
 }
 
+# Sensor definitions
+# Each sensor tuple now includes:
+#   (Modbus address, translation key for name, unit, mdi-icon, scaling factor)
 SENSOR_DEFINITIONS = [
-    (2023, "Desired DHW Temperature", "°C", "mdi:water-boiler", 1),
-    (2049, "Desired Loop 2 Temperature", "°C", "mdi:thermometer", 1),
-    (2090, "Operating Hours Compressor Heating", "h", "mdi:timer-outline", 1),
-    (2091, "Operating Hours Compressor DHW", "h", "mdi:timer-outline", 1),
-    (2095, "Operating Hours Additional Source 1", "h", "mdi:timer-outline", 1),
-    (2101, "Reservoir Temperature", "°C", "mdi:thermometer", 1),
-    (2102, "DHW Temperature", "°C", "mdi:water-boiler", 1),
-    (2103, "Outside Temperature", "°C", "mdi:weather-sunny", 1),
-    (2104, "HP Outlet Temperature", "°C", "mdi:thermometer", 1),
-    (2105, "Compressor Inlet Temperature", "°C", "mdi:thermometer", 1),
-    (2106, "Compressor Outlet Temperature", "°C", "mdi:thermometer", 1),
-    (2187, "Desired Loop 1 Temperature", "°C", "mdi:thermometer", 1),
-    (2130, "Loop 1 Temperature", "°C", "mdi:thermometer", 0.1),
-    (2110, "Loop 2 Temperature", "°C", "mdi:thermometer", 1),
-    (2160, "Loop 1 Thermostat Temperature", "°C", "mdi:thermostat", 1),
-    (2161, "Loop 2 Thermostat Temperature", "°C", "mdi:thermostat", 1),
-    (2325, "Pressure Setting", "bar", "mdi:gauge", 1),
-    (2326, "Heating System Pressure", "bar", "mdi:gauge", 1),
-    (2327, "HP Load", "%", "mdi:engine", 1),
-    (2329, "Current Heating/Cooling Capacity", "W", "mdi:lightning-bolt", 1),
-    (2371, "COP Value", "", "mdi:chart-line", 0.01),
-    (2372, "SCOP Value", "", "mdi:chart-line", 0.01),
-    (2155, "Compressor Activations - Heating (24 h)", "", "mdi:counter", 1),
-    (2157, "Boiler Activations (24 h)", "", "mdi:counter", 1),
-    (2158, "Defrost Activations (24 h)", "", "mdi:snowflake-melt", 1),
-    (2362, "Electrical Energy Heating + DHW", "kWh", "mdi:meter-electric", 1),
-    (2364, "Heating Energy Heating + DHW", "kWh", "mdi:heat-wave", 1),
+    #(2023, "Desired DHW Temperature", "°C", "mdi:water-boiler", 1),
+    # (2049, "Desired Loop 2 Temperature", "°C", "mdi:thermometer", 1),
+    (2090, "operating_hours_compressor_heating", "h", "mdi:timer-outline", 1),
+    (2091, "operating_hours_compressor_dhw", "h", "mdi:timer-outline", 1),
+    (2095, "operating_hours_additional_source_1", "h", "mdi:timer-outline", 1),
+    #(2101, "Reservoir Temperature", "°C", "mdi:thermometer", 1),
+    #(2102, "DHW Temperature", "°C", "mdi:water-boiler", 1),
+    (2103, "temperature_outside", "°C", "mdi:weather-sunny", 1),
+    #(2104, "Temperature HP Outlet ", "°C", "mdi:thermometer", 1),
+    (2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 1),
+    (2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 1),
+    #(2187, "Desired Loop 1 Temperature", "°C", "mdi:thermometer", 1),
+    #(2130, "Loop 1 Temperature", "°C", "mdi:thermometer", 0.1),
+    #(2110, "Loop 2 Temperature", "°C", "mdi:thermometer", 1),
+    #(2160, "Loop 1 Thermostat Temperature", "°C", "mdi:thermostat", 1),
+    #(2161, "Loop 2 Thermostat Temperature", "°C", "mdi:thermostat", 1),
+    (2325, "pressure_setting", "bar", "mdi:gauge", 1),
+    (2326, "heating_system_pressure", "bar", "mdi:gauge", 1),
+    (2327, "hp_load", "%", "mdi:engine", 1),
+    (2329, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1),
+    (2371, "cop_value", "", "mdi:chart-line", 0.01),
+    (2372, "scop_value", "", "mdi:chart-line", 0.01),
+    (2155, "compressor_activations_heating", "", "mdi:counter", 1),
+    (2157, "activations_boiler", "", "mdi:counter", 1),
+    (2158, "activations_defrost", "", "mdi:snowflake-melt", 1),
+    (2362, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1),
+    (2364, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 1),
 ]
 
-# Enum sensor definitions: (address, name, options, icon)
+# Enum sensor definitions
+# Tuple structure is:
+#   (Modbus address, translation key for name, options mapping, mdi-icon)
 ENUM_SENSOR_DEFINITIONS = [
     (
         2001,
-        "Working Function",
+        "working_function",
         {
-            0: "Heating",
-            1: "DHW",
-            2: "Cooling",
-            3: "Pool Heating",
-            4: "Thermal Disinfection",
-            5: "Standby",
-            7: "Remote Deactivation",
+            0: "heating",  # This will resolve to "Heating"
+            1: "dhw",  # This will resolve to "DHW"
+            2: "cooling",  # This will resolve to "Cooling"
+            3: "pool_heating",  # This will resolve to "Pool Heating"
+            4: "thermal_disinfection",  # This will resolve to "Thermal Disinfection"
+            5: "standby",  # This will resolve to "Standby"
+            7: "remote_deactivation",  # This will resolve to "Remote Deactivation"
         },
         "mdi:heat-pump",
     ),
     (
         2006,
-        "Error/Warning",
-        {0: "No Error", 1: "Warning", 2: "Error"},
+        "error_warning",
+        {
+            0: "no_error",  # This will resolve to "No Error"
+            1: "warning",  # This will resolve to "Warning"
+            2: "error",  # This will resolve to "Error"
+        },
         "mdi:alert",
     ),
     (
         2007,
-        "Operation Regime",
-        {0: "Cooling", 1: "Heating", 2: "Heating and Cooling Off"},
+        "operation_regime",
+        {
+            0: "cooling",  # This will resolve to "Cooling"
+            1: "heating",  # This will resolve to "Heating"
+            2: "heating_and_cooling_off",  # This will resolve to "Heating and Cooling Off"
+        },
         "mdi:heat-pump",
     ),
 ]
 
+# Set of diagnostic sensor addresses for streamlined reference in your logic.
 diagnostic_sensor_addresses = {
     2090,  # Operating Hours Compressor Heating
     2091,  # Operating Hours Compressor DHW
@@ -113,7 +127,6 @@ diagnostic_sensor_addresses = {
     2158,  # Defrost Activations (24 h)
 }
 
-# For enum sensors, if you want to mark them diagnostic as well:
 diagnostic_enum_addresses = {
     2006,  # Error/Warning
 }
