@@ -1,19 +1,212 @@
 {
-    "config": {
-      "step": {
-        "user": {
-          "title": "Kronoterm Heat Pump Setup",
-          "description": "Enter your Home Cloud username and password, plus scan interval if desired.",
-          "data": {
-            "username": "Home Cloud Username",
-            "password": "Home Cloud Password",
-            "scan_interval": "Update Interval (minutes)"
-          }
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kronoterm Heat Pump Setup",
+        "description": "Enter your Home Cloud username and password",
+        "data": {
+          "username": "Home Cloud Username",
+          "password": "Home Cloud Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials": "Invalid username or password."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "circulation_loop_1": {
+        "name": "Circulation Loop 1"
+      },
+      "circulation_loop_2": {
+        "name": "Circulation Loop 2"
+      },
+      "additional_source": {
+        "name": "Additional Source"
+      },
+      "circulation_dhw": {
+        "name": "Circulation DHW"
+      }
+    },
+    "sensor": {
+      "pool_temperature": {
+        "name": "Pool Temperature"
+      },
+      "alternative_source_temperature": {
+        "name": "Alternative Source Temperature"
+      },
+      "compressor_activations_cooling": {
+        "name": "Compressor Activations - Cooling"
+      },
+      "pressure_setting_heating_source": {
+        "name": "Pressure Setting Heating Source"
+      },
+      "source_pressure": {
+        "name": "Source Pressure"
+      },
+      "energy_heating": {
+        "name": "Energy Heating"
+      },
+      "energy_dhw": {
+        "name": "Energy DHW"
+      },
+      "energy_circulation": {
+        "name": "Energy Circulation"
+      },
+      "energy_heater": {
+        "name": "Energy Heater"
+      },
+      "energy_combined": {
+        "name": "Energy Combined"
+      },
+      "operating_hours_compressor_heating": {
+        "name": "Operating Hours Compressor Heating"
+      },
+      "operating_hours_compressor_dhw": {
+        "name": "Operating Hours Compressor DHW"
+      },
+      "operating_hours_additional_source_1": {
+        "name": "Operating Hours Additional Source 1"
+      },
+      "temperature_outside": {
+        "name": "Temperature Outside"
+      },
+      "temperature_hp_outlet": {
+        "name": "Temperature HP Outlet"
+      },
+      "temperature_compressor_inlet": {
+        "name": "Temperature Compressor Inlet"
+      },
+      "temperature_compressor_outlet": {
+        "name": "Temperature Compressor Outlet"
+      },
+      "pressure_setting": {
+        "name": "Pressure Setting"
+      },
+      "heating_system_pressure": {
+        "name": "Heating System Pressure"
+      },
+      "hp_load": {
+        "name": "HP Load"
+      },
+      "current_heating_cooling_capacity": {
+        "name": "Current Heating/Cooling Capacity"
+      },
+      "cop_value": {
+        "name": "COP Value"
+      },
+      "scop_value": {
+        "name": "SCOP Value"
+      },
+      "compressor_activations_heating": {
+        "name": "Compressor Activations - Heating (24 h)"
+      },
+      "activations_boiler": {
+        "name": "Activations Boiler (24 h)"
+      },
+      "activations_defrost": {
+        "name": "Activations Defrost (24 h)"
+      },
+      "electrical_energy_heating_dhw": {
+        "name": "Electrical Energy Heating + DHW"
+      },
+      "heating_energy_heating_dhw": {
+        "name": "Heating Energy Heating + DHW"
+      },
+      "working_function": {
+        "name": "Working Function",
+        "state": {
+          "heating": "Heating",
+          "dhw": "DHW",
+          "cooling": "Cooling",
+          "pool_heating": "Pool Heating",
+          "thermal_disinfection": "Thermal Disinfection",
+          "standby": "Standby",
+          "remote_deactivation": "Remote Deactivation"
         }
       },
-      "error": {
-        "invalid_credentials": "Invalid username or password."
+      "error_warning": {
+        "name": "Error/Warning",
+        "state": {
+          "no_error": "No Error",
+          "warning": "Warning",
+          "error": "Error"
+        }
+      },
+      "operation_regime": {
+        "name": "Operation Regime",
+        "state": {
+          "cooling": "Cooling",
+          "heating": "Heating",
+          "heating_and_cooling_off": "Heating and Cooling Off"
+        }
+      }
+    },
+    "switch": {
+      "heatpump_switch": {
+        "name": "ON/OFF"
+      },
+      "dhw_circulation_switch": {
+        "name": "DHW Circulation ON/OFF"
+      },
+      "fast_heating_switch": {
+        "name": "Fast Water Heating"
+      },
+      "antilegionella_switch": {
+        "name": "Antilegionella"
+      },
+      "loop1_temp_source_switch": {
+        "name": "Use Loop1 Data for Temperature"
+      }
+    },
+    "select": {
+      "loop_1_operation": {
+        "name": "Loop 1 Operation"
+      },
+      "loop_2_operation": {
+        "name": "Loop 2 Operation"
+      },
+      "sanitary_water_operation": {
+        "name": "Sanitary Water Operation"
+      }
+    },
+    "number": {
+      "loop_1_eco_offset": {
+        "name": "Loop 1 ECO Offset"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Loop 1 COMFORT Offset"
+      },
+      "loop_2_eco_offset": {
+        "name": "Loop 2 ECO Offset"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Loop 2 COMFORT Offset"
+      },
+      "dhw_eco_offset": {
+        "name": "DHW ECO Offset"
+      },
+      "dhw_comfort_offset": {
+        "name": "DHW COMFORT Offset"
+      },
+      "update_interval": {
+        "name": "Update Interval"
+      }
+    },
+    "climate": {
+      "dhw_temperature": {
+        "name": "DHW Temperature"
+      },
+      "loop_1_temperature": {
+        "name": "Loop 1 Temperature"
+      },
+      "loop_2_temperature": {
+        "name": "Loop 2 Temperature"
+      },
+      "reservoir_temperature": {
+        "name": "Reservoir Temperature"
       }
     }
   }
-  
+}
