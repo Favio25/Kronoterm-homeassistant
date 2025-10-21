@@ -1,12 +1,24 @@
-import voluptuous as vol
 import logging
+import asyncio
+import aiohttp  # Make sure aiohttp is imported at the top
+import voluptuous as vol
+
 from homeassistant import config_entries
-from homeassistant.core import callback
-from .const import DOMAIN
+from homeassistant.core import callback, HomeAssistant
+# We no longer need async_get_clientsession
+from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+
+from .const import (
+    DOMAIN, 
+    BASE_URL, 
+    API_QUERIES_GET, 
+    DEFAULT_SCAN_INTERVAL, 
+    REQUEST_TIMEOUT
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-SENSITIVE_KEYS = ["username", "password"]
+SENSITIVE_KEYS = [CONF_USERNAME, CONF_PASSWORD]
 
 def sanitize_user_input(user_input: dict) -> dict:
     """
@@ -17,6 +29,47 @@ def sanitize_user_input(user_input: dict) -> dict:
         for key, value in user_input.items()
     }
 
+async def validate_credentials(data: dict) -> str | None:
+    """
+    Validate the credentials by attempting a lightweight API call.
+    Returns an error code string on failure, or None on success.
+    
+    Uses its own session to avoid cookie reuse from other instances.
+    """
+    username = data[CONF_USERNAME]
+    password = data[CONF_PASSWORD]
+    auth = aiohttp.BasicAuth(username, password)
+    
+    query_params = API_QUERIES_GET["info"]
+    timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+
+    # Create a new, temporary session that has no cookies
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(
+                BASE_URL, 
+                auth=auth, 
+                params=query_params, 
+                timeout=timeout
+            ) as response:
+                if response.status == 200:
+                    _LOGGER.debug("Authentication successful")
+                    return None  # Success
+                if response.status == 401:
+                    _LOGGER.warning("Authentication failed: Invalid username or password")
+                    return "invalid_auth"
+                
+                _LOGGER.error("Authentication failed: HTTP %s", response.status)
+                return "cannot_connect"
+
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.error("Authentication failed: Connection error: %s", err)
+            return "cannot_connect"
+        except Exception as err:
+            _LOGGER.error("Authentication failed: Unexpected error: %s", err, exc_info=True)
+            return "unknown"
+
+
 class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """
     Handles the configuration flow for the Kronoterm integration.
@@ -26,16 +79,33 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict | None = None):
         """Handle a flow initialized by the user."""
         _LOGGER.debug("Starting user step in KronotermConfigFlow")
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             sanitized_input = sanitize_user_input(user_input)
             _LOGGER.debug("User input received: %s", sanitized_input)
-            return self.async_create_entry(title="Kronoterm Heat Pump", data=user_input)
+            
+            # --- UPDATED AUTHENTICATION ---
+            # We no longer pass self.hass
+            error_code = await validate_credentials(user_input)
+            if not error_code:
+                # Auth success, create the entry
+                return self.async_create_entry(title="Kronoterm Heat Pump", data=user_input)
+            else:
+                # Auth failed, set error and show form again
+                errors["base"] = error_code
+            # --- END OF AUTHENTICATION ---
 
         user_schema = vol.Schema({
-            vol.Required("username"): str,
-            vol.Required("password"): str,
+            vol.Required(CONF_USERNAME): str,
+            vol.Required(CONF_PASSWORD): str,
         })
-        return self.async_show_form(step_id="user", data_schema=user_schema)
+        
+        return self.async_show_form(
+            step_id="user", 
+            data_schema=user_schema,
+            errors=errors  # Pass errors to the form
+        )
 
     @staticmethod
     @callback
@@ -45,9 +115,11 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this integration."""
         return KronotermOptionsFlowHandler(config_entry)
 
+
 class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
     """
     Handles the options flow for the Kronoterm integration.
+    Allows updating credentials, scan interval, and other settings.
     """
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize the options flow handler."""
@@ -57,9 +129,41 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict | None = None):
         """Handle the initial step of the options flow."""
         _LOGGER.debug("Starting options flow init step")
-        if user_input is not None:
-            _LOGGER.debug("User input received in options flow: %s", sanitize_user_input(user_input))
-            return self.async_create_entry(title="", data=user_input)
+        errors: dict[str, str] = {}
 
-        options_schema = vol.Schema({})
-        return self.async_show_form(step_id="init", data_schema=options_schema)
+        if user_input is not None:
+            # Validate credentials, as they might have been changed
+            # We no longer pass self.hass
+            error_code = await validate_credentials(user_input)
+            if not error_code:
+                _LOGGER.debug("Options saved: %s", sanitize_user_input(user_input))
+                # Save the validated input (including any new credentials)
+                return self.async_create_entry(title="", data=user_input)
+            else:
+                _LOGGER.warning("Failed to save options: credentials invalid")
+                errors["base"] = error_code
+        
+        # Get current values from options, falling back to data (for credentials)
+        # or defaults (for other settings)
+        current_options = self.config_entry.options
+        current_data = self.config_entry.data
+        
+        username = current_options.get(CONF_USERNAME, current_data.get(CONF_USERNAME, ""))
+        password = current_options.get(CONF_PASSWORD, current_data.get(CONF_PASSWORD, ""))
+        scan_interval = current_options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+
+        # Build the schema with current values as defaults
+        options_schema = vol.Schema({
+            vol.Required(CONF_USERNAME, default=username): str,
+            vol.Required(CONF_PASSWORD, default=password): str,
+            vol.Optional(
+                "scan_interval",
+                default=scan_interval
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+        })
+
+        return self.async_show_form(
+            step_id="init", 
+            data_schema=options_schema,
+            errors=errors
+        )

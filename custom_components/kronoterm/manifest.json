@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Favio25/kronoterm-homeassistant/issues",
   "requirements": [],
-  "version": "1.1.7"
+  "version": "1.1.8"
 }

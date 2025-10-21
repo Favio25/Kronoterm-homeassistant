@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -14,9 +14,8 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import DOMAIN
-
-LOOP1_DESIRED_TEMP_ADDR = 2187
+# Import the Modbus addresses needed for Loop 1
+from .const import DOMAIN  # MODIFIED: Removed Loop1 specific addrs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,20 +36,52 @@ async def async_setup_entry(
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return False
 
-    # Create the climate entities
+    # Create the standard climate entities
     entities = [
         KronotermDHWClimate(entry, coordinator),
-        KronotermLoop1Climate(entry, coordinator, hass),
-        KronotermLoop2Climate(entry, coordinator),
-        KronotermReservoirClimate(entry, coordinator)
+        # Assuming DHW is always installed.
+        # You could add a 'tap_water_installed' flag to coordinator if needed.
     ]
 
-    # Add reservoir climate only if installed
-    #if getattr(coordinator, "reservoir_installed", False):
-    #    entities.append(KronotermReservoirClimate(entry, coordinator))
-    #    _LOGGER.info("Reservoir climate entity added")
-    #else:
-    #    _LOGGER.info("Reservoir not installed, skipping Reservoir Climate Entity")
+    # --- UPDATED THIS LOGIC ---
+
+    # Conditionally add Loop 1
+    if coordinator.loop1_installed:
+        # MODIFIED: Removed 'hass' argument
+        entities.append(KronotermLoop1Climate(entry, coordinator))
+        _LOGGER.info("Loop 1 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 1 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 2
+    if coordinator.loop2_installed:
+        entities.append(KronotermLoop2Climate(entry, coordinator))
+        _LOGGER.info("Loop 2 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 2 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 3
+    if coordinator.loop3_installed:
+        entities.append(KronotermLoop3Climate(entry, coordinator))
+        _LOGGER.info("Loop 3 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 3 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 4
+    if coordinator.loop4_installed:
+        entities.append(KronotermLoop4Climate(entry, coordinator))
+        _LOGGER.info("Loop 4 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 4 not installed, skipping climate entity.")
+
+    # Conditionally add Reservoir
+    if coordinator.reservoir_installed:
+        entities.append(KronotermReservoirClimate(entry, coordinator))
+        _LOGGER.info("Reservoir installed, adding climate entity.")
+    else:
+        _LOGGER.info("Reservoir not installed, skipping climate entity.")
+
+    # --- END OF UPDATE ---
 
     async_add_entities(entities)
     return True
@@ -179,16 +210,82 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
             _LOGGER.error("%s: Failed to update HVAC mode", self.name)
 
 
+# -------------------------------------------------------------------
+# NEW BASE CLASS for simple JSON-based climate entities
+# -------------------------------------------------------------------
+class KronotermJsonClimate(KronotermBaseClimate):
+    """Base for climate entities that read from a dedicated JSON data key."""
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        data_key: str,
+        current_temp_json_key: str,
+        target_temp_json_key: str = "circle_temp",
+        **kwargs: Any
+    ) -> None:
+        """Initialize the JSON-based climate entity."""
+        super().__init__(entry=entry, coordinator=coordinator, **kwargs)
+        self._data_key = data_key
+        self._current_temp_json_key = current_temp_json_key
+        self._target_temp_json_key = target_temp_json_key
+
+    @property
+    def _json_data(self) -> dict | None:
+        """Helper to get the specific data blob for this entity."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._data_key)
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the current temperature from the dedicated JSON data blob."""
+        data = self._json_data
+        if not data:
+            return None
+
+        temps = data.get("TemperaturesAndConfig", {})
+        raw = temps.get(self._current_temp_json_key)
+        if not raw or raw in ("-60.0", "unknown", "unavailable"):
+            return None
+
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the target temperature from the dedicated JSON data blob."""
+        data = self._json_data
+        if not data:
+            return None
+
+        circle_data = data.get("HeatingCircleData", {})
+        raw = circle_data.get(self._target_temp_json_key)
+        if not raw or raw in ("unknown", "unavailable"):
+            return None
+
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+
 #
-#   Domestic Hot Water (DHW)
+#   Domestic Hot Water (DHW) - Refactored
 #
-class KronotermDHWClimate(KronotermBaseClimate):
+class KronotermDHWClimate(KronotermJsonClimate):
     """Climate entity for domestic hot water (DHW)."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
             coordinator=coordinator,
+            data_key="dhw",
+            current_temp_json_key="tap_water_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="DHW Temperature",
             translation_key="dhw_temperature",
             unique_id_suffix="dhw_climate",
@@ -197,57 +294,26 @@ class KronotermDHWClimate(KronotermBaseClimate):
             page=9,
         )
 
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the current measured DHW temperature from data['dhw'] if available."""
-        dhw_data = self.coordinator.data.get("dhw")
-        if not dhw_data:
-            return None
 
-        temps = dhw_data.get("TemperaturesAndConfig", {})
-        raw = temps.get("tap_water_temp")  # e.g. "45.9"
-        if not raw or raw in ("-60.0", "unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    @property
-    def target_temperature(self) -> float | None:
-        """Return the user-set (desired) DHW temperature from data['dhw']['HeatingCircleData']['circle_temp']."""
-        dhw_data = self.coordinator.data.get("dhw")
-        if not dhw_data:
-            return None
-
-        circle_data = dhw_data.get("HeatingCircleData", {})
-        raw = circle_data.get("circle_temp")  # e.g. "43.0"
-        if not raw or raw in ("unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-
+# --- MODIFIED: START OF Loop 1 REPLACEMENT ---
 #
-#   Loop 1
+#   Loop 1 (Refactored to match other loops)
 #
-class KronotermLoop1Climate(KronotermBaseClimate):
-    """Climate entity for heating Loop 1, with configurable target temp source."""
+class KronotermLoop1Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 1."""
 
     def __init__(
         self, 
         entry: ConfigEntry, 
-        coordinator: DataUpdateCoordinator,
-        hass: HomeAssistant
+        coordinator: DataUpdateCoordinator
     ):
         """Initialize the climate entity."""
         super().__init__(
             entry=entry,
             coordinator=coordinator,
+            data_key="loop1",
+            current_temp_json_key="heating_circle_1_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 1 Temperature",
             translation_key="loop_1_temperature",
             unique_id_suffix="loop1_climate",
@@ -255,127 +321,22 @@ class KronotermLoop1Climate(KronotermBaseClimate):
             max_temp=90,
             page=5,
         )
-        # Store HomeAssistant instance
-        self._hass = hass
-        # Get temperature source from config entry options, default to "modbus"
-        self._temp_source = entry.options.get("loop1_temp_source", "modbus")
-        # Store the desired register address for target temperature
-        self._desired_temp_address = LOOP1_DESIRED_TEMP_ADDR
-
-        # Flag to set up event listener later
-        self._listener_added = False
-
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to hass."""
-        await super().async_added_to_hass()
-
-        # Now we can safely set up the event listener
-        self.async_on_remove(
-            self.hass.bus.async_listen(
-                f"{DOMAIN}_loop1_source_changed",
-                self._handle_source_changed
-            )
-        )
-        self._listener_added = True
-
-    @callback
-    async def _handle_source_changed(self, event):
-        """Handle event when temperature source is changed."""
-        self._temp_source = event.data.get("source", "modbus")
-        _LOGGER.info("%s: Temperature source changed to %s", self.name, self._temp_source)
-        self.async_write_ha_state()
-
-    @property
-    def current_temperature(self) -> float | None:
-        """
-        Return the current Loop 1 temperature.
-        If the temperature source is "modbus", read from modbus address 2130
-        and apply scaling (multiply by 0.1) if the value does not include a decimal point.
-        Otherwise, read from JSON data.
-        """
-        if self._temp_source == "modbus":
-            return self._read_modbus_value(2130, scale_if_no_decimal=True)
-        else:
-            loop1_data = self.coordinator.data.get("loop1")
-            if not loop1_data:
-                return None
-
-            temps = loop1_data.get("TemperaturesAndConfig", {})
-            raw = temps.get("heating_circle_1_temp")
-            if not raw or raw in ("-60.0", "unknown", "unavailable"):
-                return None
-
-            try:
-                return float(raw)
-            except ValueError:
-                return None
-
-    @property
-    def target_temperature(self) -> float | None:
-        """
-        Return the desired temperature based on the configured source:
-        - "modbus": Read from Modbus register (address 2187)
-        - "loop1_data": Read from loop1['HeatingCircleData']['circle_temp']
-        """
-        if self._temp_source == "modbus":
-            return self._read_modbus_value(self._desired_temp_address)
-        else:
-            loop1_data = self.coordinator.data.get("loop1")
-            if not loop1_data:
-                return None
-
-            circle_data = loop1_data.get("HeatingCircleData", {})
-            raw = circle_data.get("circle_temp")
-            if not raw or raw in ("unknown", "unavailable"):
-                return None
-
-            try:
-                return float(raw)
-            except ValueError:
-                return None
-
-    def _read_modbus_value(self, address: int, scale_if_no_decimal: bool = False) -> Optional[float]:
-        """
-        Helper to read a float from the 'main' ModbusReg data.
-        If scale_if_no_decimal is True and the raw value doesn't contain a decimal point,
-        multiply the value by 0.1.
-        """
-        main_data = self.coordinator.data.get("main", {})
-        modbus_list = main_data.get("ModbusReg", [])
-        if not modbus_list:
-            return None
-
-        reg = next((r for r in modbus_list if r.get("address") == address), None)
-        if not reg:
-            return None
-
-        raw = reg.get("value")
-        if not raw or raw in ("unknown", "unavailable"):
-            return None
-
-        if isinstance(raw, str):
-            raw = raw.replace("°C", "").strip()
-        # Use the string representation to check for a decimal point.
-        raw_str = str(raw)
-        try:
-            value = float(raw)
-            if scale_if_no_decimal and "." not in raw_str:
-                value *= 0.1
-            return value
-        except ValueError:
-            return None
+# --- MODIFIED: END OF Loop 1 REPLACEMENT ---
 
 
 #
-#   Loop 2
+#   Loop 2 - Refactored
 #
-class KronotermLoop2Climate(KronotermBaseClimate):
+class KronotermLoop2Climate(KronotermJsonClimate):
     """Climate entity for heating Loop 2."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
             coordinator=coordinator,
+            data_key="loop2",
+            current_temp_json_key="heating_circle_2_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 2 Temperature",
             translation_key="loop_2_temperature",
             unique_id_suffix="loop2_climate",
@@ -384,92 +345,70 @@ class KronotermLoop2Climate(KronotermBaseClimate):
             page=6,
         )
 
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the current Loop 2 temperature from data['loop2'] if available."""
-        loop2_data = self.coordinator.data.get("loop2")
-        if not loop2_data:
-            return None
 
-        temps = loop2_data.get("TemperaturesAndConfig", {})
-        raw = temps.get("heating_circle_2_temp")  # e.g. "23.5"
-        if not raw or raw in ("-60.0", "unknown", "unavailable"):
-            return None
+# --- ADDED LOOP 3 ---
+#
+#   Loop 3
+#
+class KronotermLoop3Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 3."""
 
-        try:
-            return float(raw)
-        except ValueError:
-            return None
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop3",
+            current_temp_json_key="heating_circle_3_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 3 Temperature",
+            translation_key="loop_3_temperature",
+            unique_id_suffix="loop3_climate",
+            min_temp=10,
+            max_temp=90,
+            page=7,
+        )
 
-    @property
-    def target_temperature(self) -> float | None:
-        """Return the set (desired) temperature from loop2['HeatingCircleData']['circle_temp']."""
-        loop2_data = self.coordinator.data.get("loop2")
-        if not loop2_data:
-            return None
 
-        circle_data = loop2_data.get("HeatingCircleData", {})
-        raw = circle_data.get("circle_temp")  # e.g. "22.0"
-        if not raw or raw in ("unknown", "unavailable"):
-            return None
+# --- ADDED LOOP 4 ---
+#
+#   Loop 4
+#
+class KronotermLoop4Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 4."""
 
-        try:
-            return float(raw)
-        except ValueError:
-            return None
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop4",
+            current_temp_json_key="heating_circle_4_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 4 Temperature",
+            translation_key="loop_4_temperature",
+            unique_id_suffix="loop4_climate",
+            min_temp=10,
+            max_temp=90,
+            page=8,
+        )
 
 
 #
-#   Reservoir
+#   Reservoir - Refactored
 #
-class KronotermReservoirClimate(KronotermBaseClimate):
+class KronotermReservoirClimate(KronotermJsonClimate):
     """Climate entity for reservoir temperature."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
             coordinator=coordinator,
+            data_key="reservoir",
+            current_temp_json_key="reservoir_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Reservoir Temperature",
             translation_key="reservoir_temperature",
             unique_id_suffix="reservoir_climate",
             min_temp=10,
             max_temp=90,
-            page=4,  # used in async_set_temperature
+            page=4,
         )
-
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the reservoir's measured temperature from data['reservoir'] if available."""
-        reservoir_data = self.coordinator.data.get("reservoir")
-        if not reservoir_data:
-            return None
-
-        temps = reservoir_data.get("TemperaturesAndConfig", {})
-        raw = temps.get("reservoir_temp")  # e.g. "38.0"
-        if not raw or raw in ("-60.0", "unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    @property
-    def target_temperature(self) -> float | None:
-        """
-        Return the user-set reservoir target if the reservoir page uses the same
-        'HeatingCircleData': {'circle_temp': ...} structure. Otherwise adapt.
-        """
-        reservoir_data = self.coordinator.data.get("reservoir")
-        if not reservoir_data:
-            return None
-
-        circle_data = reservoir_data.get("HeatingCircleData", {})
-        raw = circle_data.get("circle_temp")
-        if not raw or raw in ("unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except ValueError:
-            return None

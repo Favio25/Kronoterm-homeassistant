@@ -1,6 +1,7 @@
 """number.py - Defines Number entities for offsets and for coordinator update interval."""
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
@@ -10,9 +11,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
+from .entities import KronotermModbusBase
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,36 +24,38 @@ _LOGGER = logging.getLogger(__name__)
 # ---------------------------------------
 @dataclass
 class OffsetConfig:
-    name: str
+    name: str  # This is the translation_key
     page: int
     address: int
     param_name: str
     min_value: float
     max_value: float
+    install_flag: str  # Coordinator attribute to check (e.g., "loop1_installed")
 
 OFFSET_CONFIGS: List[OffsetConfig] = [
     # Loop 1
-    OffsetConfig("loop_1_eco_offset", 5, 2047, "circle_eco_offset", -10.0, 0.0),
-    OffsetConfig("loop_1_comfort_offset", 5, 2048, "circle_comfort_offset", 0.0, 10.0),
+    OffsetConfig("loop_1_eco_offset", 5, 2047, "circle_eco_offset", -10.0, 0.0, "loop1_installed"),
+    OffsetConfig("loop_1_comfort_offset", 5, 2048, "circle_comfort_offset", 0.0, 10.0, "loop1_installed"),
     # Loop 2
-    OffsetConfig("loop_2_eco_offset", 6, 2057, "circle_eco_offset", -10.0, 0.0),
-    OffsetConfig("loop_2_comfort_offset", 6, 2058, "circle_comfort_offset", 0.0, 10.0),
+    OffsetConfig("loop_2_eco_offset", 6, 2057, "circle_eco_offset", -10.0, 0.0, "loop2_installed"),
+    OffsetConfig("loop_2_comfort_offset", 6, 2058, "circle_comfort_offset", 0.0, 10.0, "loop2_installed"),
     # Sanitary (DHW)
-    OffsetConfig("dhw_eco_offset", 9, 2030, "circle_eco_offset", -10.0, 0.0),
-    OffsetConfig("dhw_comfort_offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0),
+    OffsetConfig("dhw_eco_offset", 9, 2030, "circle_eco_offset", -10.0, 0.0, "tap_water_installed"), # Assuming 'tap_water_installed' flag exists
+    OffsetConfig("dhw_comfort_offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0, "tap_water_installed"), # Assuming 'tap_water_installed' flag exists
+    
+    OffsetConfig("loop_3_eco_offset", 7, 2067, "circle_eco_offset", -10.0, 0.0, "loop3_installed"),
+    OffsetConfig("loop_3_comfort_offset", 7, 2068, "circle_comfort_offset", 0.0, 10.0, "loop3_installed"),
+
+    OffsetConfig("loop_4_eco_offset", 8, 2077, "circle_eco_offset", -10.0, 0.0, "loop4_installed"),
+    OffsetConfig("loop_4_comfort_offset", 8, 2078, "circle_comfort_offset", 0.0, 10.0, "loop4_installed"),
 ]
 
 
-def get_modbus_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Extract the list of Modbus registers from the coordinator data."""
-    return data.get("main", {}).get("ModbusReg", [])
-
-
-class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
+class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
     """
     A Number entity that represents an ECO/COMFORT offset for a loop or DHW.
     
-    Reads the current value from the Modbus register in coordinator.data and
+    Reads the current value from the Modbus register via KronotermModbusBase and
     writes a new value using coordinator.async_set_offset().
     """
 
@@ -66,16 +70,16 @@ class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
         min_value: float,
         max_value: float,
     ) -> None:
-        super().__init__(coordinator)
+        """Initialize the offset number entity."""
+        # Pass coordinator, address, name, and device_info to the base class
+        super().__init__(coordinator, address, name, coordinator.shared_device_info)
+        
+        # Store entity-specific attributes
         self._entry = entry
         self._page = page
-        self._address = address
         self._param_name = param_name
 
-        self._attr_has_entity_name = True
-        self._attr_translation_key = name
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{page}_{address}"
-        self._attr_device_info = coordinator.shared_device_info
 
         # Define numeric bounds.
         self._attr_native_min_value = min_value
@@ -83,28 +87,28 @@ class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
         self._attr_native_step = 0.1
         self._attr_unit_of_measurement = "°C"  # offset in Celsius
 
+    def _process_value(self, raw_value: Any) -> Optional[float]:
+        """Convert raw_value to float, remove non-numeric chars."""
+        if isinstance(raw_value, str):
+            # Use regex to strip units and non-numeric characters
+            raw_value = re.sub(r"[^\d\.\-]", "", raw_value)
+
+        if raw_value == "":
+            return None
+
+        try:
+            return float(raw_value)
+        except (ValueError, TypeError) as e:
+            _LOGGER.error(
+                "Invalid value %s at register %s for %s: %s", 
+                raw_value, self._address, self._attr_translation_key, e
+            )
+            return None
 
     @property
     def native_value(self) -> Optional[float]:
-        """Return the current offset value from the Modbus register."""
-        modbus_list = get_modbus_list(self.coordinator.data or {})
-        reg = next((x for x in modbus_list if x.get("address") == self._address), None)
-        if not reg:
-            _LOGGER.debug("Register %s not found for %s", self._address, self._attr_translation_key)
-            return None
-
-        raw_val = reg.get("value")
-        if raw_val is None:
-            return None
-
-        if isinstance(raw_val, str):
-            raw_val = raw_val.replace("°C", "").strip()
-
-        try:
-            return float(raw_val)
-        except (ValueError, TypeError):
-            _LOGGER.error("Invalid value %s at register %s for %s", raw_val, self._address, self._attr_translation_key)
-            return None
+        """Return the current offset value by calling the base class's compute method."""
+        return self._compute_value()
 
     async def async_set_native_value(self, value: float) -> None:
         """Called by HA to set a new offset value."""
@@ -122,6 +126,7 @@ class KronotermOffsetNumber(CoordinatorEntity, NumberEntity):
 
 # ---------------------------------------
 # COORDINATOR INTERVAL ENTITY
+# (This class is self-contained and does not need refactoring)
 # ---------------------------------------
 class CoordinatorUpdateIntervalNumber(NumberEntity):
     """
@@ -191,10 +196,19 @@ async def async_setup_entry(
 
     entities = []
 
-    # 1) Create offset entities if their registers exist
-    modbus_list = get_modbus_list(coordinator.data or {})
+    # Get the list of all addresses reported by the heat pump
+    modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+    available_addresses = {reg.get("address") for reg in modbus_list}
+
+    # 1) Create offset entities
     for config in OFFSET_CONFIGS:
-        if any(reg.get("address") == config.address for reg in modbus_list):
+        # Check if the feature is installed (e.g., coordinator.loop1_installed)
+        is_installed = getattr(coordinator, config.install_flag, False)
+        
+        # Check if the specific Modbus address is reported by the pump
+        is_available = config.address in available_addresses
+
+        if is_installed and is_available:
             entities.append(
                 KronotermOffsetNumber(
                     entry=entry,
@@ -209,9 +223,11 @@ async def async_setup_entry(
             )
         else:
             _LOGGER.info(
-                "Register %s not found for %s, skipping entity creation.",
-                config.address,
+                "Skipping entity %s: Installed=%s, Address %s Available=%s",
                 config.name,
+                is_installed,
+                config.address,
+                is_available,
             )
 
     # 2) Create the coordinator update interval entity

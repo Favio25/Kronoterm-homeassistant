@@ -10,6 +10,14 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number"]
 
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the Kronoterm component."""
+    # This integration is configured via config entries, so setup here is minimal.
+    # Returning True signals HA that the component is async-safe to load.
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Kronoterm integration from a config entry."""
     hass.data.setdefault(DOMAIN, {})

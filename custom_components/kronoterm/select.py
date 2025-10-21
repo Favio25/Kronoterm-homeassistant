@@ -1,20 +1,25 @@
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .entities import KronotermModbusBase  # Import the base class
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def extract_modbus_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Extract the list of Modbus registers from the coordinator data."""
-    return data.get("main", {}).get("ModbusReg", [])
+@dataclass
+class SelectConfig:
+    """A container for select entity configuration."""
+    name: str  # User-facing name, e.g., "Loop 1 Operation"
+    address: int
+    page: int
+    install_flag: str  # Coordinator attribute to check (e.g., "loop1_installed")
 
 
 async def async_setup_entry(
@@ -28,45 +33,54 @@ async def async_setup_entry(
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return
 
-    modbus_list = extract_modbus_list(coordinator.data or {})
+    # Get the list of all addresses reported by the heat pump
+    modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+    available_addresses = {reg.get("address") for reg in modbus_list}
 
     # Define the configuration for each select entity.
-    # The 'name' will be converted to a translation key.
-    entity_configs = [
-        {"name": "Loop 1 Operation", "address": 2042, "page": 5},
-        {"name": "Loop 2 Operation", "address": 2052, "page": 6},
-        {"name": "Sanitary Water Operation", "address": 2026, "page": 9},
+    entity_configs: List[SelectConfig] = [
+        SelectConfig("Loop 1 Operation", 2042, 5, "loop1_installed"),
+        SelectConfig("Loop 2 Operation", 2052, 6, "loop2_installed"),
+        SelectConfig("Sanitary Water Operation", 2026, 9, "tap_water_installed"), # Assuming 'tap_water_installed'
+        SelectConfig("Loop 3 Operation", 2062, 7, "loop3_installed"),
+        SelectConfig("Loop 4 Operation", 2072, 8, "loop4_installed"),
     ]
 
     entities = []
     for config in entity_configs:
-        address = config["address"]
-        if any(reg.get("address") == address for reg in modbus_list):
+        # Check if the feature is installed (e.g., coordinator.loop1_installed)
+        is_installed = getattr(coordinator, config.install_flag, False)
+
+        # Check if the specific Modbus address is reported by the pump
+        is_available = config.address in available_addresses
+        
+        if is_installed and is_available:
             entities.append(
                 KronotermModeSelect(
                     entry=entry,
-                    name=config["name"],
-                    address=address,
-                    page=config["page"],
+                    name=config.name,
+                    address=config.address,
+                    page=config.page,
                     coordinator=coordinator,
                 )
             )
         else:
             _LOGGER.info(
-                "%s register (%s) not found, skipping %s select entity.",
-                config["name"].split()[0],
-                address,
-                config["name"],
+                "Skipping entity %s: Installed=%s, Address %s Available=%s",
+                config.name,
+                is_installed,
+                config.address,
+                is_available,
             )
 
     async_add_entities(entities, update_before_add=True)
 
 
-class KronotermModeSelect(CoordinatorEntity, SelectEntity):
+class KronotermModeSelect(KronotermModbusBase, SelectEntity):
     """
     Select entity for Kronoterm offering three options: OFF, ON, AUTO.
     
-    The current mode is determined by a Modbus register value.
+    Reads the current mode from a Modbus register via KronotermModbusBase.
     Changing the selection calls coordinator.async_set_loop_mode_by_page.
     """
 
@@ -85,32 +99,38 @@ class KronotermModeSelect(CoordinatorEntity, SelectEntity):
         coordinator: Any,
     ) -> None:
         """Initialize the Kronoterm select entity."""
-        super().__init__(coordinator)
+        # Convert name to translation key
+        translation_key = name.lower().replace(" ", "_")
+        
+        # Initialize the base class
+        super().__init__(coordinator, address, translation_key, coordinator.shared_device_info)
+        
         self._entry = entry
-        self._address = address
         self._page = page
-
-        # Enable entity naming via translation keys.
-        # Convert the given name to a translation key (e.g. "Loop 1 Operation" -> "loop_1_operation").
-        self._attr_has_entity_name = True
-        self._attr_translation_key = name.lower().replace(" ", "_")
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{address}_mode"
-        self._attr_device_info = coordinator.shared_device_info
+
+    def _process_value(self, raw_value: Any) -> Optional[str]:
+        """Process the raw modbus value and map it to an option string."""
+        if raw_value is None:
+            return None
+        
+        try:
+            # Use int(float()) to handle "2.0" or "2"
+            val = int(float(raw_value))
+            return self.VALUE_TO_OPTION.get(val)
+        except (ValueError, TypeError):
+            _LOGGER.debug(
+                "Could not map enum value '%s' for sensor %s (address %s)",
+                raw_value,
+                self._name_key,
+                self._address
+            )
+            return None
 
     @property
     def current_option(self) -> Optional[str]:
-        """Return the current option ('OFF', 'ON', or 'AUTO') based on the Modbus register value."""
-        modbus_list = extract_modbus_list(self.coordinator.data or {})
-        reg = next((r for r in modbus_list if r.get("address") == self._address), None)
-        if not reg or reg.get("value") is None:
-            return None
-
-        try:
-            val = int(float(reg.get("value")))
-        except (ValueError, TypeError):
-            return None
-
-        return self.VALUE_TO_OPTION.get(val)
+        """Return the current option ('OFF', 'ON', or 'AUTO') by processing the Modbus value."""
+        return self._compute_value()
 
     async def async_select_option(self, option: str) -> None:
         """
@@ -124,7 +144,6 @@ class KronotermModeSelect(CoordinatorEntity, SelectEntity):
             return
 
         success = await self.coordinator.async_set_loop_mode_by_page(self._page, new_mode)
-        if success:
-            await self.coordinator.async_request_refresh()
-        else:
+        if not success:
             _LOGGER.error("Failed to set mode for %s", self._attr_translation_key)
+        # No need to request refresh here, async_set_loop_mode_by_page does it
