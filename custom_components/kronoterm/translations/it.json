@@ -79,10 +79,15 @@
       "activations_defrost": { "name": "Attivazioni Sbrinamento (24 h)" },
       "electrical_energy_heating_dhw": { "name": "Energia Elettrica per Riscaldamento + ACS" },
       "heating_energy_heating_dhw": { "name": "Energia Termica per Riscaldamento + ACS" },
+      "hp_inlet_temperature": { "name": "Temperatura Ingresso Pompa di Calore" },
       "loop_1_temperature": { "name": "Temperatura Sensore Circuito 1" },
       "loop_2_temperature": { "name": "Temperatura Sensore Circuito 2" },
       "loop_3_temperature": { "name": "Temperatura Sensore Circuito 3" },
       "loop_4_temperature": { "name": "Temperatura Sensore Circuito 4" },
+      "loop_1_inlet_temperature":{ "name": "Temperatura Ingresso Circuito 1" },
+      "loop_2_inlet_temperature":{ "name": "Temperatura Ingresso Circuito 2" },
+      "loop_3_inlet_temperature":{ "name": "Temperatura Ingresso Circuito 3" },
+      "loop_4_inlet_temperature":{ "name": "Temperatura Ingresso Circuito 4" },
       "loop_1_thermostat_temperature": { "name": "Temperatura Termostato Circuito 1" },
       "loop_2_thermostat_temperature": { "name": "Temperatura Termostato Circuito 2" },
       "loop_3_thermostat_temperature": { "name": "Temperatura Termostato Circuito 3" },
@@ -142,7 +147,8 @@
       "loop_4_comfort_offset": { "name": "Scarto COMFORT Circuito 4" },
       "dhw_eco_offset": { "name": "Scarto ECO ACS" },
       "dhw_comfort_offset": { "name": "Scarto COMFORT ACS" },
-      "update_interval": { "name": "Intervallo di Aggiornamento (min)" }
+      "update_interval": { "name": "Intervallo di Aggiornamento (min)" },
+      "main_temperature_offset": { "name": "Scarto temperatura sistema"}
     },
     "climate": {
       "dhw_temperature": { "name": "Temperatura ACS" },

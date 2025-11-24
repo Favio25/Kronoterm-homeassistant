@@ -79,6 +79,11 @@
         "activations_defrost": { "name": "Aktivacije odmrzovanja (24 h)" },
         "electrical_energy_heating_dhw": { "name": "Električna energija ogrevanja + topla sanitarna voda" },
         "heating_energy_heating_dhw": { "name": "Ogrevalna energija ogrevanja + topla sanitarna voda" },
+        "hp_inlet_temperature": { "name": "Temperatura toplotne črpalke na vstopu" },
+        "loop_1_inlet_temperature":{ "name": "Vstopna temperatura zanke 1" },
+        "loop_2_inlet_temperature":{ "name": "Vstopna temperatura zanke 2" },
+        "loop_3_inlet_temperature":{ "name": "Vstopna temperatura zanke 3" },
+        "loop_4_inlet_temperature":{ "name": "Vstopna temperatura zanke 4" },
         "loop_1_temperature": { "name": "Temperatura senzorja zanke 1" },
         "loop_2_temperature": { "name": "Temperatura senzorja zanke 2" },
         "loop_3_temperature": { "name": "Temperatura senzorja zanke 3" },
@@ -142,7 +147,8 @@
         "loop_4_comfort_offset": { "name": "COMFORT odmik zanke 4" },
         "dhw_eco_offset": { "name": "ECO odmik za toplo sanitarno vodo" },
         "dhw_comfort_offset": { "name": "COMFORT odmik za toplo sanitarno vodo" },
-        "update_interval": { "name": "Interval posodabljanja (min)" }
+        "update_interval": { "name": "Interval posodabljanja (min)" },
+        "main_temperature_offset": { "name": "Odmik sistemske temperature"}
       },
       "climate": {
         "dhw_temperature": { "name": "Temperatura tople sanitarne vode" },

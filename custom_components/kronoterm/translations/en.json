@@ -66,6 +66,7 @@
       "operating_hours_additional_source_1": { "name": "Operating Hours Additional Source 1" },
       "temperature_outside": { "name": "Temperature Outside" },
       "hp_outlet_temperature": { "name": "Temperature HP Outlet" },
+      "hp_inlet_temperature": { "name": "Temperature HP Inlet" },
       "temperature_compressor_inlet": { "name": "Temperature Compressor Inlet" },
       "temperature_compressor_outlet": { "name": "Temperature Compressor Outlet" },
       "pressure_setting": { "name": "Pressure Setting" },
@@ -87,6 +88,10 @@
       "loop_2_thermostat_temperature": { "name": "Loop 2 Thermostat Temperature" },
       "loop_3_thermostat_temperature": { "name": "Loop 3 Thermostat Temperature" },
       "loop_4_thermostat_temperature": { "name": "Loop 4 Thermostat Temperature" },
+      "loop_1_inlet_temperature":{ "name": "Loop 1 Inlet Temperature" },
+      "loop_2_inlet_temperature":{ "name": "Loop 2 Inlet Temperature" },
+      "loop_3_inlet_temperature":{ "name": "Loop 3 Inlet Temperature" },
+      "loop_4_inlet_temperature":{ "name": "Loop 4 Inlet Temperature" },
       "working_function": {
         "name": "Working Function",
         "state": {
@@ -142,7 +147,8 @@
       "loop_4_comfort_offset": { "name": "Loop 4 Comfort Offset" },
       "dhw_eco_offset": { "name": "DHW Eco Offset" },
       "dhw_comfort_offset": { "name": "DHW Comfort Offset" },
-      "update_interval": { "name": "Update Interval (min)" }
+      "update_interval": { "name": "Update Interval (min)" },
+      "main_temperature_offset": { "name": "System temperature offset"}
     },
     "climate": {
       "dhw_temperature": { "name": "DHW Temperature" },

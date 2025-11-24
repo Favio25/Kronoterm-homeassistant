@@ -79,10 +79,15 @@
         "activations_defrost": { "name": "Abtauaktivierungen (24 h)" },
         "electrical_energy_heating_dhw": { "name": "Elektrische Energie Heizung + Warmwasser" },
         "heating_energy_heating_dhw": { "name": "Heizenergie Heizung + Warmwasser" },
+        "hp_inlet_temperature": { "name": "Eintrittstemperatur Wärmepumpe" },
         "loop_1_temperature": { "name": "Loop 1 Sensor-Temperatur" },
         "loop_2_temperature": { "name": "Loop 2 Sensor-Temperatur" },
         "loop_3_temperature": { "name": "Loop 3 Sensor-Temperatur" },
         "loop_4_temperature": { "name": "Loop 4 Sensor-Temperatur" },
+        "loop_1_inlet_temperature":{ "name": "Loop 1 Eintrittstemperatur" },
+        "loop_2_inlet_temperature":{ "name": "Loop 2 Eintrittstemperatur" },
+        "loop_3_inlet_temperature":{ "name": "Loop 3 Eintrittstemperatur" },
+        "loop_4_inlet_temperature":{ "name": "Loop 4 Eintrittstemperatur" },
         "loop_1_thermostat_temperature": { "name": "Loop 1 Thermostat-Temperatur" },
         "loop_2_thermostat_temperature": { "name": "Loop 2 Thermostat-Temperatur" },
         "loop_3_thermostat_temperature": { "name": "Loop 3 Thermostat-Temperatur" },
@@ -142,7 +147,8 @@
         "loop_4_comfort_offset": { "name": "Loop 4 KOMFORT‑Versatz" },
         "dhw_eco_offset": { "name": "Warmwasser ECO‑Versatz" },
         "dhw_comfort_offset": { "name": "Warmwasser KOMFORT‑Versatz" },
-        "update_interval": { "name": "Aktualisierungsintervall (min)" }
+        "update_interval": { "name": "Aktualisierungsintervall (min)" },
+        "main_temperature_offset": { "name": "Systemtemperatur-Versatz"}
       },
       "climate": {
         "dhw_temperature": { "name": "Warmwassertemperatur" },
