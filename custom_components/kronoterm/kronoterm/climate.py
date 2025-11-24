@@ -1,0 +1,414 @@
+import logging
+from typing import Optional, Any
+
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import (
+    ClimateEntityFeature,
+    HVACMode,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
+
+# Import the Modbus addresses needed for Loop 1
+from .const import DOMAIN  # MODIFIED: Removed Loop1 specific addrs
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback
+) -> bool:
+    """Set up Kronoterm climate entities from config entry."""
+    data = hass.data.get(DOMAIN)
+    if not data:
+        _LOGGER.error("No data found in hass.data for domain %s", DOMAIN)
+        return False
+
+    coordinator = data.get("coordinator")
+    if not coordinator:
+        _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
+        return False
+
+    # Create the standard climate entities
+    entities = [
+        KronotermDHWClimate(entry, coordinator),
+        # Assuming DHW is always installed.
+        # You could add a 'tap_water_installed' flag to coordinator if needed.
+    ]
+
+    # --- UPDATED THIS LOGIC ---
+
+    # Conditionally add Loop 1
+    if coordinator.loop1_installed:
+        # MODIFIED: Removed 'hass' argument
+        entities.append(KronotermLoop1Climate(entry, coordinator))
+        _LOGGER.info("Loop 1 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 1 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 2
+    if coordinator.loop2_installed:
+        entities.append(KronotermLoop2Climate(entry, coordinator))
+        _LOGGER.info("Loop 2 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 2 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 3
+    if coordinator.loop3_installed:
+        entities.append(KronotermLoop3Climate(entry, coordinator))
+        _LOGGER.info("Loop 3 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 3 not installed, skipping climate entity.")
+
+    # Conditionally add Loop 4
+    if coordinator.loop4_installed:
+        entities.append(KronotermLoop4Climate(entry, coordinator))
+        _LOGGER.info("Loop 4 installed, adding climate entity.")
+    else:
+        _LOGGER.info("Loop 4 not installed, skipping climate entity.")
+
+    # Conditionally add Reservoir
+    if coordinator.reservoir_installed:
+        entities.append(KronotermReservoirClimate(entry, coordinator))
+        _LOGGER.info("Reservoir installed, adding climate entity.")
+    else:
+        _LOGGER.info("Reservoir not installed, skipping climate entity.")
+
+    # --- END OF UPDATE ---
+
+    async_add_entities(entities)
+    return True
+
+
+class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
+    """Base class for Kronoterm Climate Entities."""
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        fallback_name: str,
+        translation_key: str,
+        unique_id_suffix: str,
+        min_temp: float,
+        max_temp: float,
+        page: int,
+        supports_cooling: bool = False
+    ) -> None:
+        """Initialize the climate entity."""
+        super().__init__(coordinator)
+
+        self._page = page
+        self._attr_has_entity_name = True
+        # Set a fallback name and use the proper translation key
+        
+        self._attr_translation_key = translation_key
+        self._attr_entity_id = f"{DOMAIN}.{translation_key}"
+        self._attr_name = fallback_name  # Fallback if no translation is found
+
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
+
+        # Show a single target-temperature control in HA's UI
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+
+        # If hardware can do cooling, add COOL + OFF
+        self._supports_cooling = supports_cooling
+        if supports_cooling:
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
+            self._attr_hvac_mode = HVACMode.HEAT  # default
+        else:
+            self._attr_hvac_modes = [HVACMode.HEAT]
+            self._attr_hvac_mode = HVACMode.HEAT
+
+        self._attr_min_temp = min_temp
+        self._attr_max_temp = max_temp
+        self._attr_precision = 0.1
+        self._attr_target_temperature_step = 0.1
+
+        # Basic device info (manufacturer, model, etc.) from coordinator
+        self._attr_device_info = coordinator.shared_device_info
+
+        # If we eventually add a separate "mode_address," store it here
+        self._mode_address = None
+
+    @property
+    def temperature_unit(self) -> str:
+        """Return the temperature unit (°C or °F) set in Home Assistant."""
+        return self.hass.config.units.temperature_unit
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        """Return the current HVAC operation mode (HEAT, COOL, OFF)."""
+        return self._attr_hvac_mode
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        """
+        Called by HA to set a new target temperature.
+        We pass it to the coordinator's async_set_temperature(page, new_temp).
+        """
+        new_temp = kwargs.get("temperature")
+        if new_temp is None:
+            _LOGGER.error("%s: No temperature value provided", self.name)
+            return
+
+        # Validate range
+        if new_temp < self._attr_min_temp or new_temp > self._attr_max_temp:
+            _LOGGER.error(
+                "%s: Temperature %.1f°C out of range (%.1f-%.1f)",
+                self.name, new_temp, self._attr_min_temp, self._attr_max_temp
+            )
+            return
+
+        new_temp_rounded = round(new_temp, 1)
+        _LOGGER.info("%s: Setting temperature to %.1f°C (page=%d)",
+                     self.name, new_temp_rounded, self._page)
+
+        success = await self.coordinator.async_set_temperature(self._page, new_temp_rounded)
+        if success:
+            _LOGGER.info("%s: Successfully updated temperature to %.1f°C",
+                         self.name, new_temp_rounded)
+        else:
+            _LOGGER.error("%s: Failed to update temperature", self.name)
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Called by HA to set a new HVAC mode, e.g. COOL. Only works if hardware supports it."""
+        if not self._supports_cooling:
+            _LOGGER.warning("%s: This unit does not support changing HVAC mode", self.name)
+            return
+
+        if hvac_mode not in self._attr_hvac_modes:
+            _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
+            return
+
+        # Map hvac_mode to some integer we'd send to your coordinator
+        mode_value = 0  # OFF
+        if hvac_mode == HVACMode.HEAT:
+            mode_value = 1
+        elif hvac_mode == HVACMode.COOL:
+            mode_value = 2
+
+        _LOGGER.info("%s: Setting HVAC mode to %s (value=%d)",
+                     self.name, hvac_mode, mode_value)
+
+        success = True
+        # If your coordinator has an async_set_hvac_mode method:
+        if hasattr(self.coordinator, "async_set_hvac_mode"):
+            success = await self.coordinator.async_set_hvac_mode(self._mode_address, mode_value)
+
+        if success:
+            self._attr_hvac_mode = hvac_mode
+            self.async_write_ha_state()
+            _LOGGER.info("%s: Successfully updated HVAC mode to %s", self.name, hvac_mode)
+        else:
+            _LOGGER.error("%s: Failed to update HVAC mode", self.name)
+
+
+# -------------------------------------------------------------------
+# NEW BASE CLASS for simple JSON-based climate entities
+# -------------------------------------------------------------------
+class KronotermJsonClimate(KronotermBaseClimate):
+    """Base for climate entities that read from a dedicated JSON data key."""
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        data_key: str,
+        current_temp_json_key: str,
+        target_temp_json_key: str = "circle_temp",
+        **kwargs: Any
+    ) -> None:
+        """Initialize the JSON-based climate entity."""
+        super().__init__(entry=entry, coordinator=coordinator, **kwargs)
+        self._data_key = data_key
+        self._current_temp_json_key = current_temp_json_key
+        self._target_temp_json_key = target_temp_json_key
+
+    @property
+    def _json_data(self) -> dict | None:
+        """Helper to get the specific data blob for this entity."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._data_key)
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the current temperature from the dedicated JSON data blob."""
+        data = self._json_data
+        if not data:
+            return None
+
+        temps = data.get("TemperaturesAndConfig", {})
+        raw = temps.get(self._current_temp_json_key)
+        if not raw or raw in ("-60.0", "unknown", "unavailable"):
+            return None
+
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the target temperature from the dedicated JSON data blob."""
+        data = self._json_data
+        if not data:
+            return None
+
+        circle_data = data.get("HeatingCircleData", {})
+        raw = circle_data.get(self._target_temp_json_key)
+        if not raw or raw in ("unknown", "unavailable"):
+            return None
+
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+
+#
+#   Domestic Hot Water (DHW) - Refactored
+#
+class KronotermDHWClimate(KronotermJsonClimate):
+    """Climate entity for domestic hot water (DHW)."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="dhw",
+            current_temp_json_key="tap_water_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="DHW Temperature",
+            translation_key="dhw_temperature",
+            unique_id_suffix="dhw_climate",
+            min_temp=10,
+            max_temp=90,
+            page=9,
+        )
+
+
+# --- MODIFIED: START OF Loop 1 REPLACEMENT ---
+#
+#   Loop 1 (Refactored to match other loops)
+#
+class KronotermLoop1Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 1."""
+
+    def __init__(
+        self, 
+        entry: ConfigEntry, 
+        coordinator: DataUpdateCoordinator
+    ):
+        """Initialize the climate entity."""
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop1",
+            current_temp_json_key="heating_circle_1_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 1 Temperature",
+            translation_key="loop_1_temperature",
+            unique_id_suffix="loop1_climate",
+            min_temp=10,
+            max_temp=90,
+            page=5,
+        )
+# --- MODIFIED: END OF Loop 1 REPLACEMENT ---
+
+
+#
+#   Loop 2 - Refactored
+#
+class KronotermLoop2Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 2."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop2",
+            current_temp_json_key="heating_circle_2_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 2 Temperature",
+            translation_key="loop_2_temperature",
+            unique_id_suffix="loop2_climate",
+            min_temp=10,
+            max_temp=90,
+            page=6,
+        )
+
+
+# --- ADDED LOOP 3 ---
+#
+#   Loop 3
+#
+class KronotermLoop3Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 3."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop3",
+            current_temp_json_key="heating_circle_3_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 3 Temperature",
+            translation_key="loop_3_temperature",
+            unique_id_suffix="loop3_climate",
+            min_temp=10,
+            max_temp=90,
+            page=7,
+        )
+
+
+# --- ADDED LOOP 4 ---
+#
+#   Loop 4
+#
+class KronotermLoop4Climate(KronotermJsonClimate):
+    """Climate entity for heating Loop 4."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="loop4",
+            current_temp_json_key="heating_circle_4_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Loop 4 Temperature",
+            translation_key="loop_4_temperature",
+            unique_id_suffix="loop4_climate",
+            min_temp=10,
+            max_temp=90,
+            page=8,
+        )
+
+
+#
+#   Reservoir - Refactored
+#
+class KronotermReservoirClimate(KronotermJsonClimate):
+    """Climate entity for reservoir temperature."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="reservoir",
+            current_temp_json_key="reservoir_temp",
+            # target_temp_json_key defaults to "circle_temp", which is correct
+            fallback_name="Reservoir Temperature",
+            translation_key="reservoir_temperature",
+            unique_id_suffix="reservoir_climate",
+            min_temp=10,
+            max_temp=90,
+            page=4,
+        )
