@@ -28,7 +28,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 class KronotermCoordinator(DataUpdateCoordinator):
-    """Single coordinator that fetches data (main, shortcuts, loop1, loop2, dhw, consumption) for Kronoterm."""
+    """Single coordinator that fetches data (main, shortcuts, loops, dhw, consumption) for Kronoterm."""
 
     def __init__(self, hass: HomeAssistant, session: aiohttp.ClientSession, config_entry):
         """Initialize the coordinator with the Home Assistant instance and session."""
@@ -39,8 +39,11 @@ class KronotermCoordinator(DataUpdateCoordinator):
         # Extract credentials
         self.username = config_entry.options.get("username", config_entry.data.get("username", ""))
         self.password = config_entry.options.get("password", config_entry.data.get("password", ""))
+        
         if not self.username or not self.password:
             _LOGGER.error("No username/password found in config entry! Authentication will fail.")
+        
+        # Store Basic Auth object to send with EVERY request (PhoneGap mode)
         self.auth = aiohttp.BasicAuth(self.username, self.password)
 
         # Use only the persisted runtime value from options, falling back to DEFAULT_SCAN_INTERVAL.
@@ -51,12 +54,13 @@ class KronotermCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name="kronoterm_unified_ coordinator",
+            name="kronoterm_unified_coordinator",
             update_method=self._async_update_data,
             update_interval=timedelta(minutes=scan_interval),
         )
 
-        self._use_basic_auth = True  # Start with Basic Auth enabled
+        # Flag to track connectivity state
+        self._session_valid = False
 
         self.shared_device_info: Dict[str, Any] = {}
         # These flags will be set in _async_fetch_info_once
@@ -68,44 +72,95 @@ class KronotermCoordinator(DataUpdateCoordinator):
         self.loop3_installed: bool = False
         self.loop4_installed: bool = False
         self.tap_water_installed: bool = False
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """
+        Generate headers to mimic the Kronoterm Mobile App (PhoneGap).
+        """
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(BASE_URL)
+            root_url = f"{parsed.scheme}://{parsed.netloc}/"
+        except Exception:
+            root_url = BASE_URL
 
+        return {
+            "phonegap": "1.5.0",  # REQUIRED: identifies this as the mobile app
+            "Accept": "*/*", 
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate",
+            "X-Requested-With": "XMLHttpRequest", # Critical for JSON response
+            "Referer": root_url,
+            "Origin": root_url.rstrip("/"),
+            "Connection": "keep-alive",
+        }
 
     async def async_initialize(self) -> None:
-        """
-        Initialize the coordinator with:
-          1) First data refresh
-          2) One-time info fetch (which also parses system config)
-        """
-        # 1) Initial data refresh
+        """Initialize: Verify auth, then fetch info."""
+        # 1. Perform explicit login/check to ensure creds are valid
+        await self._perform_login()
+        
+        # 2. Fetch initial data
         await self.async_config_entry_first_refresh()
 
-        # 2) Fetch 'info' once at startup and parse system flags
+        # 3. Parse system info
         await self._async_fetch_info_once()
+        _LOGGER.info("Kronoterm coordinator initialized successfully (App Mode)")
 
-        _LOGGER.info("Kronoterm coordinator initialized successfully")
+    async def _perform_login(self) -> None:
+        """
+        Perform the initial handshake.
+        Crucially, we must call 'Menu=1' to 'prime' the server session 
+        with the user's heat pump configuration (hp_id), exactly like the App's LoadSite() function.
+        """
+        _LOGGER.debug("Performing initial handshake (Menu=1)...")
+        try:
+            # CHANGE: Use "menu" instead of "info" for the handshake
+            query_params = API_QUERIES_GET["menu"]
+            
+            async with self.session.get(
+                BASE_URL, 
+                auth=self.auth, 
+                params=query_params,
+                headers=self._get_headers(),
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+            ) as response:
+                if response.status == 200:
+                    # Verify we got a valid session by checking if we got JSON with 'hp_id'
+                    try:
+                        data = await response.json()
+                        if "hp_id" in data:
+                            _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
+                            self._session_valid = True
+                            return
+                        else:
+                            _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
+                    except Exception:
+                        _LOGGER.warning("Handshake returned 200 but invalid JSON.")
+
+                    # Fallback: If Menu=1 failed to parse, we mark as valid but warn
+                    self._session_valid = True 
+                else:
+                    _LOGGER.error("Handshake failed. Status: %s", response.status)
+                    self._session_valid = False
+        except Exception as e:
+            _LOGGER.error("Error during handshake: %s", e)
+            self._session_valid = False
 
     async def _async_fetch_info_once(self) -> None:
-        """
-        Fetch 'info' data once, store it, and parse system config
-        (device info, pool status, reservoir status) from it.
-        """
+        """Fetch 'info' data once and parse system config."""
         try:
             info_data = await self._fetch_info()
             if info_data is None:
-                _LOGGER.warning("No 'info' data returned.")
                 raise UpdateFailed("No 'info' data returned from API")
             if not self.data:
                 self.data = {}
             self.data["info"] = info_data
-            _LOGGER.debug("Info data fetched: %s", info_data)
-
-            # Parse device info (model, firmware, etc.)
+            
             self._parse_device_info(info_data)
             
-            # Parse system config flags from 'TemperaturesAndConfig'
             temp_config = info_data.get("TemperaturesAndConfig", {})
             self.pool_installed = bool(temp_config.get("pool_active", 0))
-            #self.reservoir_installed = bool(temp_config.get("reservoir_installed", 0))
             self.reservoir_installed = True
             self.alt_source_installed = bool(temp_config.get("alt_source_temp_visible", 0))
             self.loop1_installed = bool(temp_config.get("circle_1_installed", 0))
@@ -113,21 +168,11 @@ class KronotermCoordinator(DataUpdateCoordinator):
             self.loop3_installed = bool(temp_config.get("circle_3_installed", 0))
             self.loop4_installed = bool(temp_config.get("circle_4_installed", 0))
             self.tap_water_installed = bool(temp_config.get("tap_water_installed", 0))
-            _LOGGER.debug(
-                "System config parsed: Pool=%s, Reservoir=%s, AltSource=%s, L1=%s, L2=%s, L3=%s, L4=%s",
-                self.pool_installed, self.reservoir_installed, self.alt_source_installed,
-                self.loop1_installed, self.loop2_installed,
-                self.loop3_installed, self.loop4_installed,
-                self.tap_water_installed
-            )
-
-            # Successfully fetched info, switch to cookie-based auth
-            self._use_basic_auth = False
-            _LOGGER.info("Successfully fetched info, switching to cookie auth for subsequent requests.")
+            
+            _LOGGER.debug("System config parsed successfully.")
 
         except Exception as e:
             _LOGGER.error("Failed to fetch 'info' data during initialization: %s", e)
-            # Re-raise the exception to stop the integration setup
             raise
 
     def _parse_device_info(self, info_data: Dict[str, Any]) -> None:
@@ -144,12 +189,15 @@ class KronotermCoordinator(DataUpdateCoordinator):
             "model": pump_model,
             "sw_version": firmware_version,
         }
-        _LOGGER.info("Device info parsed - ID: %s, model: %s", device_id, pump_model)
 
     async def _async_update_data(self) -> Dict[str, Any]:
+        # In App Mode, we don't strictly need a session cookie, but if we marked
+        # session as invalid, we retry the handshake.
+        if not self._session_valid:
+            await self._perform_login()
+
         try:
             data = {}
-
             # 1) fetch main & shortcuts in parallel
             results = await asyncio.gather(
                 self._fetch_main(),
@@ -157,18 +205,18 @@ class KronotermCoordinator(DataUpdateCoordinator):
                 return_exceptions=True
             )
             main_result, shortcuts_result = results
+            
             if isinstance(main_result, Exception):
                 _LOGGER.error("Error fetching main data: %s", main_result)
                 main_result = None
             if isinstance(shortcuts_result, Exception):
                 _LOGGER.error("Error fetching shortcuts data: %s", shortcuts_result)
                 shortcuts_result = None
+            
             data["main"] = main_result
             data["shortcuts"] = shortcuts_result
-            _LOGGER.debug("Shortcuts data fetched: %s", shortcuts_result)
-            _LOGGER.debug("Main data fetched: %s", main_result)
 
-            # 2) fetch loop1, loop2, loop3, loop4, dhw, reservoir in parallel
+            # 2) fetch loops, dhw, reservoir in parallel
             try:
                 (
                     loop1_data, 
@@ -176,7 +224,9 @@ class KronotermCoordinator(DataUpdateCoordinator):
                     dhw_data, 
                     reservoir_data, 
                     loop3_data, 
-                    loop4_data
+                    loop4_data,
+                    main_settings_data,
+                    system_data_result
                 ) = await asyncio.gather(
                     self._fetch_loop1(),
                     self._fetch_loop2(),
@@ -184,6 +234,8 @@ class KronotermCoordinator(DataUpdateCoordinator):
                     self._fetch_reservoir(),
                     self._fetch_loop3(),
                     self._fetch_loop4(),
+                    self._fetch_main_settings(),
+                    self._fetch_system_data(),
                 )
                 data["loop1"] = loop1_data
                 data["loop2"] = loop2_data
@@ -191,14 +243,18 @@ class KronotermCoordinator(DataUpdateCoordinator):
                 data["reservoir"] = reservoir_data
                 data["loop3"] = loop3_data
                 data["loop4"] = loop4_data
+                data["main_settings"] = main_settings_data
+                data["system_data"] = system_data_result
             except Exception as ex:
-                _LOGGER.error("Error fetching loops/dhw/reservoir/pages: %s", ex)
+                _LOGGER.error("Error fetching loops/dhw/reservoir: %s", ex)
                 data["loop1"] = None
                 data["loop2"] = None
                 data["dhw"] = None
                 data["reservoir"] = None
                 data["loop3"] = None
                 data["loop4"] = None
+                data["main_settings"] = None
+                data["system_data"] = None
 
             # 3) fetch consumption last
             try:
@@ -247,33 +303,27 @@ class KronotermCoordinator(DataUpdateCoordinator):
     async def _fetch_loop4(self):
         return await self._request_with_retries("GET", API_QUERIES_GET["loop4"])
 
+    async def _fetch_main_settings(self):
+        return await self._request_with_retries("GET", API_QUERIES_GET["main_settings"])
+
+    async def _fetch_system_data(self):
+        return await self._request_with_retries("GET", API_QUERIES_GET["system_data"])
+
     async def _fetch_consumption(self) -> Optional[Dict[str, Any]]:
         query_params = API_QUERIES_GET["consumption"]
-        
         now = datetime.now()
         year = now.year
         d1 = now.timetuple().tm_yday
-
-        # Optionally read consumption_year/d1 from config
-        if (custom_year := self.config_entry.options.get("consumption_year")):
-            try:
-                year = int(custom_year)
-            except ValueError:
-                _LOGGER.warning("Invalid consumption_year in options, ignoring.")
-        if (custom_d1 := self.config_entry.options.get("consumption_d1")):
-            try:
-                d1 = int(custom_d1)
-            except ValueError:
-                _LOGGER.warning("Invalid consumption_d1 in options, ignoring.")
-
-        # Start with dynamic data
-        form_data = [
-            ("year", str(year)),
-            ("d1", str(d1)),
-        ]
-        # Add all static data
-        form_data.extend(CONSUMPTION_FORM_DATA_STATIC)
         
+        if (custom_year := self.config_entry.options.get("consumption_year")):
+            try: year = int(custom_year)
+            except ValueError: pass
+        if (custom_d1 := self.config_entry.options.get("consumption_d1")):
+            try: d1 = int(custom_d1)
+            except ValueError: pass
+
+        form_data = [("year", str(year)), ("d1", str(d1))]
+        form_data.extend(CONSUMPTION_FORM_DATA_STATIC)
         return await self._request_with_retries("POST", query_params, form_data=form_data)
 
     # ------------------------------------------------------------------
@@ -295,23 +345,41 @@ class KronotermCoordinator(DataUpdateCoordinator):
                     return await self._perform_post(query_params, form_data)
             except (ClientResponseError, ClientError) as e:
                 _LOGGER.warning("%s attempt %d failed: %s", method.upper(), attempt_idx + 1, e)
+                # Retry logic for 401/403
+                if isinstance(e, ClientResponseError) and e.status in (401, 403):
+                    _LOGGER.warning("Auth failure. Re-initializing connection.")
+                    await self._perform_login()
+                    continue
+
                 if attempt_idx < attempts - 1:
-                    # Exponential backoff for retries
                     await asyncio.sleep(RETRY_DELAY_BASE ** attempt_idx)
                 else:
                     raise UpdateFailed(f"Max {method} retries reached for {query_params}: {e}")
         return None
 
-    async def _perform_get(
-        self, 
-        query_params: Dict[str, str],
-    ) -> Optional[Dict[str, Any]]:
+    def _get_page_cookies(self, query_params: Dict[str, str]) -> Dict[str, str]:
+        """
+        Extract expected page cookies from query params.
+        Required even in App Mode for server state context.
+        """
+        cookies = {"lang": "en"}
+        if "TopPage" in query_params:
+            cookies["CurrentTopPage"] = query_params["TopPage"]
+        if "Subpage" in query_params:
+            cookies["CurrentSubPage"] = query_params["Subpage"]
+        return cookies
+
+    async def _perform_get(self, query_params: Dict[str, str]) -> Optional[Dict[str, Any]]:
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
-        # Use basic auth ONLY if the flag is set (on first run or after 401)
+        page_cookies = self._get_page_cookies(query_params)
+
+        # App Mode: auth=self.auth must be present!
         async with self.session.get(
             BASE_URL, 
-            auth=self.auth if self._use_basic_auth else None, 
+            auth=self.auth,  # Authenticate every request
             params=query_params, 
+            headers=self._get_headers(),
+            cookies=page_cookies, 
             timeout=timeout
         ) as response:
             return await self._process_response(response, "GET", query_params)
@@ -322,12 +390,16 @@ class KronotermCoordinator(DataUpdateCoordinator):
         form_data: Optional[List[Tuple[str, str]]] = None,
     ) -> Optional[Dict[str, Any]]:
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
-        # Use basic auth ONLY if the flag is set (on first run or after 401)
+        page_cookies = self._get_page_cookies(query_params)
+
+        # App Mode: auth=self.auth must be present!
         async with self.session.post(
             BASE_URL,
-            auth=self.auth if self._use_basic_auth else None,
+            auth=self.auth, # Authenticate every request
             params=query_params,
             data=form_data,
+            headers=self._get_headers(),
+            cookies=page_cookies,
             timeout=timeout
         ) as response:
             return await self._process_response(response, "POST", query_params)
@@ -338,50 +410,35 @@ class KronotermCoordinator(DataUpdateCoordinator):
         method: str,
         query_params: Dict[str, str]
     ) -> Optional[Dict[str, Any]]:
+        
         if response.status == 401:
-            _LOGGER.error("Unauthorized! Check credentials.")
-            # Session likely expired. Set flag to re-authenticate with Basic Auth
-            # on the next request.
-            if not self._use_basic_auth:
-                _LOGGER.warning("Session cookie expired. Forcing re-authentication with Basic Auth.")
-                self._use_basic_auth = True
-            return None
+             _LOGGER.error("Unauthorized! Check credentials.")
+             raise ClientResponseError(response.request_info, response.history, status=401, message="Unauthorized")
+
         if response.status != 200:
             body = await response.text()
             _LOGGER.error("HTTP %s on %s: %s", response.status, method, body)
             raise UpdateFailed(f"HTTP {response.status} for {method} {query_params}")
 
-        # --- MODIFIED SECTION ---
-        # Read the raw text from the response first
         raw_text = await response.text()
+        
+        # RESTORED: Log the raw text so you can compare it with the browser response
+        _LOGGER.debug("Full raw response for %s %s: %s", method, query_params, raw_text)
 
-        # Log the full raw text at DEBUG level
-        _LOGGER.debug(
-            "Full raw response for %s %s: %s",
-            method,
-            query_params,
-            raw_text
-        )
-        # --- END MODIFIED SECTION ---
-
-        # Parse JSON
         try:
-            # Now parse the text we just read
             data = json.loads(raw_text)
             
-            # This log will confirm successful parsing
-            _LOGGER.debug(
-                "Successful JSON parse for %s %s: %s", 
-                method, 
-                query_params, 
-                data
-            )
-            
+            # Check for redirect (Session invalid)
+            if data.get("result") == "action" and "window.location" in data.get("js", ""):
+                 _LOGGER.warning("Server returned redirect despite App Mode.")
+                 raise ClientResponseError(response.request_info, response.history, status=401, message="Session Redirect")
+
+            # RESTORED: Log the parsed data
+            _LOGGER.debug("Successful JSON parse for %s %s: %s", method, query_params, data)
             return data
             
         except json.JSONDecodeError as e:
-            # Catch parsing errors
-            _LOGGER.error("Invalid JSON response (JSONDecodeError): %s", raw_text[:200])
+            _LOGGER.error("Invalid JSON response: %s", raw_text[:200])
             raise UpdateFailed(f"Invalid JSON response for {method} {query_params}") from e
 
     # ------------------------------------------------------------------
@@ -391,17 +448,9 @@ class KronotermCoordinator(DataUpdateCoordinator):
     async def _async_set_page_parameter(
         self, page: int, param_name: str, param_value: str
     ) -> bool:
-        """
-        Generic helper to set a parameter on a specific page (4, 5, 6, 7, 8, 9).
-        POSTs to the corresponding API_QUERY_SET endpoint.
-        """
+        """Generic helper to set a parameter on a specific page."""
         query_key = PAGE_TO_SET_QUERY_KEY.get(page)
         if not query_key:
-            _LOGGER.error(
-                "Invalid page=%s for _async_set_page_parameter (param=%s)",
-                page,
-                param_name,
-            )
             return False
 
         query_params = API_QUERIES_SET[query_key]
@@ -412,44 +461,18 @@ class KronotermCoordinator(DataUpdateCoordinator):
         ]
 
         try:
-            response_json = await self._request_with_retries(
-                "POST", query_params, form_data
-            )
+            response_json = await self._request_with_retries("POST", query_params, form_data)
             if response_json and response_json.get("result") == "success":
-                _LOGGER.info(
-                    "Parameter %s (page=%s) set to %s successfully.",
-                    param_name,
-                    page,
-                    param_value,
-                )
-                # Request an immediate refresh to reflect the change in HA
                 await self.async_request_refresh()
                 return True
-            else:
-                _LOGGER.error(
-                    "Failed to set param=%s page=%s to %s. Response=%s",
-                    param_name,
-                    page,
-                    param_value,
-                    response_json,
-                )
-                return False
-        except UpdateFailed as exc:
-            _LOGGER.error(
-                "Error in _async_set_page_parameter param=%s page=%s: %s",
-                param_name,
-                page,
-                exc,
-            )
+            return False
+        except UpdateFailed:
             return False
 
     async def _async_set_shortcut(
         self, param_name: str, enable: bool, post_set_delay: int = SHORTCUT_DELAY_DEFAULT
     ) -> bool:
-        """
-        Generic helper to set a shortcut parameter (page -1) using API_QUERIES_SET["switch"].
-        Includes a post-set delay before refreshing.
-        """
+        """Generic helper to set a shortcut parameter (page -1)."""
         query_params = API_QUERIES_SET["switch"]
         param_value = "1" if enable else "0"
         form_data = [
@@ -460,89 +483,65 @@ class KronotermCoordinator(DataUpdateCoordinator):
         try:
             result = await self._request_with_retries("POST", query_params, form_data)
             if result and result.get("result") == "success":
-                _LOGGER.info(
-                    "Shortcut %s set to %s successfully.", param_name, param_value
-                )
-                # Some device shortcuts need a moment to process
                 if post_set_delay > 0:
                     await asyncio.sleep(post_set_delay)
                 await self.async_request_refresh()
                 return True
-            else:
-                _LOGGER.error(
-                    "Failed to set shortcut %s=%s. Response=%s",
-                    param_name,
-                    param_value,
-                    result,
-                )
-                return False
-        except UpdateFailed as exc:
-            _LOGGER.error(
-                "Error toggling shortcut %s=%s: %s", param_name, param_value, exc
-            )
+            return False
+        except UpdateFailed:
+            return False
+    
+    async def async_set_main_temp_offset(self, new_value: float) -> bool:
+        """Set the main temperature offset (main_temp)."""
+        # Uses the "main_settings" query definition we added to const.py
+        query_params = API_QUERIES_SET["main_settings"]
+        
+        # Based on your screenshot, this specific parameter uses page "-1" 
+        # inside the form data, even though the URL is TopPage=3/Subpage=11.
+        form_data = [
+            ("param_name", "main_temp"),
+            ("param_value", str(int(new_value))), 
+            ("page", "-1"),
+        ]
+        
+        try:
+            result = await self._request_with_retries("POST", query_params, form_data)
+            if result and result.get("result") == "success":
+                await self.async_request_refresh()
+                return True
+            return False
+        except UpdateFailed:
             return False
 
     # ------------------------------------------------------------------
-    #  Public "Set" methods (called by platforms)
+    #  Public "Set" methods
     # ------------------------------------------------------------------
 
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
-        """Turn the heat pump ON/OFF via shortcut."""
         return await self._async_set_shortcut(
             API_PARAM_KEYS["HEAT_PUMP"], turn_on, post_set_delay=SHORTCUT_DELAY_STATE
         )
 
     async def async_set_temperature(self, page: int, new_temp: float) -> bool:
-        """
-        POST request to change temperature for:
-          - DHW (page=9)
-          - Loop 1 (page=5)
-          - Loop 2 (page=6)
-          - Loop 3 (page=7)
-          - Loop 4 (page=8)
-          - Reservoir (page=4)
-        """
         return await self._async_set_page_parameter(
             page, API_PARAM_KEYS["TEMP"], str(round(new_temp, 1))
         )
 
     async def async_set_offset(self, page: int, param_name: str, new_value: float) -> bool:
-        """
-        POST request to set an ECO/COMFORT offset for loops, DHW, or reservoir.
-          - page=4 => reservoir
-          - page=5 => loop1
-          - page=6 => loop2
-          - page=7 => loop3
-          - page=8 => loop4
-          - page=9 => DHW
-        """
-        # param_name is passed in directly as it can vary (e.g., "circle_eco_offset")
         return await self._async_set_page_parameter(
             page, param_name, str(round(new_value, 1))
         )
 
     async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
-        """
-        POST request to set the loop/DHW/reservoir mode to 'OFF'(0), 'ON'(1), or 'AUTO'(2).
-          - page=4 => Reservoir
-          - page=5 => Loop 1
-          - page=6 => Loop 2
-          - page=7 => Loop 3
-          - page=8 => Loop 4
-          - page=9 => DHW
-        """
         return await self._async_set_page_parameter(
             page, API_PARAM_KEYS["MODE"], str(new_mode)
         )
 
     async def async_set_antilegionella(self, enable: bool) -> bool:
-        """Enable/disable antilegionella via shortcut."""
         return await self._async_set_shortcut(API_PARAM_KEYS["ANTILEGIONELLA"], enable)
 
     async def async_set_dhw_circulation(self, enable: bool) -> bool:
-        """Enable/disable DHW circulation."""
         return await self._async_set_shortcut(API_PARAM_KEYS["CIRCULATION"], enable)
 
     async def async_set_fast_water_heating(self, enable: bool) -> bool:
-        """Enable/disable fast water heating (if supported)."""
         return await self._async_set_shortcut(API_PARAM_KEYS["FAST_HEATING"], enable)

@@ -304,6 +304,35 @@ async def async_setup_entry(
                     state_class=SensorStateClass.MEASUREMENT,
                 )
             )
+    
+    # Inlet Temperature Sensors
+    sys_data = coordinator.data.get("system_data", {})
+    sys_data_list = sys_data.get("SystemData", []) if sys_data else []
+
+    for i in range(1, 5): # Check Loops 1-4
+        # Ensure we have data for this index
+        if i < len(sys_data_list):
+            loop_data = sys_data_list[i]
+            
+            # Verify this is actually the correct circle_id (safety check)
+            if loop_data.get("circle_id") == i:
+                # Check if 'inlet_temp' exists in the JSON for this loop
+                if "inlet_temp" in loop_data:
+                    _LOGGER.info("Found inlet_temp for Loop %d, adding sensor.", i)
+                    json_entities.append(
+                        KronotermJsonSensor(
+                            coordinator,
+                            device_info,
+                            f"loop_{i}_inlet_temp", # Unique suffix
+                            f"loop_{i}_inlet_temperature", # Translation key
+                            # Path: ["system_data", "SystemData", index(int), "inlet_temp"]
+                            ["system_data", "SystemData", i, "inlet_temp"],
+                            unit="°C",
+                            icon="mdi:thermometer-chevron-down",
+                            device_class=SensorDeviceClass.TEMPERATURE,
+                            state_class=SensorStateClass.MEASUREMENT,
+                        )
+                    )
 
     # Energy sensors
     energy_sensors = [

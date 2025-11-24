@@ -3,15 +3,14 @@
 import logging
 import re
 from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
 
 from .const import DOMAIN
 from .entities import KronotermModbusBase
@@ -20,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # ---------------------------------------
-# OFFSET ENTITIES
+# OFFSET ENTITIES CONFIGURATION
 # ---------------------------------------
 @dataclass
 class OffsetConfig:
@@ -39,15 +38,15 @@ OFFSET_CONFIGS: List[OffsetConfig] = [
     # Loop 2
     OffsetConfig("loop_2_eco_offset", 6, 2057, "circle_eco_offset", -10.0, 0.0, "loop2_installed"),
     OffsetConfig("loop_2_comfort_offset", 6, 2058, "circle_comfort_offset", 0.0, 10.0, "loop2_installed"),
-    # Sanitary (DHW)
-    OffsetConfig("dhw_eco_offset", 9, 2030, "circle_eco_offset", -10.0, 0.0, "tap_water_installed"), # Assuming 'tap_water_installed' flag exists
-    OffsetConfig("dhw_comfort_offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0, "tap_water_installed"), # Assuming 'tap_water_installed' flag exists
-    
+    # Loop 3
     OffsetConfig("loop_3_eco_offset", 7, 2067, "circle_eco_offset", -10.0, 0.0, "loop3_installed"),
     OffsetConfig("loop_3_comfort_offset", 7, 2068, "circle_comfort_offset", 0.0, 10.0, "loop3_installed"),
-
+    # Loop 4
     OffsetConfig("loop_4_eco_offset", 8, 2077, "circle_eco_offset", -10.0, 0.0, "loop4_installed"),
     OffsetConfig("loop_4_comfort_offset", 8, 2078, "circle_comfort_offset", 0.0, 10.0, "loop4_installed"),
+    # Sanitary (DHW)
+    OffsetConfig("dhw_eco_offset", 9, 2030, "circle_eco_offset", -10.0, 0.0, "tap_water_installed"), 
+    OffsetConfig("dhw_comfort_offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0, "tap_water_installed"),
 ]
 
 
@@ -71,26 +70,21 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
         max_value: float,
     ) -> None:
         """Initialize the offset number entity."""
-        # Pass coordinator, address, name, and device_info to the base class
         super().__init__(coordinator, address, name, coordinator.shared_device_info)
         
-        # Store entity-specific attributes
         self._entry = entry
         self._page = page
         self._param_name = param_name
 
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{page}_{address}"
-
-        # Define numeric bounds.
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = 0.1
-        self._attr_unit_of_measurement = "°C"  # offset in Celsius
+        self._attr_unit_of_measurement = "°C"
 
     def _process_value(self, raw_value: Any) -> Optional[float]:
         """Convert raw_value to float, remove non-numeric chars."""
         if isinstance(raw_value, str):
-            # Use regex to strip units and non-numeric characters
             raw_value = re.sub(r"[^\d\.\-]", "", raw_value)
 
         if raw_value == "":
@@ -107,7 +101,6 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
 
     @property
     def native_value(self) -> Optional[float]:
-        """Return the current offset value by calling the base class's compute method."""
         return self._compute_value()
 
     async def async_set_native_value(self, value: float) -> None:
@@ -125,13 +118,71 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
 
 
 # ---------------------------------------
+# MAIN TEMP OFFSET ENTITY (Refined)
+# ---------------------------------------
+class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
+    """
+    Number entity for 'main_temp' offset based on JSON data (not Modbus).
+    Reads 'system_temperature_correction' from 'AdvancedSettings'.
+    Writes 'main_temp' via POST request.
+    """
+    
+    _attr_has_entity_name = True
+    _attr_translation_key = "main_temperature_offset"
+    _attr_native_min_value = -5.0
+    _attr_native_max_value = 5.0
+    _attr_native_step = 1.0
+    _attr_unit_of_measurement = "°C"
+    _attr_icon = "mdi:thermometer-plus"
+
+    def __init__(self, coordinator: DataUpdateCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_main_temp_offset"
+        self._device_info = coordinator.shared_device_info
+
+    @property
+    def device_info(self):
+        return self._device_info
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """
+        Read 'system_temperature_correction' from the 'AdvancedSettings' block.
+        """
+        if not self.coordinator.data:
+            return None
+            
+        settings_data = self.coordinator.data.get("main_settings", {})
+        if not settings_data:
+            return None
+
+        # UPDATED LOGIC: Look specifically in AdvancedSettings -> system_temperature_correction
+        raw = None
+        advanced = settings_data.get("AdvancedSettings", {})
+        if "system_temperature_correction" in advanced:
+             raw = advanced["system_temperature_correction"]
+
+        if raw is not None:
+            try:
+                return float(raw)
+            except (ValueError, TypeError):
+                pass
+                
+        return None
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Write the value to the API using param_name='main_temp'."""
+        _LOGGER.info("Setting Main Temp Offset to %s", value)
+        await self.coordinator.async_set_main_temp_offset(value)
+
+
+# ---------------------------------------
 # COORDINATOR INTERVAL ENTITY
-# (This class is self-contained and does not need refactoring)
 # ---------------------------------------
 class CoordinatorUpdateIntervalNumber(NumberEntity):
     """
     Number entity for configuring the coordinator update interval (in minutes).
-    This appears under "Configuration" in the device page.
     """
 
     _attr_entity_category = EntityCategory.CONFIG
@@ -142,7 +193,6 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
     _attr_unit_of_measurement = "min"
 
     def __init__(self, coordinator):
-        """Initialize the number entity to control the coordinator update interval."""
         self._coordinator = coordinator
         self._attr_has_entity_name = True
         self._attr_translation_key = "update_interval"
@@ -150,33 +200,26 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
 
     @property
     def device_info(self):
-        """Return the same device info as the coordinator so it appears under the same device."""
         return self._coordinator.shared_device_info
 
     @property
     def native_value(self) -> float:
-        """Return the current update interval in minutes."""
         if self._coordinator.update_interval:
             return self._coordinator.update_interval.total_seconds() / 60.0
-        return 5.0  # fallback if no update_interval is set
+        return 5.0
 
     async def async_set_native_value(self, value: float) -> None:
-        """Handle user changes from the HA UI slider/field."""
-        minutes = max(1, min(int(value), 60))  # clamp to [1..60]
+        minutes = max(1, min(int(value), 60))
         _LOGGER.info("User set coordinator update interval to %s minutes", minutes)
 
-        # 1) Update the coordinator in-memory
         from datetime import timedelta
         self._coordinator.update_interval = timedelta(minutes=minutes)
 
-        # 2) Persist in config entry options so it survives restarts
         new_options = dict(self._coordinator.config_entry.options)
         new_options["scan_interval"] = minutes
         self.hass.config_entries.async_update_entry(
             self._coordinator.config_entry, options=new_options
         )
-
-        # 3) Optionally request an immediate refresh:
         await self._coordinator.async_request_refresh()
 
 
@@ -188,7 +231,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Number entities for offsets AND the coordinator update interval."""
+    """Set up Number entities."""
     coordinator = hass.data.get(DOMAIN, {}).get("coordinator")
     if not coordinator:
         _LOGGER.error("No Kronoterm coordinator found in hass.data[%s]", DOMAIN)
@@ -200,12 +243,9 @@ async def async_setup_entry(
     modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
     available_addresses = {reg.get("address") for reg in modbus_list}
 
-    # 1) Create offset entities
+    # 1) Create standard Modbus offset entities
     for config in OFFSET_CONFIGS:
-        # Check if the feature is installed (e.g., coordinator.loop1_installed)
         is_installed = getattr(coordinator, config.install_flag, False)
-        
-        # Check if the specific Modbus address is reported by the pump
         is_available = config.address in available_addresses
 
         if is_installed and is_available:
@@ -221,17 +261,11 @@ async def async_setup_entry(
                     max_value=config.max_value,
                 )
             )
-        else:
-            _LOGGER.info(
-                "Skipping entity %s: Installed=%s, Address %s Available=%s",
-                config.name,
-                is_installed,
-                config.address,
-                is_available,
-            )
 
     # 2) Create the coordinator update interval entity
     entities.append(CoordinatorUpdateIntervalNumber(coordinator))
 
-    # 3) Register them with Home Assistant
+    # 3) Create the Main Temperature Offset entity
+    entities.append(KronotermMainOffsetNumber(coordinator, entry))
+
     async_add_entities(entities, update_before_add=True)

@@ -41,16 +41,19 @@ RESERVOIR_TEMP_ADDR = 2101
 # ----------------------------------------------------------------------------
 # Queries for GETting data (fetching state)
 API_QUERIES_GET = {
+    "menu": {"Menu": "1"},
     "main": {"TopPage": "5", "Subpage": "3"},
     "info": {"TopPage": "1", "Subpage": "1"},
     "shortcuts": {"TopPage": "1", "Subpage": "3"},
     "reservoir": {"TopPage": "1", "Subpage": "4"},
     "loop1": {"TopPage": "1", "Subpage": "5"},
     "loop2": {"TopPage": "1", "Subpage": "6"},
-    "loop3": {"TopPage": "1", "Subpage": "7"},  # <-- RENAMED
-    "loop4": {"TopPage": "1", "Subpage": "8"},  # <-- RENAMED
+    "loop3": {"TopPage": "1", "Subpage": "7"},
+    "loop4": {"TopPage": "1", "Subpage": "8"},
     "dhw": {"TopPage": "1", "Subpage": "9"},
     "consumption": {"TopPage": "4", "Subpage": "4", "Action": "4"},
+    "main_settings": {"TopPage": "3", "Subpage": "11"},
+    "system_data": {"TopPage": "1", "Subpage": "2"},
 }
 
 # Queries for SETting data (sending commands, POST)
@@ -59,9 +62,10 @@ API_QUERIES_SET = {
     "reservoir": {"TopPage": "1", "Subpage": "4", "Action": "1"},
     "loop1": {"TopPage": "1", "Subpage": "5", "Action": "1"},
     "loop2": {"TopPage": "1", "Subpage": "6", "Action": "1"},
-    "loop3": {"TopPage": "1", "Subpage": "7", "Action": "1"},  # <-- ADDED
-    "loop4": {"TopPage": "1", "Subpage": "8", "Action": "1"},  # <-- ADDED
+    "loop3": {"TopPage": "1", "Subpage": "7", "Action": "1"},
+    "loop4": {"TopPage": "1", "Subpage": "8", "Action": "1"},
     "dhw": {"TopPage": "1", "Subpage": "9", "Action": "1"},
+    "main_settings": {"TopPage": "3", "Subpage": "11", "Action": "1"},
 }
 
 # Maps page numbers to the correct API_QUERIES_SET key
@@ -140,6 +144,7 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2091, "operating_hours_compressor_dhw", "h", "mdi:timer-outline", 1, True),
     SensorDefinition(2095, "operating_hours_additional_source_1", "h", "mdi:timer-outline", 1, True),
     SensorDefinition(2104, "hp_outlet_temperature", "°C", "mdi:thermometer", 1, True),
+    SensorDefinition(2101, "hp_inlet_temperature", "°C", "mdi:thermometer", 1, True),
     SensorDefinition(2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 1, True),
     SensorDefinition(2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 1, True),
     SensorDefinition(2325, "pressure_setting", "bar", "mdi:gauge", 1, True),
