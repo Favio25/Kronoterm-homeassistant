@@ -12,9 +12,11 @@ Tested with:
 - Provides detailed information such as temperatures, pressures, energy consumption, and operational statuses.
 - Configurable update intervals for main and auxiliary data.
 
-![dashboard](https://github.com/Favio25/Kronoterm-homeassistant/blob/main/images/dashboard.png)
-![integration](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/integration.png)
-![outside_temp](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/Outside_temp.png)
+[Home assistant dashboard yaml](dashboard.yaml)
+
+![Dashboard](https://github.com/Favio25/Kronoterm-homeassistant/blob/main/images/Dashboard.png)
+![Dashboard2](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/dashboard2.png)
+![energy](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/energy.png)
 
 ## Installation
 
@@ -44,7 +46,7 @@ Tested with:
 
 3. **Add the Integration**  
    Go to **Settings > Devices & Services** in Home Assistant. Click the "Add Integration" button and search for "Kronoterm." Follow the prompts to configure the integration with your Kronoterm credentials.
-   ![setup](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/Setup.png)
+   ![form](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/form.png)
 
 5. **Customize Update Intervals** (Optional)  
    Update intervals can be modified by specifying the `scan_interval` parameter in the configuration.
