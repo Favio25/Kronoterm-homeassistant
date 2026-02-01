@@ -90,6 +90,17 @@ API_PARAM_KEYS = {
     "ANTILEGIONELLA": "antilegionella",
     "CIRCULATION": "circulation_on",
     "FAST_HEATING": "water_heating_on",
+    "RESERVE_SOURCE": "reserve_source_on",  # Fixed: was "reserve_source"
+    "ADDITIONAL_SOURCE": "additional_source_on",  # Fixed: was "additional_source"
+    # Main settings parameters
+    "MAIN_MODE": "main_mode",
+}
+
+# Operational mode mapping (ECO/Auto/Comfort)
+MAIN_MODE_OPTIONS = {
+    0: "auto",
+    1: "eco",
+    2: "comfort",
 }
 
 # Static form data for consumption fetching

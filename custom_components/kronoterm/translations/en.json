@@ -39,59 +39,161 @@
   },
   "entity": {
     "binary_sensor": {
-      "circulation_loop_1": { "name": "Circulation Loop 1" },
-      "circulation_loop_2": { "name": "Circulation Loop 2" },
-      "circulation_loop_3": { "name": "Circulation Loop 3" },
-      "circulation_loop_4": { "name": "Circulation Loop 4" },
-      "circulation_dhw": { "name": "Circulation DHW" },
-      "additional_source": { "name": "Additional Source" },
-      "thermostat_loop_1": { "name": "Thermostat Loop 1 Active" },
-      "thermostat_loop_2": { "name": "Thermostat Loop 2 Active" },
-      "thermostat_loop_3": { "name": "Thermostat Loop 3 Active" },
-      "thermostat_loop_4": { "name": "Thermostat Loop 4 Active" }
+      "circulation_loop_1": {
+        "name": "Circulation Loop 1"
+      },
+      "circulation_loop_2": {
+        "name": "Circulation Loop 2"
+      },
+      "circulation_loop_3": {
+        "name": "Circulation Loop 3"
+      },
+      "circulation_loop_4": {
+        "name": "Circulation Loop 4"
+      },
+      "circulation_dhw": {
+        "name": "Circulation DHW"
+      },
+      "additional_source": {
+        "name": "Additional Source"
+      },
+      "thermostat_loop_1": {
+        "name": "Thermostat Loop 1 Active"
+      },
+      "thermostat_loop_2": {
+        "name": "Thermostat Loop 2 Active"
+      },
+      "thermostat_loop_3": {
+        "name": "Thermostat Loop 3 Active"
+      },
+      "thermostat_loop_4": {
+        "name": "Thermostat Loop 4 Active"
+      }
     },
     "sensor": {
-      "pool_temperature": { "name": "Pool Temperature" },
-      "alternative_source_temperature": { "name": "Alternative Source Temperature" },
-      "compressor_activations_cooling": { "name": "Compressor Activations - Cooling" },
-      "heating_source_pressure_set": { "name": "Pressure Setting Heating Source" },
-      "source_pressure": { "name": "Source Pressure" },
-      "energy_heating": { "name": "Energy Heating (Daily)" },
-      "energy_dhw": { "name": "Energy DHW (Daily)" },
-      "energy_circulation": { "name": "Energy Circulation (Daily)" },
-      "energy_heater": { "name": "Energy Heater (Daily)" },
-      "energy_combined": { "name": "Energy Combined (Daily)" },
-      "operating_hours_compressor_heating": { "name": "Operating Hours Compressor Heating" },
-      "operating_hours_compressor_dhw": { "name": "Operating Hours Compressor DHW" },
-      "operating_hours_additional_source_1": { "name": "Operating Hours Additional Source 1" },
-      "temperature_outside": { "name": "Temperature Outside" },
-      "hp_outlet_temperature": { "name": "Temperature HP Outlet" },
-      "hp_inlet_temperature": { "name": "Temperature HP Inlet" },
-      "temperature_compressor_inlet": { "name": "Temperature Compressor Inlet" },
-      "temperature_compressor_outlet": { "name": "Temperature Compressor Outlet" },
-      "pressure_setting": { "name": "Pressure Setting" },
-      "heating_system_pressure": { "name": "Heating System Pressure" },
-      "hp_load": { "name": "HP Load" },
-      "current_heating_cooling_capacity": { "name": "Current Heating/Cooling Capacity" },
-      "cop_value": { "name": "COP Value" },
-      "scop_value": { "name": "SCOP Value" },
-      "compressor_activations_heating": { "name": "Compressor Activations - Heating (24 h)" },
-      "activations_boiler": { "name": "Activations Boiler (24 h)" },
-      "activations_defrost": { "name": "Activations Defrost (24 h)" },
-      "electrical_energy_heating_dhw": { "name": "Electrical Energy Heating + DHW" },
-      "heating_energy_heating_dhw": { "name": "Heating Energy Heating + DHW" },
-      "loop_1_temperature": { "name": "Loop 1 Temperature" },
-      "loop_2_temperature": { "name": "Loop 2 Temperature" },
-      "loop_3_temperature": { "name": "Loop 3 Temperature" },
-      "loop_4_temperature": { "name": "Loop 4 Temperature" },
-      "loop_1_thermostat_temperature": { "name": "Loop 1 Thermostat Temperature" },
-      "loop_2_thermostat_temperature": { "name": "Loop 2 Thermostat Temperature" },
-      "loop_3_thermostat_temperature": { "name": "Loop 3 Thermostat Temperature" },
-      "loop_4_thermostat_temperature": { "name": "Loop 4 Thermostat Temperature" },
-      "loop_1_inlet_temperature":{ "name": "Loop 1 Inlet Temperature" },
-      "loop_2_inlet_temperature":{ "name": "Loop 2 Inlet Temperature" },
-      "loop_3_inlet_temperature":{ "name": "Loop 3 Inlet Temperature" },
-      "loop_4_inlet_temperature":{ "name": "Loop 4 Inlet Temperature" },
+      "pool_temperature": {
+        "name": "Pool Temperature"
+      },
+      "alternative_source_temperature": {
+        "name": "Alternative Source Temperature"
+      },
+      "compressor_activations_cooling": {
+        "name": "Compressor Activations - Cooling"
+      },
+      "heating_source_pressure_set": {
+        "name": "Pressure Setting Heating Source"
+      },
+      "source_pressure": {
+        "name": "Source Pressure"
+      },
+      "energy_heating": {
+        "name": "Energy Heating (Daily)"
+      },
+      "energy_dhw": {
+        "name": "Energy DHW (Daily)"
+      },
+      "energy_circulation": {
+        "name": "Energy Circulation (Daily)"
+      },
+      "energy_heater": {
+        "name": "Energy Heater (Daily)"
+      },
+      "energy_combined": {
+        "name": "Energy Combined (Daily)"
+      },
+      "operating_hours_compressor_heating": {
+        "name": "Operating Hours Compressor Heating"
+      },
+      "operating_hours_compressor_dhw": {
+        "name": "Operating Hours Compressor DHW"
+      },
+      "operating_hours_additional_source_1": {
+        "name": "Operating Hours Additional Source 1"
+      },
+      "temperature_outside": {
+        "name": "Temperature Outside"
+      },
+      "hp_outlet_temperature": {
+        "name": "Temperature HP Outlet"
+      },
+      "hp_inlet_temperature": {
+        "name": "Temperature HP Inlet"
+      },
+      "temperature_compressor_inlet": {
+        "name": "Temperature Compressor Inlet"
+      },
+      "temperature_compressor_outlet": {
+        "name": "Temperature Compressor Outlet"
+      },
+      "pressure_setting": {
+        "name": "Pressure Setting"
+      },
+      "heating_system_pressure": {
+        "name": "Heating System Pressure"
+      },
+      "hp_load": {
+        "name": "HP Load"
+      },
+      "current_heating_cooling_capacity": {
+        "name": "Current Heating/Cooling Capacity"
+      },
+      "cop_value": {
+        "name": "COP Value"
+      },
+      "scop_value": {
+        "name": "SCOP Value"
+      },
+      "compressor_activations_heating": {
+        "name": "Compressor Activations - Heating (24 h)"
+      },
+      "activations_boiler": {
+        "name": "Activations Boiler (24 h)"
+      },
+      "activations_defrost": {
+        "name": "Activations Defrost (24 h)"
+      },
+      "electrical_energy_heating_dhw": {
+        "name": "Electrical Energy Heating + DHW"
+      },
+      "heating_energy_heating_dhw": {
+        "name": "Heating Energy Heating + DHW"
+      },
+      "loop_1_temperature": {
+        "name": "Loop 1 Temperature"
+      },
+      "loop_2_temperature": {
+        "name": "Loop 2 Temperature"
+      },
+      "loop_3_temperature": {
+        "name": "Loop 3 Temperature"
+      },
+      "loop_4_temperature": {
+        "name": "Loop 4 Temperature"
+      },
+      "loop_1_thermostat_temperature": {
+        "name": "Loop 1 Thermostat Temperature"
+      },
+      "loop_2_thermostat_temperature": {
+        "name": "Loop 2 Thermostat Temperature"
+      },
+      "loop_3_thermostat_temperature": {
+        "name": "Loop 3 Thermostat Temperature"
+      },
+      "loop_4_thermostat_temperature": {
+        "name": "Loop 4 Thermostat Temperature"
+      },
+      "loop_1_inlet_temperature": {
+        "name": "Loop 1 Inlet Temperature"
+      },
+      "loop_2_inlet_temperature": {
+        "name": "Loop 2 Inlet Temperature"
+      },
+      "loop_3_inlet_temperature": {
+        "name": "Loop 3 Inlet Temperature"
+      },
+      "loop_4_inlet_temperature": {
+        "name": "Loop 4 Inlet Temperature"
+      },
       "working_function": {
         "name": "Working Function",
         "state": {
@@ -122,41 +224,113 @@
       }
     },
     "switch": {
-      "heatpump_switch": { "name": "Heat Pump ON/OFF" },
-      "dhw_circulation_switch": { "name": "DHW Circulation" },
-      "fast_heating_switch": { "name": "Fast Water Heating" },
-      "antilegionella_switch": { "name": "Antilegionella" },
-      "loop1_temp_source_switch": { "name": "Loop 1 Use JSON Temp Source" },
-      "reservoir_entity_switch": { "name": "Enable Reservoir Climate Entity" }
+      "heatpump_switch": {
+        "name": "Heat Pump ON/OFF"
+      },
+      "dhw_circulation_switch": {
+        "name": "DHW Circulation"
+      },
+      "fast_heating_switch": {
+        "name": "Fast Water Heating"
+      },
+      "antilegionella_switch": {
+        "name": "Antilegionella"
+      },
+      "loop1_temp_source_switch": {
+        "name": "Loop 1 Use JSON Temp Source"
+      },
+      "reservoir_entity_switch": {
+        "name": "Enable Reservoir Climate Entity"
+      },
+      "reserve_source_switch": {
+        "name": "Reserve Source (Backup Heater)"
+      },
+      "additional_source_switch": {
+        "name": "Additional Source"
+      }
     },
     "select": {
-      "loop_1_operation": { "name": "Loop 1 Operation Mode" },
-      "loop_2_operation": { "name": "Loop 2 Operation Mode" },
-      "loop_3_operation": { "name": "Loop 3 Operation Mode" },
-      "loop_4_operation": { "name": "Loop 4 Operation Mode" },
-      "sanitary_water_operation": { "name": "DHW Operation Mode" }
+      "loop_1_operation": {
+        "name": "Loop 1 Operation Mode"
+      },
+      "loop_2_operation": {
+        "name": "Loop 2 Operation Mode"
+      },
+      "loop_3_operation": {
+        "name": "Loop 3 Operation Mode"
+      },
+      "loop_4_operation": {
+        "name": "Loop 4 Operation Mode"
+      },
+      "sanitary_water_operation": {
+        "name": "DHW Operation Mode"
+      },
+      "operational_mode": {
+        "name": "Operational Mode",
+        "state": {
+          "auto": "Auto",
+          "comfort": "Comfort",
+          "eco": "ECO"
+        }
+      }
     },
     "number": {
-      "loop_1_eco_offset": { "name": "Loop 1 Eco Offset" },
-      "loop_1_comfort_offset": { "name": "Loop 1 Comfort Offset" },
-      "loop_2_eco_offset": { "name": "Loop 2 Eco Offset" },
-      "loop_2_comfort_offset": { "name": "Loop 2 Comfort Offset" },
-      "loop_3_eco_offset": { "name": "Loop 3 Eco Offset" },
-      "loop_3_comfort_offset": { "name": "Loop 3 Comfort Offset" },
-      "loop_4_eco_offset": { "name": "Loop 4 Eco Offset" },
-      "loop_4_comfort_offset": { "name": "Loop 4 Comfort Offset" },
-      "dhw_eco_offset": { "name": "DHW Eco Offset" },
-      "dhw_comfort_offset": { "name": "DHW Comfort Offset" },
-      "update_interval": { "name": "Update Interval (min)" },
-      "main_temperature_offset": { "name": "System temperature offset"}
+      "loop_1_eco_offset": {
+        "name": "Loop 1 Eco Offset"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Loop 1 Comfort Offset"
+      },
+      "loop_2_eco_offset": {
+        "name": "Loop 2 Eco Offset"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Loop 2 Comfort Offset"
+      },
+      "loop_3_eco_offset": {
+        "name": "Loop 3 Eco Offset"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Loop 3 Comfort Offset"
+      },
+      "loop_4_eco_offset": {
+        "name": "Loop 4 Eco Offset"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Loop 4 Comfort Offset"
+      },
+      "dhw_eco_offset": {
+        "name": "DHW Eco Offset"
+      },
+      "dhw_comfort_offset": {
+        "name": "DHW Comfort Offset"
+      },
+      "update_interval": {
+        "name": "Update Interval (min)"
+      },
+      "main_temperature_offset": {
+        "name": "System temperature offset"
+      }
     },
     "climate": {
-      "dhw_temperature": { "name": "DHW Temperature" },
-      "loop_1_temperature": { "name": "Loop 1 Temperature" },
-      "loop_2_temperature": { "name": "Loop 2 Temperature" },
-      "loop_3_temperature": { "name": "Loop 3 Temperature" },
-      "loop_4_temperature": { "name": "Loop 4 Temperature" },
-      "reservoir_temperature": { "name": "Reservoir Temperature" }
+      "dhw_temperature": {
+        "name": "DHW Temperature"
+      },
+      "loop_1_temperature": {
+        "name": "Loop 1 Temperature"
+      },
+      "loop_2_temperature": {
+        "name": "Loop 2 Temperature"
+      },
+      "loop_3_temperature": {
+        "name": "Loop 3 Temperature"
+      },
+      "loop_4_temperature": {
+        "name": "Loop 4 Temperature"
+      },
+      "reservoir_temperature": {
+        "name": "Reservoir Temperature"
+      }
     }
   }
 }

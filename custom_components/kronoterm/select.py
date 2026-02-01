@@ -7,8 +7,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, MAIN_MODE_OPTIONS
 from .entities import KronotermModbusBase  # Import the base class
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +74,9 @@ async def async_setup_entry(
                 is_available,
             )
 
+    # Add operational mode select (ECO/Auto/Comfort)
+    entities.append(KronotermOperationalModeSelect(entry, coordinator))
+    
     async_add_entities(entities, update_before_add=True)
 
 
@@ -147,3 +151,62 @@ class KronotermModeSelect(KronotermModbusBase, SelectEntity):
         if not success:
             _LOGGER.error("Failed to set mode for %s", self._attr_translation_key)
         # No need to request refresh here, async_set_loop_mode_by_page does it
+
+class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
+    """Select entity for Kronoterm operational mode (ECO/Auto/Comfort)."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: Any) -> None:
+        """Initialize the operational mode select entity."""
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "operational_mode"
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_operational_mode"
+        self._attr_device_info = coordinator.shared_device_info
+        
+        # MAIN_MODE_OPTIONS maps integer → string: {0: "auto", 1: "comfort", 2: "eco"}
+        # For reading (int → string): Use MAIN_MODE_OPTIONS directly
+        # For writing (string → int): Create reverse mapping
+        self.OPTION_TO_VALUE = {v: k for k, v in MAIN_MODE_OPTIONS.items()}  # {"auto": 0, "comfort": 1, "eco": 2}
+        
+        # Options are the string values from MAIN_MODE_OPTIONS
+        self._attr_options = list(MAIN_MODE_OPTIONS.values())
+
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the current operational mode."""
+        if not self.coordinator.data:
+            return None
+        
+        # Try to get from main_settings first
+        main_settings = self.coordinator.data.get("main_settings", {})
+        advanced_settings = main_settings.get("AdvancedSettings", {})
+        mode_value = advanced_settings.get("main_mode")
+        
+        # Fallback to TemperaturesAndConfig if not in AdvancedSettings
+        if mode_value is None:
+            temps_config = main_settings.get("TemperaturesAndConfig", {})
+            mode_value = temps_config.get("main_mode")
+        
+        if mode_value is None:
+            return None
+        
+        try:
+            mode_int = int(mode_value)
+            # Convert integer to string: 0 → "auto", 1 → "comfort", 2 → "eco"
+            return MAIN_MODE_OPTIONS.get(mode_int)
+        except (ValueError, TypeError):
+            _LOGGER.debug("Could not parse main_mode value: %s", mode_value)
+            return None
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the operational mode."""
+        # Convert string to integer: "auto" → 0, "comfort" → 1, "eco" → 2
+        new_mode = self.OPTION_TO_VALUE.get(option)
+        if new_mode is None:
+            _LOGGER.warning("Unknown operational mode option: %s", option)
+            return
+
+        success = await self.coordinator.async_set_main_mode(new_mode)
+        if not success:
+            _LOGGER.error("Failed to set operational mode to %s", option)

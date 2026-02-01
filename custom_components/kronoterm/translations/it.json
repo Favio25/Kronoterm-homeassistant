@@ -127,14 +127,24 @@
       "fast_heating_switch": { "name": "Riscaldamento Rapido dell'Acqua" },
       "antilegionella_switch": { "name": "Antilegionella" },
       "loop1_temp_source_switch": { "name": "Circuito 1 Usa Sorgente Temp JSON" },
-      "reservoir_entity_switch": { "name": "Abilita Entità Clima Serbatoio" }
+      "reservoir_entity_switch": { "name": "Abilita Entità Clima Serbatoio" },
+      "reserve_source_switch": { "name": "Fonte di Riserva (Riscaldatore Elettrico)" },
+      "additional_source_switch": { "name": "Fonte Aggiuntiva" }
     },
     "select": {
       "loop_1_operation": { "name": "Modalità Operativa Circuito 1" },
       "loop_2_operation": { "name": "Modalità Operativa Circuito 2" },
       "loop_3_operation": { "name": "Modalità Operativa Circuito 3" },
       "loop_4_operation": { "name": "Modalità Operativa Circuito 4" },
-      "sanitary_water_operation": { "name": "Modalità Operativa ACS" }
+      "sanitary_water_operation": { "name": "Modalità Operativa ACS" },
+      "operational_mode": {
+        "name": "Modalità Operativa",
+        "state": {
+          "auto": "Automatico",
+          "comfort": "Comfort",
+          "eco": "ECO"
+        }
+      }
     },
     "number": {
       "loop_1_eco_offset": { "name": "Scarto ECO Circuito 1" },

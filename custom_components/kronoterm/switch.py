@@ -75,6 +75,18 @@ async def async_setup_entry(
             "antilegionella",
             "async_set_antilegionella",
         ),
+        SwitchConfig(
+            "reserve_source_switch",
+            "reserve_source_switch",
+            "reserve_source",
+            "async_set_reserve_source",
+        ),
+        SwitchConfig(
+            "additional_source_switch",
+            "additional_source_switch",
+            "additional_source",
+            "async_set_additional_source",
+        ),
     ]
 
     entities = [
