@@ -324,7 +324,43 @@ class KronotermCoordinator(DataUpdateCoordinator):
 
         form_data = [("year", str(year)), ("d1", str(d1))]
         form_data.extend(CONSUMPTION_FORM_DATA_STATIC)
-        return await self._request_with_retries("POST", query_params, form_data=form_data)
+        result = await self._request_with_retries("POST", query_params, form_data=form_data)
+        
+        # Issue #23 fix: After midnight (00:00-02:00), also fetch yesterday's finalized data
+        # Kronoterm recalculates daily energy after midnight, so we need to capture the final value
+        if result and 0 <= now.hour < 2 and d1 > 1:  # Only if not Jan 1st
+            yesterday_d1 = d1 - 1
+            _LOGGER.debug("Fetching yesterday's finalized consumption data (d1=%s)", yesterday_d1)
+            yesterday_form_data = [("year", str(year)), ("d1", str(yesterday_d1))]
+            yesterday_form_data.extend(CONSUMPTION_FORM_DATA_STATIC)
+            
+            try:
+                yesterday_result = await self._request_with_retries("POST", query_params, form_data=yesterday_form_data)
+                if yesterday_result:
+                    yesterday_trend = yesterday_result.get("trend_consumption", {})
+                    current_trend = result.get("trend_consumption", {})
+                    
+                    # Update yesterday's values in the current trend array with finalized data
+                    # The second-to-last entry in current_trend is yesterday
+                    for key in yesterday_trend:
+                        if key in current_trend and len(current_trend[key]) >= 2:
+                            yesterday_final_value = yesterday_trend[key][-1]  # Last entry from yesterday's fetch
+                            yesterday_cached_value = current_trend[key][-2]  # Second-to-last from today's fetch
+                            
+                            if yesterday_final_value != yesterday_cached_value:
+                                _LOGGER.info(
+                                    "Updating %s yesterday final: %.3f -> %.3f kWh",
+                                    key, yesterday_cached_value, yesterday_final_value
+                                )
+                                current_trend[key][-2] = yesterday_final_value  # Update with finalized value
+                    
+                    # Also store separately for reference
+                    result["yesterday_final"] = yesterday_trend
+                    _LOGGER.info("Captured and applied yesterday's finalized consumption data")
+            except Exception as e:
+                _LOGGER.warning("Failed to fetch yesterday's consumption data: %s", e)
+        
+        return result
 
     # ------------------------------------------------------------------
     #  HTTP request helpers with retries
@@ -545,3 +581,104 @@ class KronotermCoordinator(DataUpdateCoordinator):
 
     async def async_set_fast_water_heating(self, enable: bool) -> bool:
         return await self._async_set_shortcut(API_PARAM_KEYS["FAST_HEATING"], enable)
+
+    async def _async_set_shortcut_with_confirm(
+        self, param_name: str, enable: bool, post_set_delay: int = SHORTCUT_DELAY_DEFAULT
+    ) -> bool:
+        """
+        Generic helper to set a shortcut parameter (page -1) with confirmation support.
+        
+        Some parameters (like reserve_source) require user confirmation.
+        The API returns result="question" with a question_id that must be confirmed.
+        """
+        query_params = API_QUERIES_SET["switch"]
+        param_value = "1" if enable else "0"
+        form_data = [
+            ("param_name", param_name),
+            ("param_value", param_value),
+            ("page", "-1"),
+        ]
+        
+        try:
+            result = await self._request_with_retries("POST", query_params, form_data)
+            
+            if not result:
+                return False
+            
+            # Check if confirmation is required
+            if result.get("result") == "question":
+                question_id = result.get("question_id")
+                _LOGGER.info(
+                    "Parameter %s requires confirmation. Question: %s",
+                    param_name,
+                    result.get("question", "N/A")
+                )
+                
+                if question_id:
+                    # Send confirmation
+                    confirm_data = [
+                        ("question_id", str(question_id)),
+                        ("answer", "yes"),  # or "1" - may need adjustment
+                    ]
+                    confirm_result = await self._request_with_retries("POST", query_params, confirm_data)
+                    
+                    if confirm_result and confirm_result.get("result") == "success":
+                        if post_set_delay > 0:
+                            await asyncio.sleep(post_set_delay)
+                        await self.async_request_refresh()
+                        return True
+                    else:
+                        _LOGGER.error("Confirmation failed: %s", confirm_result)
+                        return False
+                else:
+                    _LOGGER.error("Question received but no question_id provided")
+                    return False
+            
+            # Standard success path (no confirmation needed)
+            elif result.get("result") == "success":
+                if post_set_delay > 0:
+                    await asyncio.sleep(post_set_delay)
+                await self.async_request_refresh()
+                return True
+            
+            # Unknown result
+            else:
+                _LOGGER.warning("Unexpected result: %s", result.get("result"))
+                return False
+                
+        except UpdateFailed as e:
+            _LOGGER.error("Failed to set %s: %s", param_name, e)
+            return False
+
+    async def async_set_reserve_source(self, enable: bool) -> bool:
+        """
+        Set reserve source (backup electric heater, may require confirmation).
+        """
+        return await self._async_set_shortcut_with_confirm(
+            API_PARAM_KEYS["RESERVE_SOURCE"], enable
+        )
+
+    async def async_set_additional_source(self, enable: bool) -> bool:
+        """
+        Set additional source (may require confirmation).
+        """
+        return await self._async_set_shortcut_with_confirm(
+            API_PARAM_KEYS["ADDITIONAL_SOURCE"], enable
+        )
+
+    async def async_set_main_mode(self, new_mode: int) -> bool:
+        """Set the operational mode (ECO/Auto/Comfort)."""
+        query_params = API_QUERIES_SET["main_settings"]
+        form_data = [
+            ("param_name", API_PARAM_KEYS["MAIN_MODE"]),
+            ("param_value", str(new_mode)),
+            ("page", "-1"),
+        ]
+        try:
+            result = await self._request_with_retries("POST", query_params, form_data)
+            if result and result.get("result") == "success":
+                await self.async_request_refresh()
+                return True
+            return False
+        except UpdateFailed:
+            return False

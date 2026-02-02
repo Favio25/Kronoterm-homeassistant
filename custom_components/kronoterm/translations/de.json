@@ -127,14 +127,24 @@
         "fast_heating_switch": { "name": "Schnelles Wasserheizen" },
         "antilegionella_switch": { "name": "Antilegionellen" },
         "loop1_temp_source_switch": { "name": "Loop 1 JSON-Temp-Quelle verwenden" },
-        "reservoir_entity_switch": { "name": "Speicher-Klima-Entität aktivieren" }
+        "reservoir_entity_switch": { "name": "Speicher-Klima-Entität aktivieren" },
+        "reserve_source_switch": { "name": "Reservequelle (Elektroheizung)" },
+        "additional_source_switch": { "name": "Zusätzliche Quelle" }
       },
       "select": {
         "loop_1_operation": { "name": "Betriebsmodus Loop 1" },
         "loop_2_operation": { "name": "Betriebsmodus Loop 2" },
         "loop_3_operation": { "name": "Betriebsmodus Loop 3" },
         "loop_4_operation": { "name": "Betriebsmodus Loop 4" },
-        "sanitary_water_operation": { "name": "Betriebsmodus Warmwasser" }
+        "sanitary_water_operation": { "name": "Betriebsmodus Warmwasser" },
+        "operational_mode": {
+          "name": "Betriebsmodus",
+          "state": {
+            "auto": "Automatisch",
+            "comfort": "Komfort",
+            "eco": "ECO"
+          }
+        }
       },
       "number": {
         "loop_1_eco_offset": { "name": "Loop 1 ECO‑Versatz" },

@@ -127,14 +127,24 @@
         "fast_heating_switch": { "name": "Hitro segrevanje vode" },
         "antilegionella_switch": { "name": "Antilegionella" },
         "loop1_temp_source_switch": { "name": "Zanka 1 Uporabi JSON Vir Temp" },
-        "reservoir_entity_switch": { "name": "Omogoči entiteto klime rezervoarja" }
+        "reservoir_entity_switch": { "name": "Omogoči entiteto klime rezervoarja" },
+        "reserve_source_switch": { "name": "Rezervni vir (električni grelnik)" },
+        "additional_source_switch": { "name": "Dodatni vir" }
       },
       "select": {
         "loop_1_operation": { "name": "Način delovanja zanke 1" },
         "loop_2_operation": { "name": "Način delovanja zanke 2" },
         "loop_3_operation": { "name": "Način delovanja zanke 3" },
         "loop_4_operation": { "name": "Način delovanja zanke 4" },
-        "sanitary_water_operation": { "name": "Način delovanja sanitarne vode" }
+        "sanitary_water_operation": { "name": "Način delovanja sanitarne vode" },
+        "operational_mode": {
+          "name": "Način obratovanja",
+          "state": {
+            "auto": "Samodejno",
+            "comfort": "Udobje",
+            "eco": "ECO"
+          }
+        }
       },
       "number": {
         "loop_1_eco_offset": { "name": "ECO odmik zanke 1" },
