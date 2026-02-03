@@ -53,7 +53,7 @@ async def async_setup_entry(
         _LOGGER.error("No data found in hass.data for domain %s", DOMAIN)
         return False
 
-    coordinator = data.get("coordinator")
+    coordinator = data.get(config_entry.entry_id)
     if not coordinator:
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return False

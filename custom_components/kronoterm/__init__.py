@@ -42,7 +42,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.error("Error initializing Kronoterm coordinator: %s", err, exc_info=True)
         raise ConfigEntryNotReady from err
 
-    hass.data[DOMAIN]["coordinator"] = coordinator
+    # Store coordinator using entry_id as key to support multiple instances
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+    _LOGGER.info("Stored coordinator for entry %s (%s)", entry.entry_id, connection_type)
 
     # Forward the setup to the required platforms.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -58,13 +60,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     
     if unload_ok:
-        # Clean up coordinator
-        coordinator = hass.data[DOMAIN].get("coordinator")
+        # Clean up coordinator for this specific entry
+        coordinator = hass.data[DOMAIN].get(entry.entry_id)
         if coordinator and hasattr(coordinator, "async_shutdown"):
             await coordinator.async_shutdown()
         
-        # Remove data
-        hass.data[DOMAIN].pop("coordinator", None)
-        _LOGGER.info("Kronoterm integration unloaded successfully")
+        # Remove data for this entry
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        _LOGGER.info("Kronoterm integration unloaded successfully for entry %s", entry.entry_id)
     
     return unload_ok

@@ -182,7 +182,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    coordinator = hass.data.get(DOMAIN, {}).get("coordinator")
+    coordinator = hass.data.get(DOMAIN, {}).get(config_entry.entry_id)
     if not coordinator:
         _LOGGER.error("No Kronoterm coordinator found.")
         return False

@@ -31,9 +31,11 @@ async def async_setup_entry(
         _LOGGER.error("No data found in hass.data for domain %s", DOMAIN)
         return False
 
-    coordinator = data.get("coordinator")
+    coordinator = data.get(entry.entry_id)
+    _LOGGER.warning("🔥 CLIMATE PLATFORM SETUP - Coordinator type: %s, Entry: %s", 
+                   type(coordinator).__name__ if coordinator else "None", entry.entry_id)
     if not coordinator:
-        _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
+        _LOGGER.error("Coordinator not found in hass.data[%s] for entry %s", DOMAIN, entry.entry_id)
         return False
 
     # Create the standard climate entities

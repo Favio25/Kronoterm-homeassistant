@@ -29,7 +29,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Kronoterm select entities for different operations."""
-    coordinator = hass.data.get(DOMAIN, {}).get("coordinator")
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    _LOGGER.warning("🔥 SELECT PLATFORM SETUP - Coordinator type: %s, Entry: %s", 
+                   type(coordinator).__name__ if coordinator else "None", entry.entry_id)
+    
     if not coordinator:
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return

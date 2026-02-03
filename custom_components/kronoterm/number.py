@@ -232,7 +232,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Number entities."""
-    coordinator = hass.data.get(DOMAIN, {}).get("coordinator")
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    _LOGGER.warning("🔥 NUMBER PLATFORM SETUP - Coordinator type: %s, Entry: %s", 
+                   type(coordinator).__name__ if coordinator else "None", entry.entry_id)
+    
     if not coordinator:
         _LOGGER.error("No Kronoterm coordinator found in hass.data[%s]", DOMAIN)
         return
