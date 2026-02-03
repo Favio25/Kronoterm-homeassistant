@@ -339,6 +339,201 @@ class ModbusCoordinator(DataUpdateCoordinator):
         return None
         return None
 
+    # =================================================================
+    # HIGH-LEVEL WRITE METHODS
+    # (Match Cloud API coordinator interface for entity compatibility)
+    # =================================================================
+
+    async def async_set_temperature(self, page: int, new_temp: float) -> bool:
+        """Set temperature setpoint for a loop or DHW based on page."""
+        # Map Cloud API "page" to Modbus registers
+        page_to_register = {
+            5: 2187,  # Loop 1 setpoint
+            6: 2049,  # Loop 2 setpoint
+            9: 2023,  # DHW setpoint
+        }
+        
+        register_address = page_to_register.get(page)
+        if not register_address:
+            _LOGGER.error("Unknown page %d for temperature setpoint", page)
+            return False
+        
+        # Convert temperature to Modbus format (× 10)
+        modbus_value = int(round(new_temp * 10))
+        
+        _LOGGER.info("Setting temperature for page %d to %.1f°C (modbus value: %d)", 
+                    page, new_temp, modbus_value)
+        
+        # Create temporary register object for write_register method
+        from .modbus_registers import Register, RegisterType
+        temp_register = Register(
+            address=register_address,
+            name=f"Setpoint_Page_{page}",
+            reg_type=RegisterType.TEMP
+        )
+        
+        return await self.write_register(temp_register, modbus_value)
+
+    async def async_set_offset(self, page: int, param_name: str, new_value: float) -> bool:
+        """Set temperature offset (eco/comfort) for a loop or DHW."""
+        # Map page + param_name to Modbus register
+        offset_map = {
+            # (page, param_name): register_address
+            (5, "circle_eco_offset"): 2047,      # Loop 1 eco
+            (5, "circle_comfort_offset"): 2048,  # Loop 1 comfort
+            (6, "circle_eco_offset"): 2057,      # Loop 2 eco
+            (6, "circle_comfort_offset"): 2058,  # Loop 2 comfort
+            (7, "circle_eco_offset"): 2067,      # Loop 3 eco
+            (7, "circle_comfort_offset"): 2068,  # Loop 3 comfort
+            (8, "circle_eco_offset"): 2077,      # Loop 4 eco
+            (8, "circle_comfort_offset"): 2078,  # Loop 4 comfort
+            (9, "circle_eco_offset"): 2030,      # DHW eco
+            (9, "circle_comfort_offset"): 2031,  # DHW comfort
+        }
+        
+        register_address = offset_map.get((page, param_name))
+        if not register_address:
+            _LOGGER.error("Unknown offset: page=%d, param=%s", page, param_name)
+            return False
+        
+        # Convert offset to Modbus format (× 10)
+        modbus_value = int(round(new_value * 10))
+        
+        _LOGGER.info("Setting offset for page %d/%s to %.1f°C (modbus value: %d)",
+                    page, param_name, new_value, modbus_value)
+        
+        from .modbus_registers import Register, RegisterType
+        temp_register = Register(
+            address=register_address,
+            name=f"Offset_{page}_{param_name}",
+            reg_type=RegisterType.TEMP
+        )
+        
+        return await self.write_register(temp_register, modbus_value)
+
+    async def async_set_heatpump_state(self, turn_on: bool) -> bool:
+        """Enable/disable heat pump system operation (register 2002 bit 0)."""
+        # NOTE: Register 2002 is a bit-masked register
+        # We need to read current value, modify bit 0, and write back
+        # For now, simple implementation: write 1 or 0
+        # TODO: Read-modify-write if other bits are important
+        
+        value = 1 if turn_on else 0
+        _LOGGER.info("Setting heat pump state to %s (value: %d)", "ON" if turn_on else "OFF", value)
+        
+        from .modbus_registers import Register, RegisterType
+        system_register = Register(
+            address=2002,
+            name="System_Operation",
+            reg_type=RegisterType.BINARY
+        )
+        
+        return await self.write_register(system_register, value)
+
+    async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
+        """Set loop operation mode (off/normal/eco/comfort) based on page."""
+        # Map page to loop mode register
+        page_to_register = {
+            5: 2042,  # Loop 1
+            6: 2052,  # Loop 2
+            7: 2062,  # Loop 3
+            8: 2072,  # Loop 4
+            9: 2026,  # DHW operation
+        }
+        
+        register_address = page_to_register.get(page)
+        if not register_address:
+            _LOGGER.error("Unknown page %d for loop mode", page)
+            return False
+        
+        _LOGGER.info("Setting loop mode for page %d to %d", page, new_mode)
+        
+        from .modbus_registers import Register, RegisterType
+        mode_register = Register(
+            address=register_address,
+            name=f"Loop_Mode_Page_{page}",
+            reg_type=RegisterType.ENUM
+        )
+        
+        return await self.write_register(mode_register, new_mode)
+
+    async def async_set_main_temp_offset(self, new_value: float) -> bool:
+        """Set main temperature offset (system-wide correction)."""
+        # TODO: Find the Modbus register for main temp offset
+        # This might not exist in Modbus or use a different mechanism
+        _LOGGER.warning("Main temp offset not yet implemented for Modbus")
+        return False
+
+    async def async_set_antilegionella(self, enable: bool) -> bool:
+        """Enable/disable anti-legionella function."""
+        # TODO: Find the Modbus register for anti-legionella
+        _LOGGER.warning("Anti-legionella control not yet implemented for Modbus")
+        return False
+
+    async def async_set_dhw_circulation(self, enable: bool) -> bool:
+        """Enable/disable DHW circulation pump."""
+        value = 1 if enable else 0
+        _LOGGER.info("Setting DHW circulation to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        from .modbus_registers import Register, RegisterType
+        circulation_register = Register(
+            address=2328,
+            name="DHW_Circulation",
+            reg_type=RegisterType.BINARY
+        )
+        
+        return await self.write_register(circulation_register, value)
+
+    async def async_set_fast_water_heating(self, enable: bool) -> bool:
+        """Enable/disable fast DHW heating."""
+        value = 1 if enable else 0
+        _LOGGER.info("Setting fast water heating to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        from .modbus_registers import Register, RegisterType
+        fast_heating_register = Register(
+            address=2015,
+            name="Fast_DHW_Heating",
+            reg_type=RegisterType.BINARY
+        )
+        
+        return await self.write_register(fast_heating_register, value)
+
+    async def async_set_reserve_source(self, enable: bool) -> bool:
+        """Enable/disable reserve heating source."""
+        # TODO: Find the Modbus register for reserve source
+        _LOGGER.warning("Reserve source control not yet implemented for Modbus")
+        return False
+
+    async def async_set_additional_source(self, enable: bool) -> bool:
+        """Enable/disable additional heating source."""
+        value = 1 if enable else 0
+        _LOGGER.info("Setting additional source to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        from .modbus_registers import Register, RegisterType
+        additional_register = Register(
+            address=2016,
+            name="Additional_Source",
+            reg_type=RegisterType.BINARY
+        )
+        
+        return await self.write_register(additional_register, value)
+
+    async def async_set_main_mode(self, new_mode: int) -> bool:
+        """Set main operational mode (auto/comfort/eco)."""
+        # Map to operation regime register (heating/cooling/off)
+        # NOTE: This might not be the correct register for "operational mode"
+        # The Cloud API uses "main_mode" which might be a different concept
+        _LOGGER.info("Setting main mode to %d", new_mode)
+        
+        from .modbus_registers import Register, RegisterType
+        mode_register = Register(
+            address=2007,  # OPERATION_REGIME
+            name="Main_Mode",
+            reg_type=RegisterType.ENUM
+        )
+        
+        return await self.write_register(mode_register, new_mode)
+
     async def async_shutdown(self) -> None:
         """Close Modbus connection."""
         if self.client and self._connected:
