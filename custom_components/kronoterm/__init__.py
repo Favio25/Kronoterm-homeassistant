@@ -5,6 +5,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.exceptions import ConfigEntryNotReady
 from .const import DOMAIN
 from .coordinator import KronotermCoordinator
+from .modbus_coordinator import ModbusCoordinator
+from .config_flow_modbus import CONNECTION_TYPE_MODBUS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,11 +24,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Kronoterm integration from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Use Home Assistant's built-in client session.
-    session = async_get_clientsession(hass)
-
-    # Initialize the coordinator with the entire config entry to securely extract credentials.
-    coordinator = KronotermCoordinator(hass, session, entry)
+    # Check connection type and create appropriate coordinator
+    connection_type = entry.data.get("connection_type", "cloud")
+    
+    if connection_type == CONNECTION_TYPE_MODBUS:
+        _LOGGER.info("Setting up Kronoterm with Modbus TCP connection")
+        coordinator = ModbusCoordinator(hass, entry)
+    else:
+        _LOGGER.info("Setting up Kronoterm with Cloud API connection")
+        # Use Home Assistant's built-in client session for cloud API
+        session = async_get_clientsession(hass)
+        coordinator = KronotermCoordinator(hass, session, entry)
 
     try:
         await coordinator.async_initialize()
@@ -40,3 +48,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.debug("Kronoterm integration set up successfully for entry %s", entry.entry_id)
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    _LOGGER.debug("Unloading Kronoterm integration for entry %s", entry.entry_id)
+    
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    
+    if unload_ok:
+        # Clean up coordinator
+        coordinator = hass.data[DOMAIN].get("coordinator")
+        if coordinator and hasattr(coordinator, "async_shutdown"):
+            await coordinator.async_shutdown()
+        
+        # Remove data
+        hass.data[DOMAIN].pop("coordinator", None)
+        _LOGGER.info("Kronoterm integration unloaded successfully")
+    
+    return unload_ok

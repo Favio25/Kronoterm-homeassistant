@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connection Type",
+        "description": "Choose how to connect to your Kronoterm heat pump",
+        "data": {
+          "connection_type": "Connection Type"
+        }
+      },
+      "cloud": {
+        "title": "Cloud API Configuration",
+        "description": "Enter your Kronoterm cloud account credentials",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      },
+      "modbus": {
+        "title": "Modbus TCP Configuration",
+        "description": "Configure local Modbus TCP connection to your heat pump",
+        "data": {
+          "host": "IP Address",
+          "port": "Port",
+          "unit_id": "Modbus Unit ID",
+          "model": "Heat Pump Model"
+        },
+        "data_description": {
+          "host": "IP address of your Kronoterm heat pump on local network",
+          "port": "Modbus TCP port (default: 502)",
+          "unit_id": "Modbus slave address (default: 20)",
+          "model": "Select your heat pump model for accurate energy calculation"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device. Please check the connection details.",
+      "cannot_read": "Connected but failed to read data from device. Check unit ID.",
+      "invalid_auth": "Invalid username or password.",
+      "unknown": "Unexpected error occurred. Check logs for details."
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Configure Kronoterm integration options",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Scan Interval (minutes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device.",
+      "invalid_auth": "Invalid username or password.",
+      "unknown": "Unexpected error occurred."
+    }
+  }
+}

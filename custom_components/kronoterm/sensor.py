@@ -256,7 +256,7 @@ async def async_setup_entry(
 
         if sensor_def.diagnostic:
             ent._attr_entity_category = EntityCategory.DIAGNOSTIC
-            ent._attr_entity_registry_enabled_default = False
+            
 
         # Apply device/state classes
         if sensor_def.address == 2362:
@@ -284,7 +284,7 @@ async def async_setup_entry(
         )
         if enum_def.diagnostic:
             ent._attr_entity_category = EntityCategory.DIAGNOSTIC
-            ent._attr_entity_registry_enabled_default = False
+            
         enum_entities.append(ent)
 
     # JSON loop sensors (loop temperature readings)

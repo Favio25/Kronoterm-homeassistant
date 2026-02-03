@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback, HomeAssistant
 # We no longer need async_get_clientsession
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+from homeassistant.const import CONF_USERNAME, CONF_PASSWORD, CONF_HOST, CONF_PORT
 
 from .const import (
     DOMAIN, 
@@ -14,6 +14,15 @@ from .const import (
     API_QUERIES_GET, 
     DEFAULT_SCAN_INTERVAL, 
     REQUEST_TIMEOUT
+)
+
+from .config_flow_modbus import (
+    CONNECTION_TYPE_CLOUD,
+    CONNECTION_TYPE_MODBUS,
+    MODEL_OPTIONS,
+    validate_modbus_connection,
+    get_connection_type_schema,
+    get_modbus_schema,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,34 +86,84 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input: dict | None = None):
-        """Handle a flow initialized by the user."""
+        """Handle a flow initialized by the user - choose connection type."""
         _LOGGER.debug("Starting user step in KronotermConfigFlow")
+        
+        if user_input is not None:
+            # Store connection type and move to appropriate step
+            self.connection_type = user_input.get("connection_type", CONNECTION_TYPE_CLOUD)
+            _LOGGER.debug("Connection type selected: %s", self.connection_type)
+            
+            if self.connection_type == CONNECTION_TYPE_MODBUS:
+                return await self.async_step_modbus()
+            else:
+                return await self.async_step_cloud()
+        
+        # Show connection type selection
+        return self.async_show_form(
+            step_id="user",
+            data_schema=get_connection_type_schema(),
+        )
+
+    async def async_step_cloud(self, user_input: dict | None = None):
+        """Handle cloud API configuration."""
+        _LOGGER.debug("Starting cloud API configuration step")
         errors: dict[str, str] = {}
 
         if user_input is not None:
             sanitized_input = sanitize_user_input(user_input)
             _LOGGER.debug("User input received: %s", sanitized_input)
             
-            # --- UPDATED AUTHENTICATION ---
-            # We no longer pass self.hass
+            # Validate credentials
             error_code = await validate_credentials(user_input)
             if not error_code:
-                # Auth success, create the entry
-                return self.async_create_entry(title="Kronoterm Heat Pump", data=user_input)
+                # Auth success, add connection type and create entry
+                user_input["connection_type"] = CONNECTION_TYPE_CLOUD
+                return self.async_create_entry(
+                    title="Kronoterm Heat Pump (Cloud)", 
+                    data=user_input
+                )
             else:
                 # Auth failed, set error and show form again
                 errors["base"] = error_code
-            # --- END OF AUTHENTICATION ---
 
-        user_schema = vol.Schema({
+        cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
         })
         
         return self.async_show_form(
-            step_id="user", 
-            data_schema=user_schema,
-            errors=errors  # Pass errors to the form
+            step_id="cloud", 
+            data_schema=cloud_schema,
+            errors=errors
+        )
+
+    async def async_step_modbus(self, user_input: dict | None = None):
+        """Handle Modbus TCP configuration."""
+        _LOGGER.debug("Starting Modbus TCP configuration step")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            _LOGGER.debug("Modbus config received: %s", user_input)
+            
+            # Validate Modbus connection
+            error_code = await validate_modbus_connection(user_input)
+            if not error_code:
+                # Connection success, add connection type and create entry
+                user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                model_name = MODEL_OPTIONS.get(user_input["model"], "Heat Pump")
+                return self.async_create_entry(
+                    title=f"Kronoterm {model_name} (Modbus)",
+                    data=user_input
+                )
+            else:
+                # Connection failed, set error and show form again
+                errors["base"] = error_code
+
+        return self.async_show_form(
+            step_id="modbus",
+            data_schema=get_modbus_schema(),
+            errors=errors
         )
 
     @staticmethod
