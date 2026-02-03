@@ -41,9 +41,7 @@ from .modbus_registers import (
 _LOGGER = logging.getLogger(__name__)
 
 # Error values that indicate sensor not connected
-# Values above 64000 are typically error codes in Kronoterm
-# HP Outlet tends to return values in 65490-65530 range when sensor not connected
-ERROR_VALUES = [64936, 64937, 65535, 65526, 65517, 65497, 65499, 65493]
+ERROR_VALUES = [64936, 64937, 65535]
 
 # Modbus unit ID (slave address)
 DEFAULT_UNIT_ID = 20
@@ -74,17 +72,11 @@ class ModbusCoordinator(DataUpdateCoordinator):
         # Shared device info
         self.shared_device_info: Dict[str, Any] = {}
         
-        # Feature flags (to match cloud coordinator interface)
+        # Feature flags (to be determined from data)
         self.loop1_installed = True  # Assume installed
         self.loop2_installed = False
-        self.loop3_installed = False
-        self.loop4_installed = False
         self.dhw_installed = True
-        self.tap_water_installed = True  # Alias for DHW
         self.additional_source_installed = False
-        self.alt_source_installed = False  # Alias for additional_source
-        self.reservoir_installed = False
-        self.pool_installed = False
 
         # Scan interval
         scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
@@ -101,8 +93,7 @@ class ModbusCoordinator(DataUpdateCoordinator):
 
     async def async_initialize(self) -> None:
         """Initialize Modbus connection and fetch device info."""
-        _LOGGER.warning("🔥 Initializing Modbus connection to %s:%s (unit_id=%s)", 
-                       self.host, self.port, self.unit_id)
+        _LOGGER.info("Initializing Modbus connection to %s:%s", self.host, self.port)
         
         # Create Modbus client
         self.client = AsyncModbusTcpClient(
@@ -122,10 +113,8 @@ class ModbusCoordinator(DataUpdateCoordinator):
             # Fetch device info
             await self._fetch_device_info()
             
-            # Do initial data fetch using proper coordinator method
-            # This will populate self.data properly
-            await self.async_config_entry_first_refresh()
-            _LOGGER.warning("🔥 Initialization complete! Data has %d entries", len(self.data) if self.data else 0)
+            # Do initial data fetch
+            await self._async_update_data()
             
         except Exception as err:
             _LOGGER.error("Error during Modbus initialization: %s", err)
@@ -179,14 +168,11 @@ class ModbusCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch data from Modbus device."""
-        _LOGGER.warning("🔥 _async_update_data called, _connected=%s", self._connected)
-        
         if not self._connected:
             raise UpdateFailed("Modbus client not connected")
 
         try:
             data = {}
-            _LOGGER.warning("🔥 Reading %d registers...", len(ALL_REGISTERS))
             
             # Read all registers
             for register in ALL_REGISTERS:
@@ -204,8 +190,8 @@ class ModbusCoordinator(DataUpdateCoordinator):
                         # Binary sensor
                         value = bool(raw_value)
                     elif register.reg_type == RegisterType.ENUM:
-                        # For ENUM, store RAW value - the entity will do the mapping
-                        value = raw_value
+                        # Enumeration
+                        value = format_enum(register, raw_value)
                     else:
                         # Scaled numeric value
                         value = scale_value(register, raw_value)
@@ -226,32 +212,13 @@ class ModbusCoordinator(DataUpdateCoordinator):
                     continue
             
             if not data:
-                _LOGGER.error("🔥 NO DATA COLLECTED! All register reads failed!")
                 raise UpdateFailed("No data received from Modbus device")
             
             # Update feature flags based on data
             self._update_feature_flags(data)
             
-            # Format data for entity compatibility: entities expect data["main"]["ModbusReg"]
-            # Convert from {addr: {value, raw, name}} to the expected format
-            modbus_reg_list = []
-            for address, info in data.items():
-                modbus_reg_list.append({
-                    "address": address,
-                    "value": info["value"],
-                    "raw": info["raw"],
-                    "name": info["name"],
-                    "unit": info.get("unit"),
-                })
-            
-            formatted_data = {
-                "main": {
-                    "ModbusReg": modbus_reg_list
-                }
-            }
-            
-            _LOGGER.warning("🔥 Successfully read %d registers from Modbus!", len(modbus_reg_list))
-            return formatted_data
+            _LOGGER.debug("Successfully read %d registers from Modbus", len(data))
+            return data
             
         except ModbusException as err:
             _LOGGER.error("Modbus communication error: %s", err)
@@ -263,28 +230,28 @@ class ModbusCoordinator(DataUpdateCoordinator):
     async def _read_register(self, register: Register) -> Optional[int]:
         """Read a single register from Modbus device."""
         try:
+            # Use positional args for compatibility with all pymodbus versions
             result = await self.client.read_holding_registers(
-                register.address, count=1, device_id=self.unit_id
+                register.address,
+                1,
+                self.unit_id
             )
             
             if result.isError():
-                _LOGGER.warning("Error reading register %d (%s): %s", 
-                              register.address, register.name, result)
+                _LOGGER.debug("Error reading register %d: %s", register.address, result)
                 return None
             
             value = result.registers[0]
             
             # Check for error values
-            # Kronoterm uses values >= 64000 to indicate sensor errors/not connected
-            if value >= 64000 or value in ERROR_VALUES:
+            if value in ERROR_VALUES:
                 _LOGGER.debug("Register %d returned error value %d", register.address, value)
                 return None
             
             return value
             
         except Exception as err:
-            _LOGGER.warning("Exception reading register %d (%s): %s", 
-                          register.address, register.name, err)
+            _LOGGER.debug("Exception reading register %d: %s", register.address, err)
             return None
 
     async def write_register(self, register: Register, value: int) -> bool:
@@ -297,8 +264,11 @@ class ModbusCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Writing value %d to register %d (%s)", 
                         value, register.address, register.name)
             
+            # Use positional args for compatibility with all pymodbus versions
             result = await self.client.write_register(
-                register.address, value=value, device_id=self.unit_id
+                register.address,
+                value,
+                self.unit_id
             )
             
             if result.isError():
@@ -330,13 +300,10 @@ class ModbusCoordinator(DataUpdateCoordinator):
         if not self.data:
             return None
         
-        # Data is now in format: {"main": {"ModbusReg": [...]}}
-        modbus_reg_list = self.data.get("main", {}).get("ModbusReg", [])
-        for reg in modbus_reg_list:
-            if reg.get("address") == register.address:
-                return reg.get("value")
+        reg_data = self.data.get(register.address)
+        if reg_data:
+            return reg_data.get("value")
         
-        return None
         return None
 
     async def async_shutdown(self) -> None:

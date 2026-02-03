@@ -1,0 +1,52 @@
+✅ Connected to Modbus device
+
+Reading 39 registers...
+
+====================================================================================================
+Address  Status               Value                                              Name
+====================================================================================================
+2102     OK                   3.8000000000000003°C (raw 38)                      Outdoor Temperature
+2109     OK                   37.9°C (raw 379)                                   Loop 1 Current Temperature
+2187     OK                   28.6°C (raw 286)                                   Loop 1 Setpoint
+2049     OK                   0.1°C (raw 1)                                      Loop 2 Setpoint
+2023     OK                   44.0°C (raw 440)                                   DHW Setpoint
+2024     OK                   150.0°C (raw 1500)                                 DHW Current Setpoint
+2101     OK                   18.5°C (raw 185)                                   Heat Pump Inlet Temperature
+2104     OK                   6549.900000000001°C (raw 65499)                    Heat Pump Outlet Temperature
+2105     OK                   89.10000000000001°C (raw 891)                      Evaporating Temperature
+2106     ERROR VALUE (64936)                                                     Compressor Temperature
+2160     OK                   22.900000000000002°C (raw 229)                     Loop 1 Thermostat Temperature
+2161     OK                   0.0°C (raw 0)                                      Loop 2 Thermostat Temperature
+2110     ERROR VALUE (64936)                                                     Loop 2 Current Temperature
+2107     OK                   0.0°C (raw 0)                                      Alternative Source Temperature
+2000     OK                   True (1)                                           System Operation
+2045     OK                   True (257)                                         Loop 1 Circulation Pump
+2055     OK                   True (1)                                           Loop 2 Circulation Pump
+2028     OK                   False (bit 0 of 1550)                              DHW Circulation Pump
+2028     OK                   True (bit 1 of 1550)                               DHW Tank Circulation Pump
+2002     OK                   False (bit 0 of 0)                                 Additional Source Activation
+2002     OK                   False (bit 4 of 0)                                 Additional Source Active
+2001     OK                   heating (0)                                        Working Function
+2006     OK                   warning (1)                                        Error/Warning Status
+2007     OK                   cooling (0)                                        Operation Regime
+2044     OK                   off (0)                                            Loop 1 Operation Status
+2026     OK                   on (1)                                             DHW Operation
+2129     OK                   399.0W (raw 399)                                   Current Power Consumption
+2327     OK                   0.0% (raw 0)                                       Heat Pump Load
+2329     OK                   0.0W (raw 0)                                       Current Heating Power
+2325     OK                   1.7000000000000002bar (raw 17)                     System Pressure
+2371     OK                   7.91 (raw 791)                                     COP
+2372     OK                   0.0 (raw 0)                                        SCOP
+2090     OK                   3898.0h (raw 3898)                                 Operating Hours Compressor Heating
+2091     OK                   0.0h (raw 0)                                       Operating Hours Compressor DHW
+2095     OK                   1.0h (raw 1)                                       Operating Hours Additional Source
+2155     OK                   0.0 (raw 0)                                        Compressor Activations Heating
+2156     OK                   4039.0 (raw 4039)                                  Compressor Activations Cooling
+2157     OK                   5.0 (raw 5)                                        Activations Boiler
+2158     OK                   0.0 (raw 0)                                        Activations Defrost
+====================================================================================================
+
+✅ Successful: 37
+⚠️  Error values: 2
+❌ Failed reads: 0
+📊 Total: 39

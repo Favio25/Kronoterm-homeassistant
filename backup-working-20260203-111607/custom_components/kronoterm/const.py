@@ -213,8 +213,8 @@ ENUM_SENSOR_DEFINITIONS: List[EnumSensorDefinition] = [
         2007,
         "operation_regime",
         {
-            0: "heating",  # FIXED: was "cooling" - inverted mapping confirmed with Cloud API
-            1: "cooling",  # FIXED: was "heating"
+            0: "cooling",
+            1: "heating",
             2: "heating_and_cooling_off",
         },
         "mdi:heat-pump",

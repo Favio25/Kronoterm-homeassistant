@@ -42,8 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Error values that indicate sensor not connected
 # Values above 64000 are typically error codes in Kronoterm
-# HP Outlet tends to return values in 65490-65530 range when sensor not connected
-ERROR_VALUES = [64936, 64937, 65535, 65526, 65517, 65497, 65499, 65493]
+ERROR_VALUES = [64936, 64937, 65535, 65526, 65517]
 
 # Modbus unit ID (slave address)
 DEFAULT_UNIT_ID = 20
@@ -275,8 +274,7 @@ class ModbusCoordinator(DataUpdateCoordinator):
             value = result.registers[0]
             
             # Check for error values
-            # Kronoterm uses values >= 64000 to indicate sensor errors/not connected
-            if value >= 64000 or value in ERROR_VALUES:
+            if value in ERROR_VALUES:
                 _LOGGER.debug("Register %d returned error value %d", register.address, value)
                 return None
             

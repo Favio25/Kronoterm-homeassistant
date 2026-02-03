@@ -240,8 +240,8 @@ OPERATION_REGIME = Register(
     name="Operation Regime",
     reg_type=RegisterType.ENUM,
     enum_values={
-        0: "heating",  # FIXED: was "cooling" - confirmed with Cloud API
-        1: "cooling",  # FIXED: was "heating"
+        0: "cooling",
+        1: "heating",
         2: "off"
     }
 )
@@ -475,8 +475,7 @@ STATUS_SENSORS = [
     WORKING_FUNCTION,
     ERROR_WARNING_STATUS,
     OPERATION_REGIME,
-    # LOOP1_OPERATION_STATUS removed - Cloud API doesn't have this sensor
-    # Loop mode is controlled via select entity, not sensor
+    LOOP1_OPERATION_STATUS,
     DHW_OPERATION,
 ]
 

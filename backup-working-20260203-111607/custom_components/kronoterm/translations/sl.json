@@ -1,0 +1,172 @@
+{
+    "config": {
+      "step": {
+        "user": {
+          "title": "Nastavitev toplotne črpalke Kronoterm",
+          "description": "Vnesite uporabniško ime in geslo za Home Cloud",
+          "data": {
+            "username": "Uporabniško ime za Home Cloud",
+            "password": "Geslo za Home Cloud"
+          }
+        }
+      },
+      "error": {
+        "invalid_auth": "Neveljavno uporabniško ime ali geslo.",
+        "cannot_connect": "Povezava s Kronoterm Cloud ni mogoča. Preverite omrežje in poverilnice.",
+        "unknown": "Prišlo je do neznane napake."
+      },
+      "abort": {
+        "already_configured": "Naprava je že nastavljena"
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "title": "Možnosti toplotne črpalke Kronoterm",
+          "description": "Posodobite poverilnice ali interval posodabljanja.",
+          "data": {
+            "username": "Uporabniško ime za Home Cloud",
+            "password": "Geslo za Home Cloud",
+            "scan_interval": "Interval posodabljanja (minute)"
+          }
+        }
+      },
+      "error": {
+        "invalid_auth": "Neveljavno uporabniško ime ali geslo.",
+        "cannot_connect": "Povezava s Kronoterm Cloud ni mogoča. Preverite omrežje in poverilnice.",
+        "unknown": "Prišlo je do neznane napake."
+      }
+    },
+    "entity": {
+      "binary_sensor": {
+        "circulation_loop_1": { "name": "Cirkulacija krog 1" },
+        "circulation_loop_2": { "name": "Cirkulacija krog 2" },
+        "circulation_loop_3": { "name": "Cirkulacija krog 3" },
+        "circulation_loop_4": { "name": "Cirkulacija krog 4" },
+        "circulation_dhw": { "name": "Cirkulacija sanitarne vode" },
+        "additional_source": { "name": "Dodatni vir" },
+        "thermostat_loop_1": { "name": "Termostat krog 1 aktiven" },
+        "thermostat_loop_2": { "name": "Termostat krog 2 aktiven" },
+        "thermostat_loop_3": { "name": "Termostat krog 3 aktiven" },
+        "thermostat_loop_4": { "name": "Termostat krog 4 aktiven" }
+      },
+      "sensor": {
+        "pool_temperature": { "name": "Temperatura bazena" },
+        "alternative_source_temperature": { "name": "Temperatura alternativnega vira" },
+        "compressor_activations_cooling": { "name": "Aktivacije kompresorja - hlajenje" },
+        "heating_source_pressure_set": { "name": "Nastavitev pritiska ogrevalnega vira" },
+        "source_pressure": { "name": "Pritisk vira" },
+        "energy_heating": { "name": "Poraba ogrevanja (dnevno)" },
+        "energy_dhw": { "name": "Poraba tople sanitarne vode (dnevno)" },
+        "energy_circulation": { "name": "Poraba cirkulacije (dnevno)" },
+        "energy_heater": { "name": "Poraba grelnika (dnevno)" },
+        "energy_combined": { "name": "Skupna poraba (dnevno)" },
+        "operating_hours_compressor_heating": { "name": "Delovne ure kompresorja pri ogrevanju" },
+        "operating_hours_compressor_dhw": { "name": "Delovne ure kompresorja pri topli sanitarni vodi" },
+        "operating_hours_additional_source_1": { "name": "Delovne ure dodatnega vira 1" },
+        "temperature_outside": { "name": "Zunanja temperatura" },
+        "hp_outlet_temperature": { "name": "Temperatura toplotne črpalke na izhodu" },
+        "temperature_compressor_inlet": { "name": "Temperatura na vstopu kompresorja" },
+        "temperature_compressor_outlet": { "name": "Temperatura na izhodu kompresorja" },
+        "pressure_setting": { "name": "Nastavitev tlaka" },
+        "heating_system_pressure": { "name": "Tlak ogrevalnega sistema" },
+        "hp_load": { "name": "Obremenitev toplotne črpalke" },
+        "current_heating_cooling_capacity": { "name": "Trenutna zmogljivost ogrevanja/hlajenja" },
+        "cop_value": { "name": "COP vrednost" },
+        "scop_value": { "name": "SCOP vrednost" },
+        "compressor_activations_heating": { "name": "Aktivacije kompresorja - ogrevanje (24 h)" },
+        "activations_boiler": { "name": "Aktivacije kotla (24 h)" },
+        "activations_defrost": { "name": "Aktivacije odmrzovanja (24 h)" },
+        "electrical_energy_heating_dhw": { "name": "Električna energija ogrevanja + topla sanitarna voda" },
+        "heating_energy_heating_dhw": { "name": "Ogrevalna energija ogrevanja + topla sanitarna voda" },
+        "hp_inlet_temperature": { "name": "Temperatura toplotne črpalke na vstopu" },
+        "loop_1_inlet_temperature":{ "name": "Vstopna temperatura zanke 1" },
+        "loop_2_inlet_temperature":{ "name": "Vstopna temperatura zanke 2" },
+        "loop_3_inlet_temperature":{ "name": "Vstopna temperatura zanke 3" },
+        "loop_4_inlet_temperature":{ "name": "Vstopna temperatura zanke 4" },
+        "loop_1_temperature": { "name": "Temperatura senzorja zanke 1" },
+        "loop_2_temperature": { "name": "Temperatura senzorja zanke 2" },
+        "loop_3_temperature": { "name": "Temperatura senzorja zanke 3" },
+        "loop_4_temperature": { "name": "Temperatura senzorja zanke 4" },
+        "loop_1_thermostat_temperature": { "name": "Temperatura termostata zanke 1" },
+        "loop_2_thermostat_temperature": { "name": "Temperatura termostata zanke 2" },
+        "loop_3_thermostat_temperature": { "name": "Temperatura termostata zanke 3" },
+        "loop_4_thermostat_temperature": { "name": "Temperatura termostata zanke 4" },
+        "working_function": {
+          "name": "Delovna funkcija",
+          "state": {
+            "heating": "Ogrevanje",
+            "dhw": "Topla sanitarna voda",
+            "cooling": "Hlajenje",
+            "pool_heating": "Ogrevanje bazena",
+            "thermal_disinfection": "Toplotna dezinfekcija",
+            "standby": "Spanje",
+            "remote_deactivation": "Oddaljena deaktivacija"
+          }
+        },
+        "error_warning": {
+          "name": "Napaka/Opozorilo",
+          "state": {
+            "no_error": "Brez napake",
+            "warning": "Opozorilo",
+            "error": "Napaka"
+          }
+        },
+        "operation_regime": {
+          "name": "Način delovanja",
+          "state": {
+            "cooling": "Hlajenje",
+            "heating": "Ogrevanje",
+            "heating_and_cooling_off": "Ogrevanje in hlajenje sta izključena"
+          }
+        }
+      },
+      "switch": {
+        "heatpump_switch": { "name": "Vklop/Izklop toplotne črpalke" },
+        "dhw_circulation_switch": { "name": "Kroženje sanitarne vode" },
+        "fast_heating_switch": { "name": "Hitro segrevanje vode" },
+        "antilegionella_switch": { "name": "Antilegionella" },
+        "loop1_temp_source_switch": { "name": "Zanka 1 Uporabi JSON Vir Temp" },
+        "reservoir_entity_switch": { "name": "Omogoči entiteto klime rezervoarja" },
+        "reserve_source_switch": { "name": "Rezervni vir (električni grelnik)" },
+        "additional_source_switch": { "name": "Dodatni vir" }
+      },
+      "select": {
+        "loop_1_operation": { "name": "Način delovanja zanke 1" },
+        "loop_2_operation": { "name": "Način delovanja zanke 2" },
+        "loop_3_operation": { "name": "Način delovanja zanke 3" },
+        "loop_4_operation": { "name": "Način delovanja zanke 4" },
+        "sanitary_water_operation": { "name": "Način delovanja sanitarne vode" },
+        "operational_mode": {
+          "name": "Način obratovanja",
+          "state": {
+            "auto": "Samodejno",
+            "comfort": "Udobje",
+            "eco": "ECO"
+          }
+        }
+      },
+      "number": {
+        "loop_1_eco_offset": { "name": "ECO odmik zanke 1" },
+        "loop_1_comfort_offset": { "name": "COMFORT odmik zanke 1" },
+        "loop_2_eco_offset": { "name": "ECO odmik zanke 2" },
+        "loop_2_comfort_offset": { "name": "COMFORT odmik zanke 2" },
+        "loop_3_eco_offset": { "name": "ECO odmik zanke 3" },
+        "loop_3_comfort_offset": { "name": "COMFORT odmik zanke 3" },
+        "loop_4_eco_offset": { "name": "ECO odmik zanke 4" },
+        "loop_4_comfort_offset": { "name": "COMFORT odmik zanke 4" },
+        "dhw_eco_offset": { "name": "ECO odmik za toplo sanitarno vodo" },
+        "dhw_comfort_offset": { "name": "COMFORT odmik za toplo sanitarno vodo" },
+        "update_interval": { "name": "Interval posodabljanja (min)" },
+        "main_temperature_offset": { "name": "Odmik sistemske temperature"}
+      },
+      "climate": {
+        "dhw_temperature": { "name": "Temperatura tople sanitarne vode" },
+        "loop_1_temperature": { "name": "Temperatura zanke 1" },
+        "loop_2_temperature": { "name": "Temperatura zanke 2" },
+        "loop_3_temperature": { "name": "Temperatura zanke 3" },
+        "loop_4_temperature": { "name": "Temperatura zanke 4" },
+        "reservoir_temperature": { "name": "Temperatura rezervoarja" }
+      }
+    }
+  }

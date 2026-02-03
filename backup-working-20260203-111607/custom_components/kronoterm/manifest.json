@@ -1,0 +1,13 @@
+{
+  "domain": "kronoterm",
+  "name": "Kronoterm",
+  "codeowners": ["@Favio25"],
+  "config_flow": true,
+  "dependencies": ["sensor", "binary_sensor", "number", "climate"],
+  "documentation": "https://github.com/Favio25/kronoterm-homeassistant",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Favio25/kronoterm-homeassistant/issues",
+  "requirements": ["pymodbus>=3.5.0"],
+  "version": "2.0.0"
+}
