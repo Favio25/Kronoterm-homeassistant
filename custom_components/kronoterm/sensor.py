@@ -47,7 +47,8 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         self._scale = scale
         self._unit = unit
         self._icon = icon
-        self._unique_id = f"{DOMAIN}_modbus_{address}"
+        # Include config entry ID to prevent conflicts with Cloud API integration
+        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_modbus_{address}"
 
     @property
     def unique_id(self) -> str:
@@ -91,7 +92,8 @@ class KronotermEnumSensor(KronotermModbusBase, SensorEntity):
         super().__init__(coordinator, address, name, device_info)
         self._options = options
         self._icon = icon
-        self._unique_id = f"{DOMAIN}_enum_{address}"
+        # Include config entry ID to prevent conflicts with Cloud API integration
+        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_enum_{address}"
         self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_options = list(self._options.values())
 

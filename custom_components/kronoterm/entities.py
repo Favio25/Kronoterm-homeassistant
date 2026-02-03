@@ -124,7 +124,8 @@ class KronotermBinarySensor(KronotermModbusBase, BinarySensorEntity):
         self._bit: Optional[int] = bit
         self._icon: Optional[str] = icon
         suffix = f"_{bit}" if bit is not None else ""
-        self._unique_id = f"{DOMAIN}_binary_{address}{suffix}"
+        # Include config entry ID to prevent conflicts with Cloud API integration
+        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_binary_{address}{suffix}"
 
     @property
     def unique_id(self) -> str:
