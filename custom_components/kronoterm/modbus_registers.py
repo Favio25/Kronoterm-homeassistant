@@ -400,6 +400,61 @@ ACTIVATIONS_DEFROST = Register(
 )
 
 # =============================================================================
+# OFFSET REGISTERS (ECO/COMFORT)
+# =============================================================================
+
+# Loop 1 Offsets
+LOOP1_ECO_OFFSET = Register(
+    address=2047,
+    name="Loop 1 Eco Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+LOOP1_COMFORT_OFFSET = Register(
+    address=2048,
+    name="Loop 1 Comfort Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+# Loop 2 Offsets
+LOOP2_ECO_OFFSET = Register(
+    address=2057,
+    name="Loop 2 Eco Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+LOOP2_COMFORT_OFFSET = Register(
+    address=2058,
+    name="Loop 2 Comfort Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+# DHW Offsets
+DHW_ECO_OFFSET = Register(
+    address=2030,
+    name="DHW Eco Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+DHW_COMFORT_OFFSET = Register(
+    address=2031,
+    name="DHW Comfort Offset",
+    reg_type=RegisterType.TEMP,
+    scale=0.1,
+    unit="°C"
+)
+
+# =============================================================================
 # WRITABLE SWITCHES
 # =============================================================================
 
@@ -505,6 +560,16 @@ ACTIVATION_SENSORS = [
     ACTIVATIONS_DEFROST,
 ]
 
+# Offset registers (read for number entities)
+OFFSET_REGISTERS = [
+    LOOP1_ECO_OFFSET,
+    LOOP1_COMFORT_OFFSET,
+    LOOP2_ECO_OFFSET,
+    LOOP2_COMFORT_OFFSET,
+    DHW_ECO_OFFSET,
+    DHW_COMFORT_OFFSET,
+]
+
 # Writable registers (setpoints and switches)
 WRITABLE_REGISTERS = [
     LOOP1_SETPOINT,
@@ -514,7 +579,7 @@ WRITABLE_REGISTERS = [
     ADDITIONAL_SOURCE_SWITCH,
     DHW_CIRCULATION_SWITCH,
     DHW_OPERATION,
-]
+] + OFFSET_REGISTERS
 
 # All registers for batch reading
 ALL_REGISTERS = (
@@ -523,7 +588,8 @@ ALL_REGISTERS = (
     STATUS_SENSORS +
     POWER_SENSORS +
     HOUR_SENSORS +
-    ACTIVATION_SENSORS
+    ACTIVATION_SENSORS +
+    OFFSET_REGISTERS  # ADD OFFSETS TO READ LIST
 )
 
 

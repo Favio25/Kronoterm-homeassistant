@@ -245,11 +245,18 @@ async def async_setup_entry(
     # Get the list of all addresses reported by the heat pump
     modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
     available_addresses = {reg.get("address") for reg in modbus_list}
+    
+    _LOGGER.warning("🔥 NUMBER: coordinator.data keys: %s", list((coordinator.data or {}).keys()))
+    _LOGGER.warning("🔥 NUMBER: modbus_list length: %d", len(modbus_list))
+    _LOGGER.warning("🔥 NUMBER: available_addresses (first 10): %s", sorted(list(available_addresses))[:10])
 
     # 1) Create standard Modbus offset entities
     for config in OFFSET_CONFIGS:
         is_installed = getattr(coordinator, config.install_flag, False)
         is_available = config.address in available_addresses
+        
+        _LOGGER.warning("🔥 NUMBER: Checking %s (addr %d): installed=%s, available=%s", 
+                       config.name, config.address, is_installed, is_available)
 
         if is_installed and is_available:
             entities.append(
@@ -264,11 +271,18 @@ async def async_setup_entry(
                     max_value=config.max_value,
                 )
             )
+            _LOGGER.warning("🔥 NUMBER: Created entity for %s", config.name)
 
     # 2) Create the coordinator update interval entity
     entities.append(CoordinatorUpdateIntervalNumber(coordinator))
+    _LOGGER.warning("🔥 NUMBER: Added update interval entity")
 
-    # 3) Create the Main Temperature Offset entity
-    entities.append(KronotermMainOffsetNumber(coordinator, entry))
+    # 3) Create the Main Temperature Offset entity (Cloud API only)
+    if hasattr(coordinator, 'async_set_main_temp_offset'):
+        entities.append(KronotermMainOffsetNumber(coordinator, entry))
+        _LOGGER.warning("🔥 NUMBER: Added main temp offset entity")
+    else:
+        _LOGGER.warning("🔥 NUMBER: Skipped main temp offset (not supported by this coordinator)")
 
+    _LOGGER.warning("🔥 NUMBER: Total entities to add: %d", len(entities))
     async_add_entities(entities, update_before_add=True)

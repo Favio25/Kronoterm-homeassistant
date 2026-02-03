@@ -52,53 +52,85 @@ async def async_setup_entry(
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return False
 
-    # Define all switches that read from the 'ShortcutsData' blob
-    switch_configs = [
-        SwitchConfig(
-            "heatpump_switch",
-            "heatpump_switch",
-            "heatpump_on",
-            "async_set_heatpump_state",
-        ),
-        SwitchConfig(
-            "dhw_circulation_switch",
-            "dhw_circulation_switch",
-            "circulation_on",
-            "async_set_dhw_circulation",
-        ),
-        SwitchConfig(
-            "fast_heating_switch",
-            "fast_heating_switch",
-            "fast_water_heating",  # Note: key in JSON is different from method
-            "async_set_fast_water_heating",
-        ),
-        SwitchConfig(
-            "antilegionella_switch",
-            "antilegionella_switch",
-            "antilegionella",
-            "async_set_antilegionella",
-        ),
-        SwitchConfig(
-            "reserve_source_switch",
-            "reserve_source_switch",
-            "reserve_source",
-            "async_set_reserve_source",
-        ),
-        SwitchConfig(
-            "additional_source_switch",
-            "additional_source_switch",
-            "additional_source",
-            "async_set_additional_source",
-        ),
-    ]
-
-    entities = [
-        KronotermSwitch(entry, coordinator, config)
-        for config in switch_configs
-    ]
+    entities = []
     
-    # Add config-specific switches
-    # entities.append(ReservoirEntitySwitch(coordinator))
+    # Check if this is Modbus or Cloud coordinator
+    is_modbus = type(coordinator).__name__ == "ModbusCoordinator"
+    
+    if is_modbus:
+        # Modbus switches read from binary registers
+        from .entities import KronotermModbusBase
+        
+        # Fast DHW Heating - register 2015
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2015, "fast_heating_switch", 
+            "async_set_fast_water_heating"
+        ))
+        
+        # Additional Source - register 2016
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2016, "additional_source_switch",
+            "async_set_additional_source"
+        ))
+        
+        # DHW Circulation - register 2328
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2328, "dhw_circulation_switch",
+            "async_set_dhw_circulation"
+        ))
+        
+        # System On/Off - register 2002 bit 0
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2002, "heatpump_switch",
+            "async_set_heatpump_state"
+        ))
+        
+        _LOGGER.warning("🔥 SWITCH: Created %d Modbus switches", len(entities))
+    else:
+        # Cloud API switches read from ShortcutsData
+        switch_configs = [
+            SwitchConfig(
+                "heatpump_switch",
+                "heatpump_switch",
+                "heatpump_on",
+                "async_set_heatpump_state",
+            ),
+            SwitchConfig(
+                "dhw_circulation_switch",
+                "dhw_circulation_switch",
+                "circulation_on",
+                "async_set_dhw_circulation",
+            ),
+            SwitchConfig(
+                "fast_heating_switch",
+                "fast_heating_switch",
+                "fast_water_heating",
+                "async_set_fast_water_heating",
+            ),
+            SwitchConfig(
+                "antilegionella_switch",
+                "antilegionella_switch",
+                "antilegionella",
+                "async_set_antilegionella",
+            ),
+            SwitchConfig(
+                "reserve_source_switch",
+                "reserve_source_switch",
+                "reserve_source",
+                "async_set_reserve_source",
+            ),
+            SwitchConfig(
+                "additional_source_switch",
+                "additional_source_switch",
+                "additional_source",
+                "async_set_additional_source",
+            ),
+        ]
+        
+        entities = [
+            KronotermSwitch(entry, coordinator, config)
+            for config in switch_configs
+        ]
 
     async_add_entities(entities, update_before_add=True)
     return True
@@ -213,3 +245,81 @@ class ReservoirEntitySwitch(SwitchEntity):
         )
         # Optionally fire an event that other parts of your integration can listen to.
         self.hass.bus.async_fire(f"{DOMAIN}_reservoir_enabled_changed", {"enabled": enabled})
+
+class KronotermModbusSwitch(SwitchEntity):
+    """Switch entity for Modbus TCP (reads from register, writes via coordinator)."""
+    
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        address: int,
+        translation_key: str,
+        set_method_name: str,
+    ) -> None:
+        """Initialize the Modbus switch."""
+        self._coordinator = coordinator
+        self._entry = entry
+        self._address = address
+        self._set_method_name = set_method_name
+        
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_modbus_{address}"
+        self._attr_translation_key = translation_key
+        self._attr_device_info = coordinator.shared_device_info
+        self._attr_has_entity_name = True
+    
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return (
+            self._coordinator.last_update_success
+            and self._coordinator.data is not None
+        )
+    
+    @property
+    def is_on(self) -> bool:
+        """Return true if the switch is on."""
+        if not self._coordinator.data:
+            return False
+        
+        # Get value from Modbus register
+        modbus_list = self._coordinator.data.get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == self._address:
+                raw_value = reg.get("raw", 0)
+                # Binary registers: 1 = on, 0 = off
+                return bool(raw_value)
+        
+        return False
+    
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the switch on."""
+        try:
+            method_to_call = getattr(self._coordinator, self._set_method_name)
+            success = await method_to_call(True)
+            if success:
+                await self._coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to turn on %s", self._attr_translation_key)
+        except AttributeError:
+            _LOGGER.error(
+                "Coordinator is missing method: %s", self._set_method_name
+            )
+        except Exception as err:
+            _LOGGER.error("Error turning on %s: %s", self._attr_translation_key, err)
+    
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the switch off."""
+        try:
+            method_to_call = getattr(self._coordinator, self._set_method_name)
+            success = await method_to_call(False)
+            if success:
+                await self._coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to turn off %s", self._attr_translation_key)
+        except AttributeError:
+            _LOGGER.error(
+                "Coordinator is missing method: %s", self._set_method_name
+            )
+        except Exception as err:
+            _LOGGER.error("Error turning off %s: %s", self._attr_translation_key, err)
