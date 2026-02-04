@@ -1,62 +1,195 @@
 # Kronoterm Integration for Home Assistant
 
-## Overview
-This custom integration provides support for Kronoterm heat pumps in Home Assistant. It fetches and displays various sensor data and operational statuses from the Kronoterm API, offering users valuable insights into their heat pump's performance and status.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![License](https://img.shields.io/github/license/Favio25/Kronoterm-homeassistant)](LICENSE)
 
-Tested with: 
-- Hydro S + Adapt 0416-K3 HT / HK 3F
-- Hydro C 2 + Adapt 0312-K3 HT / HK 1F
+A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting both **Cloud API** and **local Modbus TCP** connections.
 
 ## Features
-- Integration with Kronoterm's API to fetch sensor and binary sensor data.
-- Provides detailed information such as temperatures, pressures, energy consumption, and operational statuses.
-- Configurable update intervals for main and auxiliary data.
 
-[Home assistant dashboard yaml](dashboard.yaml)
+### 🌐 Dual Connection Modes
+- **Cloud API**: Internet-based connection using Kronoterm mobile app credentials
+- **Modbus TCP**: Local network connection for faster polling and offline operation
+- **Seamless switching**: Reconfigure between modes without losing entity history
 
-![Dashboard](https://github.com/Favio25/Kronoterm-homeassistant/blob/main/images/Dashboard.png)
-![Dashboard2](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/dashboard2.png)
-![energy](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/energy.png)
+### 🌡️ Climate Entities (Modbus Mode)
+- **4 Climate Controls**: DHW, Heating Loop 1-2, Reservoir
+- **Smart Temperature Sensors**: Automatically prefers thermostat temperature over loop temperature
+- **Direct Control**: Set target temperatures with instant feedback
+- Example: Loop 2 displays room temperature (23.2°C) from thermostat instead of loop outlet temperature (27.8°C)
+
+### 📊 Comprehensive Monitoring
+- **100+ Sensors**: Temperatures, pressures, energy consumption, operational hours
+- **Binary Sensors**: Status indicators for pumps, compressor, heating/cooling modes
+- **Switches**: Control system operation, reserve source, additional source
+- **Number Entities**: Adjust temperature offsets and setpoints
+- **Select Entities**: Change operation modes and working functions
+
+### ⚡ Performance & Features
+- **Fast Polling**: Configurable update interval (5-600 seconds)
+- **Batch Reading**: Optimized Modbus communication (133x faster than sequential)
+- **JSON-Based**: Data-driven register map for easy maintenance
+- **Energy Dashboard**: Full integration with Home Assistant energy tracking
+
+## Compatibility
+
+Tested with:
+- **Hydro S** + Adapt 0416-K3 HT / HK 3F
+- **Hydro C 2** + Adapt 0312-K3 HT / HK 1F
+- Other Kronoterm heat pumps with Modbus TCP support
 
 ## Installation
 
-### Install via HACS
-1. **Add the Repository**  
-   Open HACS in your Home Assistant interface and navigate to **Integrations**. Click the three dots in the top right corner and select **Custom Repositories**. Add this repository's URL and select **Integration** as the category.
+### Via HACS (Recommended)
 
-2. **Install the Integration**  
-   After adding the repository, search for "Kronoterm" in HACS under **Integrations**. Click on it and select **Install**.
-
-3. **Restart Home Assistant**  
-   Restart Home Assistant to recognize the new integration.
-
-4. **Add the Integration**  
-   Go to **Settings > Devices & Services** in Home Assistant. Click the "Add Integration" button and search for "Kronoterm." Follow the prompts to configure the integration with your Kronoterm credentials.
+1. Open HACS → Integrations → ⋮ (Menu) → Custom Repositories
+2. Add repository: `https://github.com/Favio25/Kronoterm-homeassistant`
+3. Category: Integration
+4. Search for "Kronoterm" and install
+5. Restart Home Assistant
+6. Go to Settings → Devices & Services → Add Integration → Kronoterm
 
 ### Manual Installation
-1. **Download the Integration**  
-   Clone or download the repository containing this integration and place the folder in your Home Assistant `custom_components` directory. If the `custom_components` folder doesn't exist, create it in your Home Assistant configuration directory.
 
-   ```
-   <config_dir>/custom_components/kronoterm/
-   ```
+1. Copy the `custom_components/kronoterm` folder to your Home Assistant's `custom_components` directory
+2. Restart Home Assistant
+3. Go to Settings → Devices & Services → Add Integration → Kronoterm
 
-2. **Restart Home Assistant**  
-   Restart Home Assistant to recognize the new integration.
+## Configuration
 
-3. **Add the Integration**  
-   Go to **Settings > Devices & Services** in Home Assistant. Click the "Add Integration" button and search for "Kronoterm." Follow the prompts to configure the integration with your Kronoterm credentials.
-   ![form](https://github.com/Favio25/kronoterm-homeassistant/blob/main/images/form.png)
+### Cloud API Setup
+![Cloud API Setup](images/form.png)
 
-5. **Customize Update Intervals** (Optional)  
-   Update intervals can be modified by specifying the `scan_interval` parameter in the configuration.
+1. Select **Cloud API** as connection type
+2. Enter your Kronoterm mobile app username and password
+3. Configure update interval (default: 60 seconds)
+
+### Modbus TCP Setup
+
+1. Select **Modbus TCP** as connection type
+2. Enter your heat pump's IP address
+3. Port: `502` (default)
+4. Unit ID: `20` (default)
+5. Update interval: `5-600` seconds
+
+**Finding your IP address:**
+- Check your Kronoterm display panel (Network settings)
+- Or find it in your router's DHCP list
+
+## Screenshots
+
+### Dashboard
+![Dashboard](images/Dashboard.png)
+![Dashboard 2](images/dashboard2.png)
+
+### Energy Monitoring
+![Energy](images/energy.png)
+
+[Example Dashboard YAML](dashboard.yaml)
+
+## Documentation
+
+- **[Climate Entities Guide](docs/CLIMATE-COMPLETE.md)** - Complete climate entity documentation
+- **[Reconfigure Guide](docs/RECONFIGURE.md)** - Switch between Cloud API and Modbus
+- **[Modbus Implementation](docs/MODBUS-JSON-IMPLEMENTATION.md)** - Technical details
+- **[Performance Optimization](docs/PERFORMANCE-OPTIMIZATION.md)** - Batch reading explanation
+- **[Full Documentation](docs/README.md)** - Complete documentation index
+
+## Key Differences: Cloud API vs Modbus
+
+| Feature | Cloud API | Modbus TCP |
+|---------|-----------|------------|
+| **Connection** | Internet required | Local network only |
+| **Speed** | ~60s refresh | 5-600s configurable |
+| **Reliability** | Depends on cloud | Direct connection |
+| **Climate Entities** | Limited | Full support (4 entities) |
+| **Sensors** | ~80 entities | ~120 entities |
+| **Offline Operation** | ❌ No | ✅ Yes |
+
+## Advanced Features
+
+### Reconfigure Flow
+Switch between Cloud API and Modbus modes without losing entity history:
+1. Settings → Devices & Services → Kronoterm
+2. Click **Reconfigure**
+3. Choose new connection type
+4. All entity IDs, history, and dashboard references preserved
+
+### Climate Entity Temperature Mapping
+Modbus climate entities intelligently select temperature sensors:
+- **Priority 1**: Thermostat temperature (room temperature)
+- **Priority 2**: Loop temperature (outlet temperature)
+- **Result**: Shows the most relevant temperature for each loop
+
+Example:
+- Loop 1 (no thermostat): Shows loop outlet temperature (38.9°C)
+- Loop 2 (with thermostat): Shows room temperature (23.2°C) ✨
+
+### Writable Registers
+Modbus mode supports direct register writes:
+- Temperature setpoints via climate entities
+- Temperature offsets via number entities
+- System control via switch entities
 
 ## Troubleshooting
-- **Integration Not Showing**: Ensure the integration is placed in the correct directory and Home Assistant is restarted.
-- **Data Fetch Errors**: Check your internet connection and verify your Kronoterm credentials in the configuration.
-- **API Limitations**: If data isn't refreshing as expected, verify the update intervals and API connectivity.
 
-## Contribution
-Contributions are welcome! Submit pull requests or open issues for bugs, enhancements, or feature requests.
+### Integration Not Showing
+- Verify files are in `custom_components/kronoterm/`
+- Restart Home Assistant
+- Check logs: Settings → System → Logs
+
+### Cloud API Issues
+- Verify credentials match Kronoterm mobile app
+- Check internet connection
+- Some sensors may show as unavailable (normal)
+
+### Modbus Connection Failed
+- Verify IP address is correct
+- Check port 502 is accessible (firewall)
+- Ensure Unit ID is 20 (default)
+- Try pinging the heat pump IP
+
+### Entities Unavailable
+- **Cloud API**: Some registers not available via cloud (expected)
+- **Modbus**: Check network connection and unit ID
+- Use reconfigure flow to refresh
+
+## Energy Dashboard Integration
+
+1. Settings → Dashboards → Energy
+2. Add electricity consumption: `sensor.electrical_energy_heating_dhw`
+3. Add heat production: `sensor.heating_energy_heating_dhw`
+4. View COP/SCOP in real-time
+
+## Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+**Bug reports**: Open an issue with:
+- Home Assistant version
+- Integration version
+- Connection mode (Cloud API / Modbus)
+- Relevant log entries
+
+## Credits
+
+- Original integration: [Favio25](https://github.com/Favio25)
+- Modbus TCP support and climate entities: Community contributions
+- Based on Kronoterm official register documentation
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This integration is not officially endorsed by Kronoterm. Use at your own risk.
 
 ---
+
+**Supported Models**: All Kronoterm heat pumps with Modbus TCP interface  
+**Home Assistant Version**: 2023.1.0 or newer  
+**Python Version**: 3.11+
