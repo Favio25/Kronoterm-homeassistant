@@ -27,15 +27,12 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 
 ### ⚡ Performance & Features
 - **Fast Polling**: Configurable update interval (5-600 seconds)
-- **Batch Reading**: Optimized Modbus communication (133x faster than sequential)
-- **JSON-Based**: Data-driven register map for easy maintenance
 - **Energy Dashboard**: Full integration with Home Assistant energy tracking
 
 ## Compatibility
 
 Tested with:
 - **Hydro S** + Adapt 0416-K3 HT / HK 3F
-- **Hydro C 2** + Adapt 0312-K3 HT / HK 1F
 - Other Kronoterm heat pumps with Modbus TCP support
 
 ## Installation
