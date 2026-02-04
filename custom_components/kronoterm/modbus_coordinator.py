@@ -8,6 +8,7 @@ Alternative to cloud API for local control.
 import logging
 import asyncio
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pymodbus.client import AsyncModbusTcpClient
@@ -29,21 +30,18 @@ from .modbus_registers import (
     FIRMWARE_VERSION,
     OUTDOOR_TEMP,
     LOOP1_CURRENT_TEMP,
-    LOOP1_SETPOINT,
     DHW_SETPOINT,
+    LOOP1_ROOM_SETPOINT,
+    SYSTEM_SETPOINT,
     WORKING_FUNCTION,
-    HP_LOAD,
+    HP_LOAD_PERCENT,
     CURRENT_POWER,
-    SYSTEM_PRESSURE,
+    PRESSURE_MEASURED,
     COP,
 )
+from .register_map import RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
-
-# Error values that indicate sensor not connected
-# Values above 64000 are typically error codes in Kronoterm
-# HP Outlet tends to return values in 65490-65530 range when sensor not connected
-ERROR_VALUES = [64936, 64937, 65535, 65526, 65517, 65497, 65499, 65493]
 
 # Modbus unit ID (slave address)
 DEFAULT_UNIT_ID = 20
@@ -71,6 +69,15 @@ class ModbusCoordinator(DataUpdateCoordinator):
         self.client: Optional[AsyncModbusTcpClient] = None
         self._connected = False
 
+        # Load register map from JSON
+        self.register_map: Optional[RegisterMap] = None
+        try:
+            json_path = Path(__file__).parent / "kronoterm.json"
+            self.register_map = RegisterMap(json_path)
+            _LOGGER.warning("✅ Loaded register map with %d registers from JSON", len(self.register_map.get_all()))
+        except Exception as e:
+            _LOGGER.warning("❌ Could not load register map: %s. Falling back to hardcoded registers.", e)
+
         # Shared device info
         self.shared_device_info: Dict[str, Any] = {}
         
@@ -86,17 +93,26 @@ class ModbusCoordinator(DataUpdateCoordinator):
         self.reservoir_installed = False
         self.pool_installed = False
 
-        # Scan interval
-        scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-        scan_interval = max(scan_interval, 1)
-        _LOGGER.info("Modbus coordinator update interval set to %d minutes", scan_interval)
+        # Scan interval (supports both seconds and legacy minutes)
+        # Try new seconds-based setting first, fall back to minutes
+        scan_interval_seconds = config_entry.options.get("scan_interval_seconds")
+        if scan_interval_seconds is not None:
+            scan_interval_seconds = max(scan_interval_seconds, 5)  # Min 5 seconds
+            _LOGGER.info("Modbus coordinator update interval set to %d seconds", scan_interval_seconds)
+            interval = timedelta(seconds=scan_interval_seconds)
+        else:
+            # Backwards compatibility: use minutes
+            scan_interval_minutes = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+            scan_interval_minutes = max(scan_interval_minutes, 1)
+            _LOGGER.info("Modbus coordinator update interval set to %d minutes (legacy)", scan_interval_minutes)
+            interval = timedelta(minutes=scan_interval_minutes)
 
         super().__init__(
             hass,
             _LOGGER,
             name="kronoterm_modbus_coordinator",
             update_method=self._async_update_data,
-            update_interval=timedelta(minutes=scan_interval),
+            update_interval=interval,
         )
 
     async def async_initialize(self) -> None:
@@ -135,10 +151,6 @@ class ModbusCoordinator(DataUpdateCoordinator):
     async def _fetch_device_info(self) -> None:
         """Fetch device identification from Modbus."""
         try:
-            # Read device ID
-            device_id_raw = await self._read_register(DEVICE_ID)
-            device_id = f"kronoterm_{device_id_raw:04X}" if device_id_raw else "kronoterm"
-            
             # Read firmware version
             firmware_raw = await self._read_register(FIRMWARE_VERSION)
             firmware = f"{firmware_raw}" if firmware_raw else "unknown"
@@ -146,9 +158,11 @@ class ModbusCoordinator(DataUpdateCoordinator):
             # Build device info
             model_name = self._format_model_name()
             
+            # Use config_entry.entry_id as device identifier to maintain consistency
+            # when switching between Cloud and Modbus connection types
             self.shared_device_info = {
-                "identifiers": {(DOMAIN, device_id)},
-                "name": f"Kronoterm {model_name}",
+                "identifiers": {(DOMAIN, self.config_entry.entry_id)},
+                "name": "Kronoterm Heat Pump",
                 "manufacturer": "Kronoterm",
                 "model": model_name,
                 "sw_version": firmware,
@@ -161,7 +175,7 @@ class ModbusCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Could not fetch device info: %s", err)
             # Use fallback device info
             self.shared_device_info = {
-                "identifiers": {(DOMAIN, f"kronoterm_{self.host}")},
+                "identifiers": {(DOMAIN, self.config_entry.entry_id)},
                 "name": "Kronoterm Heat Pump",
                 "manufacturer": "Kronoterm",
                 "model": self._format_model_name(),
@@ -186,44 +200,162 @@ class ModbusCoordinator(DataUpdateCoordinator):
 
         try:
             data = {}
-            _LOGGER.warning("🔥 Reading %d registers...", len(ALL_REGISTERS))
             
-            # Read all registers
-            for register in ALL_REGISTERS:
-                try:
-                    raw_value = await self._read_register(register)
+            # Use register_map if available, otherwise fall back to hardcoded registers
+            if self.register_map:
+                import time
+                # Read both sensors AND control registers (switches need control register values)
+                registers_to_read = self.register_map.get_sensors() + self.register_map.get_controls()
+                _LOGGER.warning("🔥 Reading %d registers using batch reads...", len(registers_to_read))
+                
+                start_time = time.time()
+                
+                # Group registers into consecutive batches for efficient reading
+                batches = self._group_registers_into_batches(registers_to_read)
+                _LOGGER.warning("🔥 Grouped into %d batches", len(batches))
+                
+                # Read all batches
+                register_values = {}
+                for batch_start, batch_count, batch_regs in batches:
+                    try:
+                        # Read the entire batch in one Modbus request
+                        modbus_address = batch_start - 1  # Apply -1 offset
+                        result = await self.client.read_holding_registers(
+                            modbus_address, count=batch_count, device_id=self.unit_id
+                        )
+                        
+                        if result.isError():
+                            _LOGGER.debug("Error reading batch at %d (count %d)", batch_start, batch_count)
+                            continue
+                        
+                        # Map results back to individual registers
+                        for i, reg_def in enumerate(batch_regs):
+                            if reg_def.type == "Value32":
+                                # For 32-bit registers, read both high and low
+                                high_addr = reg_def.register32_high
+                                low_addr = reg_def.register32_low
+                                
+                                high_offset = high_addr - batch_start
+                                low_offset = low_addr - batch_start
+                                
+                                # Check if both registers are in the batch
+                                if high_offset >= len(result.registers) or low_offset >= len(result.registers):
+                                    _LOGGER.warning("32-bit register %d out of batch range (batch_start=%d, offsets=%d/%d, len=%d)", 
+                                                   reg_def.address, batch_start, high_offset, low_offset, len(result.registers))
+                                    continue
+                                
+                                high_value = result.registers[high_offset]
+                                low_value = result.registers[low_offset]
+                                
+                                _LOGGER.warning("🔍 32-bit %s: batch_start=%d, high_addr=%d (offset=%d, raw=%d), low_addr=%d (offset=%d, raw=%d)",
+                                               reg_def.name_en, batch_start, high_addr, high_offset, high_value, 
+                                               low_addr, low_offset, low_value)
+                                
+                                # Convert to signed integers
+                                if high_value >= 32768:
+                                    high_value = high_value - 65536
+                                if low_value >= 32768:
+                                    low_value = low_value - 65536
+                                
+                                # For Kronoterm: the actual value is in the LOW register!
+                                # The naming in the manual is backwards - "high" register is actually low word
+                                raw_value = low_value
+                                
+                                _LOGGER.warning("🔍 32-bit %s: final raw_value=%d (using LOW register)", reg_def.name_en, raw_value)
+                            else:
+                                addr = reg_def.address
+                                offset = addr - batch_start
+                                raw_value = result.registers[offset]
+                                
+                                # Convert to signed integer
+                                if raw_value >= 32768:
+                                    raw_value = raw_value - 65536
+                            
+                            # Check for error values
+                            if raw_value <= -500:
+                                continue
+                            
+                            register_values[reg_def.address] = (reg_def, raw_value)
                     
-                    if raw_value is None:
+                    except Exception as err:
+                        _LOGGER.debug("Exception reading batch at %d: %s", batch_start, err)
                         continue
-                    
+                
+                read_time = time.time() - start_time
+                _LOGGER.warning("🔥 Batch read took %.2fs for %d registers in %d batches", 
+                               read_time, len(registers_to_read), len(batches))
+                
+                # Process results
+                for reg_def, raw_value in register_values.values():
                     # Process based on register type
-                    if register.reg_type == RegisterType.BITS:
-                        # Bit-masked value
-                        value = read_bit(raw_value, register.bit)
-                    elif register.reg_type == RegisterType.BINARY:
-                        # Binary sensor
-                        value = bool(raw_value)
-                    elif register.reg_type == RegisterType.ENUM:
-                        # For ENUM, store RAW value - the entity will do the mapping
+                    if reg_def.type == "Enum":
+                        value = raw_value
+                    elif reg_def.type == "Bitmask":
+                        value = raw_value
+                    elif reg_def.type in ("Status", "Control"):
                         value = raw_value
                     else:
-                        # Scaled numeric value
-                        value = scale_value(register, raw_value)
-                        if value is None:
-                            continue
+                        # Scaled numeric value (Value or Value32)
+                        if reg_def.scale and reg_def.scale != 1.0:
+                            value = round(raw_value * reg_def.scale, 2)
+                        else:
+                            value = raw_value
                     
                     # Store in data dict using register address as key
-                    data[register.address] = {
+                    data[reg_def.address] = {
                         "value": value,
                         "raw": raw_value,
-                        "name": register.name,
-                        "unit": register.unit if hasattr(register, 'unit') else None,
+                        "name": reg_def.name_en,
+                        "unit": reg_def.unit,
                     }
                     
-                except Exception as err:
-                    _LOGGER.debug("Error reading register %s (%d): %s", 
-                                 register.name, register.address, err)
-                    continue
+                    # Debug logging for critical sensors
+                    if reg_def.address in [2371, 2372, 2327, 2103, 2001, 2007, 2023, 2187, 2191, 546, 553, 
+                                          2130, 2160, 2110, 2161, 2102, 2024, 2051, 2188, 2189, 2190,
+                                          2101, 2034, 2305]:  # return_temp, reservoir_current_setpoint, solar_reservoir_setpoint
+                        _LOGGER.warning(f"🔍 JSON: Reg {reg_def.address} ({reg_def.name_en}): raw={raw_value}, scaled={value}, scale={reg_def.scale}")
+            else:
+                # Fallback to hardcoded registers
+                _LOGGER.warning("🔥 Reading %d hardcoded registers...", len(ALL_REGISTERS))
+                for register in ALL_REGISTERS:
+                    try:
+                        raw_value = await self._read_register(register)
+                        
+                        if raw_value is None:
+                            continue
+                        
+                        # Process based on register type
+                        if register.reg_type == RegisterType.BITS:
+                            # Bit-masked value
+                            value = read_bit(raw_value, register.bit)
+                        elif register.reg_type == RegisterType.BINARY:
+                            # Binary sensor
+                            value = bool(raw_value)
+                        elif register.reg_type == RegisterType.ENUM:
+                            # For ENUM, store RAW value - the entity will do the mapping
+                            value = raw_value
+                        else:
+                            # Scaled numeric value
+                            value = scale_value(register, raw_value)
+                            if value is None:
+                                continue
+                        
+                        # Store in data dict using register address as key
+                        data[register.address] = {
+                            "value": value,
+                            "raw": raw_value,
+                            "name": register.name,
+                            "unit": register.unit if hasattr(register, 'unit') else None,
+                        }
+                        
+                        # Debug logging for critical sensors and ALL temperature registers
+                        if register.address in [2371, 2372, 2327, 2103, 2001, 2007] or register.reg_type == RegisterType.TEMP:
+                            _LOGGER.warning(f"🔍 DEBUG: Reg {register.address} ({register.name}): raw={raw_value}, scaled={value}")
+                        
+                    except Exception as err:
+                        _LOGGER.debug("Error reading register %s (%d): %s", 
+                                     register.name, register.address, err)
+                        continue
             
             if not data:
                 _LOGGER.error("🔥 NO DATA COLLECTED! All register reads failed!")
@@ -260,45 +392,157 @@ class ModbusCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Unexpected error during Modbus update: %s", err)
             raise UpdateFailed(f"Update failed: {err}")
 
-    async def _read_register(self, register: Register) -> Optional[int]:
-        """Read a single register from Modbus device."""
+    def _group_registers_into_batches(self, registers, max_gap=5, max_batch=100):
+        """Group registers into consecutive batches for efficient Modbus reading.
+        
+        Args:
+            registers: List of RegisterDefinition objects
+            max_gap: Maximum gap between registers to include in same batch
+            max_batch: Maximum number of registers per batch
+            
+        Returns:
+            List of tuples: (batch_start_address, batch_count, list_of_register_defs)
+        """
+        if not registers:
+            return []
+        
+        # Sort registers by address (use min of high/low for Value32 types)
+        def get_sort_key(r):
+            if r.type == "Value32":
+                return min(r.register32_high, r.register32_low)
+            return r.address
+        
+        sorted_regs = sorted(registers, key=get_sort_key)
+        
+        batches = []
+        current_batch = [sorted_regs[0]]
+        # For Value32, start at the minimum of high/low (should be high)
+        if sorted_regs[0].type == "Value32":
+            batch_start = min(sorted_regs[0].register32_high, sorted_regs[0].register32_low)
+        else:
+            batch_start = sorted_regs[0].address
+        
+        for reg in sorted_regs[1:]:
+            if reg.type == "Value32":
+                addr = min(reg.register32_high, reg.register32_low)
+            else:
+                addr = reg.address
+            
+            last_reg = current_batch[-1]
+            if last_reg.type == "Value32":
+                last_addr = max(last_reg.register32_high, last_reg.register32_low)
+            else:
+                last_addr = last_reg.address
+            
+            # Check if register fits in current batch
+            gap = addr - last_addr
+            batch_span = addr - batch_start + 1
+            
+            if gap <= max_gap and batch_span <= max_batch and len(current_batch) < max_batch:
+                current_batch.append(reg)
+            else:
+                # Finalize current batch
+                last_reg = current_batch[-1]
+                if last_reg.type == "Value32":
+                    # For 32-bit, need to include both high and low registers
+                    last_reg_addr = max(last_reg.register32_high, last_reg.register32_low)
+                else:
+                    last_reg_addr = last_reg.address
+                batch_count = last_reg_addr - batch_start + 1
+                batches.append((batch_start, batch_count, current_batch))
+                
+                # Start new batch
+                current_batch = [reg]
+                batch_start = addr
+        
+        # Add final batch
+        if current_batch:
+            last_reg = current_batch[-1]
+            if last_reg.type == "Value32":
+                # For 32-bit, need to include both high and low registers
+                last_reg_addr = max(last_reg.register32_high, last_reg.register32_low)
+            else:
+                last_reg_addr = last_reg.address
+            batch_count = last_reg_addr - batch_start + 1
+            batches.append((batch_start, batch_count, current_batch))
+        
+        return batches
+
+    async def _read_register_with_def(self, address: int, reg_def) -> Optional[tuple]:
+        """Read a register and return it with its definition for parallel processing.
+        
+        Returns:
+            Tuple of (reg_def, raw_value) or None if read failed
+        """
         try:
+            raw_value = await self._read_register_address(address)
+            if raw_value is None:
+                return None
+            return (reg_def, raw_value)
+        except Exception as err:
+            _LOGGER.debug("Error reading register %s (%d): %s", 
+                         reg_def.name_en, reg_def.address, err)
+            return None
+
+    async def _read_register_address(self, address: int) -> Optional[int]:
+        """Read a single register by address from Modbus device.
+        
+        Note: Kronoterm manual uses 1-based addressing, but pymodbus uses 0-based.
+        We subtract 1 from the address to compensate.
+        """
+        try:
+            # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
+            modbus_address = address - 1
             result = await self.client.read_holding_registers(
-                register.address, count=1, device_id=self.unit_id
+                modbus_address, count=1, device_id=self.unit_id
             )
             
             if result.isError():
-                _LOGGER.warning("Error reading register %d (%s): %s", 
-                              register.address, register.name, result)
+                _LOGGER.debug("Error reading register %d: %s", address, result)
                 return None
             
             value = result.registers[0]
             
-            # Check for error values
-            # Kronoterm uses values >= 64000 to indicate sensor errors/not connected
-            if value >= 64000 or value in ERROR_VALUES:
-                _LOGGER.debug("Register %d returned error value %d", register.address, value)
+            # Convert from unsigned 16-bit to signed 16-bit
+            # Values > 32767 are negative in two's complement
+            if value >= 32768:
+                value = value - 65536
+            
+            # Check for typical error values (Kronoterm uses specific negative values for errors)
+            # -600 (64936 unsigned) is a common "sensor not connected" value
+            if value <= -500:  # Extremely low values indicate sensor errors
+                _LOGGER.debug("Register %d returned error value %d (likely sensor disconnected)", address, value)
                 return None
             
             return value
             
         except Exception as err:
-            _LOGGER.warning("Exception reading register %d (%s): %s", 
-                          register.address, register.name, err)
+            _LOGGER.debug("Exception reading register %d: %s", address, err)
             return None
 
+    async def _read_register(self, register: Register) -> Optional[int]:
+        """Read a single register from Modbus device (legacy method)."""
+        return await self._read_register_address(register.address)
+
     async def write_register(self, register: Register, value: int) -> bool:
-        """Write a value to a Modbus register."""
+        """Write a value to a Modbus register.
+        
+        Note: Kronoterm manual uses 1-based addressing, but pymodbus uses 0-based.
+        We subtract 1 from the address to compensate (same as reads).
+        """
         if not self._connected:
             _LOGGER.error("Cannot write register: Modbus not connected")
             return False
         
         try:
-            _LOGGER.info("Writing value %d to register %d (%s)", 
-                        value, register.address, register.name)
+            # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
+            modbus_address = register.address - 1
+            
+            _LOGGER.info("Writing value %d to register %d → modbus address %d (%s)", 
+                        value, register.address, modbus_address, register.name)
             
             result = await self.client.write_register(
-                register.address, value=value, device_id=self.unit_id
+                modbus_address, value=value, device_id=self.unit_id
             )
             
             if result.isError():
@@ -314,12 +558,66 @@ class ModbusCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Exception writing register %d: %s", register.address, err)
             return False
 
+    async def write_register_by_address(self, address: int, value: int) -> bool:
+        """Write a value to a Modbus register by address (for generic number entities)."""
+        if not self._connected:
+            _LOGGER.error("Cannot write register: Modbus not connected")
+            return False
+        
+        try:
+            # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
+            modbus_address = address - 1
+            
+            # Convert signed to unsigned 16-bit if negative
+            if value < 0:
+                register_value = value + 65536  # Two's complement
+            else:
+                register_value = value
+            
+            _LOGGER.info("Writing value %d to register %d → modbus address %d (register value: %d)", 
+                        value, address, modbus_address, register_value)
+            
+            result = await self.client.write_register(
+                modbus_address, value=register_value, device_id=self.unit_id
+            )
+            
+            if result.isError():
+                _LOGGER.error("Error writing register %d: %s", address, result)
+                return False
+            
+            # Request immediate refresh
+            await self.async_request_refresh()
+            
+            return True
+            
+        except Exception as err:
+            _LOGGER.error("Exception writing register %d: %s", address, err)
+            return False
+
     def _update_feature_flags(self, data: Dict[str, Any]) -> None:
         """Update feature flags based on current data."""
-        # Check if Loop 2 is installed (non-zero setpoint or current temp)
-        loop2_setpoint = data.get(2049, {}).get("value", 0)
-        loop2_current = data.get(2110, {}).get("value")
-        self.loop2_installed = (loop2_setpoint and loop2_setpoint > 0.5) or bool(loop2_current)
+        # Check if Loop 2 is installed (has valid temperature reading)
+        # Valid range: -50°C to 100°C (after scaling by 0.1)
+        # Raw values: -500 to 1000
+        loop2_temp = data.get(2110, {}).get("value")
+        self.loop2_installed = loop2_temp is not None and loop2_temp > -500
+        
+        # Check if Loop 3 is installed (has valid temperature reading)
+        loop3_temp = data.get(2111, {}).get("value")
+        self.loop3_installed = loop3_temp is not None and loop3_temp > -500
+        
+        # Check if Loop 4 is installed (has valid temperature reading)
+        loop4_temp = data.get(2112, {}).get("value")
+        self.loop4_installed = loop4_temp is not None and loop4_temp > -500
+        
+        # Check if Reservoir is installed (has valid setpoint reading)
+        reservoir_setpoint = data.get(2034, {}).get("value")
+        self.reservoir_installed = reservoir_setpoint is not None and reservoir_setpoint > 0
+        
+        # Debug logging
+        _LOGGER.warning("🔥 Feature flags: loop2=%s, loop3=%s, loop4=%s, reservoir=%s (temps: %s, %s, %s, setpoint: %s)", 
+                       self.loop2_installed, self.loop3_installed, self.loop4_installed, self.reservoir_installed,
+                       loop2_temp, loop3_temp, loop4_temp, reservoir_setpoint)
         
         # Check if additional source is installed
         add_source = data.get(2002, {}).get("raw", 0)
@@ -338,6 +636,26 @@ class ModbusCoordinator(DataUpdateCoordinator):
         
         return None
         return None
+
+    async def async_write_register(self, address: int, temperature: float) -> bool:
+        """
+        Write a temperature value to a Modbus register.
+        Handles conversion from Celsius to Modbus format (× 10).
+        
+        Args:
+            address: Modbus register address (1-based from manual)
+            temperature: Temperature in degrees Celsius
+            
+        Returns:
+            True if write was successful, False otherwise
+        """
+        # Convert temperature to Modbus format (× 10)
+        modbus_value = int(round(temperature * 10))
+        
+        _LOGGER.info("Writing temperature %.1f°C to register %d (modbus value: %d)", 
+                    temperature, address, modbus_value)
+        
+        return await self.write_register_by_address(address, modbus_value)
 
     # =================================================================
     # HIGH-LEVEL WRITE METHODS
@@ -412,23 +730,12 @@ class ModbusCoordinator(DataUpdateCoordinator):
         return await self.write_register(temp_register, modbus_value)
 
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
-        """Enable/disable heat pump system operation (register 2002 bit 0)."""
-        # NOTE: Register 2002 is a bit-masked register
-        # We need to read current value, modify bit 0, and write back
-        # For now, simple implementation: write 1 or 0
-        # TODO: Read-modify-write if other bits are important
-        
+        """Enable/disable heat pump system operation (register 2012)."""
         value = 1 if turn_on else 0
         _LOGGER.info("Setting heat pump state to %s (value: %d)", "ON" if turn_on else "OFF", value)
         
-        from .modbus_registers import Register, RegisterType
-        system_register = Register(
-            address=2002,
-            name="System_Operation",
-            reg_type=RegisterType.BINARY
-        )
-        
-        return await self.write_register(system_register, value)
+        from .modbus_registers import SYSTEM_OPERATION_CONTROL
+        return await self.write_register(SYSTEM_OPERATION_CONTROL, value)
 
     async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
         """Set loop operation mode (off/normal/eco/comfort) based on page."""
@@ -458,81 +765,62 @@ class ModbusCoordinator(DataUpdateCoordinator):
         return await self.write_register(mode_register, new_mode)
 
     async def async_set_main_temp_offset(self, new_value: float) -> bool:
-        """Set main temperature offset (system-wide correction)."""
-        # TODO: Find the Modbus register for main temp offset
-        # This might not exist in Modbus or use a different mechanism
-        _LOGGER.warning("Main temp offset not yet implemented for Modbus")
-        return False
+        """Set main temperature correction (register 2014, scale=1)."""
+        # IMPORTANT: This register uses scale=1, not 0.1!
+        # Value is in whole degrees Celsius
+        modbus_value = int(round(new_value))
+        
+        _LOGGER.info("Setting main temperature correction to %d°C", modbus_value)
+        
+        from .modbus_registers import MAIN_TEMP_CORRECTION
+        return await self.write_register(MAIN_TEMP_CORRECTION, modbus_value)
 
     async def async_set_antilegionella(self, enable: bool) -> bool:
-        """Enable/disable anti-legionella function."""
-        # TODO: Find the Modbus register for anti-legionella
-        _LOGGER.warning("Anti-legionella control not yet implemented for Modbus")
-        return False
+        """Enable/disable anti-legionella (thermal disinfection) function."""
+        value = 1 if enable else 0
+        _LOGGER.info("Setting anti-legionella to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        from .modbus_registers import ANTI_LEGIONELLA_ENABLE
+        return await self.write_register(ANTI_LEGIONELLA_ENABLE, value)
 
     async def async_set_dhw_circulation(self, enable: bool) -> bool:
         """Enable/disable DHW circulation pump."""
-        value = 1 if enable else 0
-        _LOGGER.info("Setting DHW circulation to %s (value: %d)", "ON" if enable else "OFF", value)
-        
-        from .modbus_registers import Register, RegisterType
-        circulation_register = Register(
-            address=2328,
-            name="DHW_Circulation",
-            reg_type=RegisterType.BINARY
-        )
-        
-        return await self.write_register(circulation_register, value)
+        # Note: Register 2328 might not exist or be writable
+        # DHW pumps are controlled via bitfield at 2028
+        _LOGGER.warning("DHW circulation switch may not be directly writable via Modbus")
+        _LOGGER.warning("Check register 2028 (DHW bitfield) for pump control")
+        return False
 
     async def async_set_fast_water_heating(self, enable: bool) -> bool:
         """Enable/disable fast DHW heating."""
         value = 1 if enable else 0
         _LOGGER.info("Setting fast water heating to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import Register, RegisterType
-        fast_heating_register = Register(
-            address=2015,
-            name="Fast_DHW_Heating",
-            reg_type=RegisterType.BINARY
-        )
-        
-        return await self.write_register(fast_heating_register, value)
+        from .modbus_registers import FAST_DHW_HEATING
+        return await self.write_register(FAST_DHW_HEATING, value)
 
     async def async_set_reserve_source(self, enable: bool) -> bool:
         """Enable/disable reserve heating source."""
-        # TODO: Find the Modbus register for reserve source
-        _LOGGER.warning("Reserve source control not yet implemented for Modbus")
-        return False
+        value = 1 if enable else 0
+        _LOGGER.info("Setting reserve source to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        from .modbus_registers import RESERVE_SOURCE_SWITCH
+        return await self.write_register(RESERVE_SOURCE_SWITCH, value)
 
     async def async_set_additional_source(self, enable: bool) -> bool:
         """Enable/disable additional heating source."""
         value = 1 if enable else 0
         _LOGGER.info("Setting additional source to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import Register, RegisterType
-        additional_register = Register(
-            address=2016,
-            name="Additional_Source",
-            reg_type=RegisterType.BINARY
-        )
-        
-        return await self.write_register(additional_register, value)
+        from .modbus_registers import ADDITIONAL_SOURCE_SWITCH
+        return await self.write_register(ADDITIONAL_SOURCE_SWITCH, value)
 
     async def async_set_main_mode(self, new_mode: int) -> bool:
         """Set main operational mode (auto/comfort/eco)."""
-        # Map to operation regime register (heating/cooling/off)
-        # NOTE: This might not be the correct register for "operational mode"
-        # The Cloud API uses "main_mode" which might be a different concept
-        _LOGGER.info("Setting main mode to %d", new_mode)
+        _LOGGER.info("Setting program selection to %d", new_mode)
         
-        from .modbus_registers import Register, RegisterType
-        mode_register = Register(
-            address=2007,  # OPERATION_REGIME
-            name="Main_Mode",
-            reg_type=RegisterType.ENUM
-        )
-        
-        return await self.write_register(mode_register, new_mode)
+        from .modbus_registers import PROGRAM_SELECTION
+        return await self.write_register(PROGRAM_SELECTION, new_mode)
 
     async def async_shutdown(self) -> None:
         """Close Modbus connection."""

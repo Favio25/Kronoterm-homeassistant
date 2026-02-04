@@ -46,17 +46,26 @@ class KronotermCoordinator(DataUpdateCoordinator):
         # Store Basic Auth object to send with EVERY request (PhoneGap mode)
         self.auth = aiohttp.BasicAuth(self.username, self.password)
 
-        # Use only the persisted runtime value from options, falling back to DEFAULT_SCAN_INTERVAL.
-        scan_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-        scan_interval = max(scan_interval, 1)  # Ensure a minimum of 1 minute.
-        _LOGGER.info("Kronoterm coordinator update interval set to %d minutes", scan_interval)
+        # Scan interval (supports both seconds and legacy minutes)
+        # Try new seconds-based setting first, fall back to minutes
+        scan_interval_seconds = config_entry.options.get("scan_interval_seconds")
+        if scan_interval_seconds is not None:
+            scan_interval_seconds = max(scan_interval_seconds, 30)  # Min 30 seconds for cloud API
+            _LOGGER.info("Kronoterm coordinator update interval set to %d seconds", scan_interval_seconds)
+            interval = timedelta(seconds=scan_interval_seconds)
+        else:
+            # Backwards compatibility: use minutes
+            scan_interval_minutes = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+            scan_interval_minutes = max(scan_interval_minutes, 1)
+            _LOGGER.info("Kronoterm coordinator update interval set to %d minutes (legacy)", scan_interval_minutes)
+            interval = timedelta(minutes=scan_interval_minutes)
 
         super().__init__(
             hass,
             _LOGGER,
             name="kronoterm_unified_coordinator",
             update_method=self._async_update_data,
-            update_interval=timedelta(minutes=scan_interval),
+            update_interval=interval,
         )
 
         # Flag to track connectivity state
@@ -178,13 +187,14 @@ class KronotermCoordinator(DataUpdateCoordinator):
     def _parse_device_info(self, info_data: Dict[str, Any]) -> None:
         """Extract device info from an 'info' response."""
         info_data_section = info_data.get("InfoData", {})
-        device_id = info_data_section.get("device_id", "kronoterm")
         pump_model = info_data_section.get("pumpModel", "Unknown Model")
         firmware_version = info_data_section.get("firmware", "Unknown Firmware")
 
+        # Use config_entry.entry_id as device identifier to maintain consistency
+        # when switching between Cloud and Modbus connection types
         self.shared_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-            "name": "Kronoterm",
+            "identifiers": {(DOMAIN, self.config_entry.entry_id)},
+            "name": "Kronoterm Heat Pump",
             "manufacturer": "Kronoterm",
             "model": pump_model,
             "sw_version": firmware_version,

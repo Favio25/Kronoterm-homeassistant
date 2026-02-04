@@ -19,7 +19,6 @@ from .const import (
 from .config_flow_modbus import (
     CONNECTION_TYPE_CLOUD,
     CONNECTION_TYPE_MODBUS,
-    MODEL_OPTIONS,
     validate_modbus_connection,
     get_connection_type_schema,
     get_modbus_schema,
@@ -84,6 +83,11 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     Handles the configuration flow for the Kronoterm integration.
     """
     VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self.connection_type = None
+        self.reconfig_entry = None
 
     async def async_step_user(self, user_input: dict | None = None):
         """Handle a flow initialized by the user - choose connection type."""
@@ -151,9 +155,8 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not error_code:
                 # Connection success, add connection type and create entry
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
-                model_name = MODEL_OPTIONS.get(user_input["model"], "Heat Pump")
                 return self.async_create_entry(
-                    title=f"Kronoterm {model_name} (Modbus)",
+                    title="Kronoterm Heat Pump (Modbus)",
                     data=user_input
                 )
             else:
@@ -166,13 +169,124 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors
         )
 
+    async def async_step_reconfigure(self, user_input: dict | None = None):
+        """Handle reconfiguration of an existing entry."""
+        self.reconfig_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        _LOGGER.info(
+            "Starting reconfiguration for entry %s (current type: %s)",
+            self.reconfig_entry.entry_id,
+            self.reconfig_entry.data.get("connection_type", "cloud")
+        )
+        return await self.async_step_reconfigure_connection_type(user_input)
+
+    async def async_step_reconfigure_connection_type(self, user_input: dict | None = None):
+        """Choose new connection type during reconfiguration."""
+        if user_input is not None:
+            self.connection_type = user_input.get("connection_type", CONNECTION_TYPE_CLOUD)
+            _LOGGER.debug("Reconfigure: New connection type selected: %s", self.connection_type)
+            
+            if self.connection_type == CONNECTION_TYPE_MODBUS:
+                return await self.async_step_reconfigure_modbus()
+            else:
+                return await self.async_step_reconfigure_cloud()
+        
+        current_type = self.reconfig_entry.data.get("connection_type", CONNECTION_TYPE_CLOUD)
+        current_type_name = "Modbus" if current_type == CONNECTION_TYPE_MODBUS else "Cloud"
+        
+        return self.async_show_form(
+            step_id="reconfigure_connection_type",
+            data_schema=get_connection_type_schema(),
+            description_placeholders={"current_type": current_type_name},
+        )
+
+    async def async_step_reconfigure_cloud(self, user_input: dict | None = None):
+        """Handle cloud API reconfiguration."""
+        _LOGGER.debug("Reconfiguring to Cloud API")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            sanitized_input = sanitize_user_input(user_input)
+            _LOGGER.debug("Reconfigure cloud input: %s", sanitized_input)
+            
+            # Validate credentials
+            error_code = await validate_credentials(user_input)
+            if not error_code:
+                # Auth success, update the entry
+                user_input["connection_type"] = CONNECTION_TYPE_CLOUD
+                self.hass.config_entries.async_update_entry(
+                    self.reconfig_entry,
+                    data=user_input,
+                    title="Kronoterm Heat Pump (Cloud)"
+                )
+                # Reload the entry to apply changes
+                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+            else:
+                errors["base"] = error_code
+
+        # Pre-fill current credentials if switching from cloud
+        current_data = self.reconfig_entry.data
+        default_username = current_data.get(CONF_USERNAME, "")
+        default_password = current_data.get(CONF_PASSWORD, "")
+        
+        cloud_schema = vol.Schema({
+            vol.Required(CONF_USERNAME, default=default_username): str,
+            vol.Required(CONF_PASSWORD, default=default_password): str,
+        })
+        
+        return self.async_show_form(
+            step_id="reconfigure_cloud",
+            data_schema=cloud_schema,
+            errors=errors
+        )
+
+    async def async_step_reconfigure_modbus(self, user_input: dict | None = None):
+        """Handle Modbus TCP reconfiguration."""
+        _LOGGER.debug("Reconfiguring to Modbus TCP")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            _LOGGER.debug("Reconfigure modbus input: %s", user_input)
+            
+            # Validate Modbus connection
+            error_code = await validate_modbus_connection(user_input)
+            if not error_code:
+                # Connection success, update the entry
+                user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                self.hass.config_entries.async_update_entry(
+                    self.reconfig_entry,
+                    data=user_input,
+                    title="Kronoterm Heat Pump (Modbus)"
+                )
+                # Reload the entry to apply changes
+                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+            else:
+                errors["base"] = error_code
+
+        # Pre-fill current Modbus settings if available
+        current_data = self.reconfig_entry.data
+        schema_dict = {
+            vol.Required(CONF_HOST, default=current_data.get(CONF_HOST, "")): str,
+            vol.Required(CONF_PORT, default=current_data.get(CONF_PORT, 502)): int,
+            vol.Required("unit_id", default=current_data.get("unit_id", 20)): int,
+        }
+
+        return self.async_show_form(
+            step_id="reconfigure_modbus",
+            data_schema=vol.Schema(schema_dict),
+            errors=errors
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry
     ) -> "KronotermOptionsFlowHandler":
         """Get the options flow for this integration."""
-        return KronotermOptionsFlowHandler(config_entry)
+        return KronotermOptionsFlowHandler()
 
 
 class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
@@ -180,10 +294,6 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
     Handles the options flow for the Kronoterm integration.
     Allows updating credentials, scan interval, and other settings.
     """
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize the options flow handler."""
-        self.config_entry = config_entry
-        _LOGGER.info("KronotermOptionsFlowHandler initialized with entry: %s", config_entry.entry_id)
 
     async def async_step_init(self, user_input: dict | None = None):
         """Handle the initial step of the options flow."""

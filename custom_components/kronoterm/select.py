@@ -77,10 +77,10 @@ async def async_setup_entry(
                 is_available,
             )
 
-    # Add operational mode select (ECO/Auto/Comfort)
+    # Add operational mode select (ECO/Auto/Comfort) - works for both Cloud and Modbus
     entities.append(KronotermOperationalModeSelect(entry, coordinator))
     
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities, update_before_add=False)
 
 
 class KronotermModeSelect(KronotermModbusBase, SelectEntity):
@@ -156,7 +156,12 @@ class KronotermModeSelect(KronotermModbusBase, SelectEntity):
         # No need to request refresh here, async_set_loop_mode_by_page does it
 
 class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
-    """Select entity for Kronoterm operational mode (ECO/Auto/Comfort)."""
+    """Select entity for Kronoterm operational mode (ECO/Auto/Comfort).
+    
+    Works for both Cloud API and Modbus TCP coordinators:
+    - Cloud: Uses main_mode via API
+    - Modbus: Uses register 2013
+    """
 
     def __init__(self, entry: ConfigEntry, coordinator: Any) -> None:
         """Initialize the operational mode select entity."""
@@ -166,6 +171,9 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
         self._attr_translation_key = "operational_mode"
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_operational_mode"
         self._attr_device_info = coordinator.shared_device_info
+        
+        # Determine if this is a Modbus coordinator
+        self._is_modbus = hasattr(coordinator, 'register_map') and coordinator.register_map is not None
         
         # MAIN_MODE_OPTIONS maps integer → string: {0: "auto", 1: "comfort", 2: "eco"}
         # For reading (int → string): Use MAIN_MODE_OPTIONS directly
@@ -181,26 +189,44 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
         if not self.coordinator.data:
             return None
         
-        # Try to get from main_settings first
-        main_settings = self.coordinator.data.get("main_settings", {})
-        advanced_settings = main_settings.get("AdvancedSettings", {})
-        mode_value = advanced_settings.get("main_mode")
-        
-        # Fallback to TemperaturesAndConfig if not in AdvancedSettings
-        if mode_value is None:
-            temps_config = main_settings.get("TemperaturesAndConfig", {})
-            mode_value = temps_config.get("main_mode")
-        
-        if mode_value is None:
+        if self._is_modbus:
+            # Modbus: Read from register 2013
+            modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
+            for reg in modbus_list:
+                if reg.get("address") == 2013:
+                    raw_value = reg.get("value")
+                    if raw_value is not None:
+                        try:
+                            mode_int = int(float(raw_value))
+                            # Register 2013: 0=Normal, 1=ECO, 2=Comfort
+                            # Map to: 0=auto, 1=eco, 2=comfort (swap eco/comfort from register)
+                            # Actually the register values are: 0=Normal/Auto, 1=ECO, 2=COM/Comfort
+                            # So direct mapping works!
+                            return MAIN_MODE_OPTIONS.get(mode_int)
+                        except (ValueError, TypeError):
+                            pass
             return None
-        
-        try:
-            mode_int = int(mode_value)
-            # Convert integer to string: 0 → "auto", 1 → "comfort", 2 → "eco"
-            return MAIN_MODE_OPTIONS.get(mode_int)
-        except (ValueError, TypeError):
-            _LOGGER.debug("Could not parse main_mode value: %s", mode_value)
-            return None
+        else:
+            # Cloud API: Read from main_settings
+            main_settings = self.coordinator.data.get("main_settings", {})
+            advanced_settings = main_settings.get("AdvancedSettings", {})
+            mode_value = advanced_settings.get("main_mode")
+            
+            # Fallback to TemperaturesAndConfig if not in AdvancedSettings
+            if mode_value is None:
+                temps_config = main_settings.get("TemperaturesAndConfig", {})
+                mode_value = temps_config.get("main_mode")
+            
+            if mode_value is None:
+                return None
+            
+            try:
+                mode_int = int(mode_value)
+                # Convert integer to string: 0 → "auto", 1 → "comfort", 2 → "eco"
+                return MAIN_MODE_OPTIONS.get(mode_int)
+            except (ValueError, TypeError):
+                _LOGGER.debug("Could not parse main_mode value: %s", mode_value)
+                return None
 
     async def async_select_option(self, option: str) -> None:
         """Set the operational mode."""
@@ -210,6 +236,19 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
             _LOGGER.warning("Unknown operational mode option: %s", option)
             return
 
-        success = await self.coordinator.async_set_main_mode(new_mode)
-        if not success:
-            _LOGGER.error("Failed to set operational mode to %s", option)
+        if self._is_modbus:
+            # Modbus: Write to register 2013
+            _LOGGER.info("Setting operational mode to %s (value %d) via Modbus register 2013", option, new_mode)
+            if hasattr(self.coordinator, 'write_register_by_address'):
+                success = await self.coordinator.write_register_by_address(2013, new_mode)
+                if success:
+                    await self.coordinator.async_request_refresh()
+                else:
+                    _LOGGER.error("Failed to write operational mode to register 2013")
+            else:
+                _LOGGER.error("Coordinator missing write_register_by_address method")
+        else:
+            # Cloud API: Use async_set_main_mode
+            success = await self.coordinator.async_set_main_mode(new_mode)
+            if not success:
+                _LOGGER.error("Failed to set operational mode to %s", option)

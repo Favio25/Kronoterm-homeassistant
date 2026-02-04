@@ -58,8 +58,14 @@ async def async_setup_entry(
     is_modbus = type(coordinator).__name__ == "ModbusCoordinator"
     
     if is_modbus:
-        # Modbus switches read from binary registers
+        # Modbus switches read from binary registers (official documentation)
         from .entities import KronotermModbusBase
+        
+        # System On/Off - register 2012 (CORRECTED from 2002)
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2012, "heatpump_switch",
+            "async_set_heatpump_state"
+        ))
         
         # Fast DHW Heating - register 2015
         entities.append(KronotermModbusSwitch(
@@ -73,17 +79,19 @@ async def async_setup_entry(
             "async_set_additional_source"
         ))
         
-        # DHW Circulation - register 2328
+        # Reserve Source - register 2018 (NEW - was missing!)
         entities.append(KronotermModbusSwitch(
-            entry, coordinator, 2328, "dhw_circulation_switch",
-            "async_set_dhw_circulation"
+            entry, coordinator, 2018, "reserve_source_switch",
+            "async_set_reserve_source"
         ))
         
-        # System On/Off - register 2002 bit 0
+        # Anti-Legionella - register 2301 (NEW - was missing!)
         entities.append(KronotermModbusSwitch(
-            entry, coordinator, 2002, "heatpump_switch",
-            "async_set_heatpump_state"
+            entry, coordinator, 2301, "antilegionella_switch",
+            "async_set_antilegionella"
         ))
+        
+        # Note: DHW circulation (2328) may not be writable - skipping for now
         
         _LOGGER.warning("🔥 SWITCH: Created %d Modbus switches", len(entities))
     else:
@@ -132,7 +140,7 @@ async def async_setup_entry(
             for config in switch_configs
         ]
 
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities, update_before_add=False)
     return True
 
 

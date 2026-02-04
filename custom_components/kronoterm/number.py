@@ -47,6 +47,12 @@ OFFSET_CONFIGS: List[OffsetConfig] = [
     # Sanitary (DHW)
     OffsetConfig("dhw_eco_offset", 9, 2030, "circle_eco_offset", -10.0, 0.0, "tap_water_installed"), 
     OffsetConfig("dhw_comfort_offset", 9, 2031, "circle_comfort_offset", 0.0, 10.0, "tap_water_installed"),
+    # Heat Pump
+    OffsetConfig("hp_eco_offset", 0, 2040, "hp_eco_offset", -10.0, 0.0, "loop1_installed"),  # Always available with loop1
+    OffsetConfig("hp_comfort_offset", 0, 2041, "hp_comfort_offset", 0.0, 10.0, "loop1_installed"),
+    # Pool
+    OffsetConfig("pool_eco_offset", 10, 2086, "circle_eco_offset", -10.0, 0.0, "pool_installed"),
+    OffsetConfig("pool_comfort_offset", 10, 2087, "circle_comfort_offset", 0.0, 10.0, "pool_installed"),
 ]
 
 
@@ -122,15 +128,17 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
 # ---------------------------------------
 class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
     """
-    Number entity for 'main_temp' offset based on JSON data (not Modbus).
-    Reads 'system_temperature_correction' from 'AdvancedSettings'.
-    Writes 'main_temp' via POST request.
+    System temperature offset number entity.
+    
+    Works for both Cloud API and Modbus TCP coordinators:
+    - Cloud: Reads/writes 'system_temperature_correction' via API
+    - Modbus: Reads/writes register 2014
     """
     
     _attr_has_entity_name = True
     _attr_translation_key = "main_temperature_offset"
-    _attr_native_min_value = -5.0
-    _attr_native_max_value = 5.0
+    _attr_native_min_value = -4.0
+    _attr_native_max_value = 4.0
     _attr_native_step = 1.0
     _attr_unit_of_measurement = "°C"
     _attr_icon = "mdi:thermometer-plus"
@@ -140,6 +148,9 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_main_temp_offset"
         self._device_info = coordinator.shared_device_info
+        
+        # Determine if this is a Modbus coordinator
+        self._is_modbus = hasattr(coordinator, 'register_map') and coordinator.register_map is not None
 
     @property
     def device_info(self):
@@ -147,34 +158,129 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self) -> Optional[float]:
-        """
-        Read 'system_temperature_correction' from the 'AdvancedSettings' block.
-        """
+        """Read system temperature correction value."""
         if not self.coordinator.data:
             return None
-            
-        settings_data = self.coordinator.data.get("main_settings", {})
-        if not settings_data:
+        
+        if self._is_modbus:
+            # Modbus: Read from register 2014
+            modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
+            for reg in modbus_list:
+                if reg.get("address") == 2014:
+                    raw_value = reg.get("value")
+                    if raw_value is not None:
+                        try:
+                            # Register 2014: scale x 1°C (already scaled by coordinator)
+                            return float(raw_value)
+                        except (ValueError, TypeError):
+                            pass
+            return None
+        else:
+            # Cloud API: Read from AdvancedSettings
+            settings_data = self.coordinator.data.get("main_settings", {})
+            if not settings_data:
+                return None
+
+            raw = None
+            advanced = settings_data.get("AdvancedSettings", {})
+            if "system_temperature_correction" in advanced:
+                 raw = advanced["system_temperature_correction"]
+
+            if raw is not None:
+                try:
+                    return float(raw)
+                except (ValueError, TypeError):
+                    pass
+                    
             return None
 
-        # UPDATED LOGIC: Look specifically in AdvancedSettings -> system_temperature_correction
-        raw = None
-        advanced = settings_data.get("AdvancedSettings", {})
-        if "system_temperature_correction" in advanced:
-             raw = advanced["system_temperature_correction"]
-
-        if raw is not None:
-            try:
-                return float(raw)
-            except (ValueError, TypeError):
-                pass
-                
-        return None
-
     async def async_set_native_value(self, value: float) -> None:
-        """Write the value to the API using param_name='main_temp'."""
-        _LOGGER.info("Setting Main Temp Offset to %s", value)
-        await self.coordinator.async_set_main_temp_offset(value)
+        """Write the system temperature correction value."""
+        _LOGGER.info("Setting system temperature offset to %s", value)
+        
+        if self._is_modbus:
+            # Modbus: Write to register 2014
+            # Register expects integer (scale x 1°C)
+            register_value = int(value)
+            
+            if hasattr(self.coordinator, 'write_register_by_address'):
+                success = await self.coordinator.write_register_by_address(2014, register_value)
+                if success:
+                    await self.coordinator.async_request_refresh()
+                else:
+                    _LOGGER.error("Failed to write system temperature offset to register 2014")
+            else:
+                _LOGGER.error("Coordinator missing write_register_by_address method")
+        else:
+            # Cloud API: Use async_set_main_temp_offset
+            await self.coordinator.async_set_main_temp_offset(value)
+
+
+# ---------------------------------------
+# GENERIC MODBUS WRITABLE NUMBER
+# ---------------------------------------
+class KronotermModbusNumber(KronotermModbusBase, NumberEntity):
+    """Generic writable Modbus register number entity."""
+    
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        address: int,
+        name: str,
+        min_value: float,
+        max_value: float,
+        step: float,
+        unit: Optional[str],
+        device_info: dict,
+        scale: float = 1.0,
+        icon: Optional[str] = None,
+    ) -> None:
+        super().__init__(coordinator, address, name, device_info)
+        self._scale = scale
+        self._attr_native_min_value = min_value
+        self._attr_native_max_value = max_value
+        self._attr_native_step = step
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+        self._attr_mode = NumberMode.AUTO
+        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_modbus_number_{address}"
+    
+    @property
+    def unique_id(self) -> str:
+        return self._unique_id
+    
+    @property
+    def native_value(self) -> Optional[float]:
+        """Get current value from Modbus."""
+        raw_value = self._get_modbus_value()
+        if raw_value is None:
+            return None
+        
+        try:
+            val = float(raw_value)
+            if self._scale != 1.0:
+                val *= self._scale
+            return round(val, 2)
+        except (ValueError, TypeError):
+            return None
+    
+    async def async_set_native_value(self, value: float) -> None:
+        """Write value to Modbus register."""
+        # Convert to register value (apply inverse scaling)
+        register_value = int(value / self._scale) if self._scale != 1.0 else int(value)
+        
+        _LOGGER.info("Setting %s (register %d) to %.1f (raw: %d)", 
+                    self._name_key, self._address, value, register_value)
+        
+        # Write via coordinator
+        if hasattr(self._coordinator, 'write_register_by_address'):
+            success = await self._coordinator.write_register_by_address(self._address, register_value)
+            if success:
+                await self._coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to write register %d", self._address)
+        else:
+            _LOGGER.error("Coordinator missing write_register_by_address method")
 
 
 # ---------------------------------------
@@ -182,15 +288,15 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
 # ---------------------------------------
 class CoordinatorUpdateIntervalNumber(NumberEntity):
     """
-    Number entity for configuring the coordinator update interval (in minutes).
+    Number entity for configuring the coordinator update interval (in seconds).
     """
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_native_min_value = 1
-    _attr_native_max_value = 60
-    _attr_native_step = 1
+    _attr_native_min_value = 5      # 5 seconds minimum (faster than batch read time)
+    _attr_native_max_value = 600    # 10 minutes maximum
+    _attr_native_step = 5           # 5 second increments
     _attr_mode = NumberMode.AUTO
-    _attr_unit_of_measurement = "min"
+    _attr_unit_of_measurement = "s"
 
     def __init__(self, coordinator):
         self._coordinator = coordinator
@@ -205,18 +311,20 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
     @property
     def native_value(self) -> float:
         if self._coordinator.update_interval:
-            return self._coordinator.update_interval.total_seconds() / 60.0
-        return 5.0
+            return self._coordinator.update_interval.total_seconds()
+        return 300.0  # 5 minutes default (in seconds)
 
     async def async_set_native_value(self, value: float) -> None:
-        minutes = max(1, min(int(value), 60))
-        _LOGGER.info("User set coordinator update interval to %s minutes", minutes)
+        seconds = max(5, min(int(value), 600))  # Clamp between 5s and 600s
+        _LOGGER.info("User set coordinator update interval to %s seconds", seconds)
 
         from datetime import timedelta
-        self._coordinator.update_interval = timedelta(minutes=minutes)
+        self._coordinator.update_interval = timedelta(seconds=seconds)
 
         new_options = dict(self._coordinator.config_entry.options)
-        new_options["scan_interval"] = minutes
+        new_options["scan_interval_seconds"] = seconds  # Store in seconds now
+        # Keep old "scan_interval" for backwards compatibility (in minutes)
+        new_options["scan_interval"] = max(1, int(seconds / 60))
         self.hass.config_entries.async_update_entry(
             self._coordinator.config_entry, options=new_options
         )
@@ -277,12 +385,9 @@ async def async_setup_entry(
     entities.append(CoordinatorUpdateIntervalNumber(coordinator))
     _LOGGER.warning("🔥 NUMBER: Added update interval entity")
 
-    # 3) Create the Main Temperature Offset entity (Cloud API only)
-    if hasattr(coordinator, 'async_set_main_temp_offset'):
-        entities.append(KronotermMainOffsetNumber(coordinator, entry))
-        _LOGGER.warning("🔥 NUMBER: Added main temp offset entity")
-    else:
-        _LOGGER.warning("🔥 NUMBER: Skipped main temp offset (not supported by this coordinator)")
+    # 3) Create the System Temperature Offset entity (works for both Cloud and Modbus)
+    entities.append(KronotermMainOffsetNumber(coordinator, entry))
+    _LOGGER.warning("🔥 NUMBER: Added system temperature offset entity")
 
     _LOGGER.warning("🔥 NUMBER: Total entities to add: %d", len(entities))
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities, update_before_add=False)

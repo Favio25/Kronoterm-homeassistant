@@ -144,42 +144,49 @@ class EnumSensorDefinition(NamedTuple):
 
 # List of all standard sensors to be created.
 SENSOR_DEFINITIONS: List[SensorDefinition] = [
+    # 500-range registers are Modbus-only, not available in Cloud API
+    # They are auto-created from kronoterm.json in Modbus mode
+    # 2000-range: Control/status registers
     # (2023, "Desired DHW Temperature", "°C", "mdi:water-boiler", 1),       # Handled by water_heater
     # (2049, "Desired Loop 2 Temperature", "°C", "mdi:thermometer", 1),    # Handled by climate
     # (2101, "Reservoir Temperature", "°C", "mdi:thermometer", 1),          # Handled by climate/sensor
     # (2102, "DHW Temperature", "°C", "mdi:water-boiler", 1),               # Handled by water_heater
     # (2187, "Desired Loop 1 Temperature", "°C", "mdi:thermometer", 1),    # Handled by climate
     
-    # Diagnostic Sensors (Cloud API returns raw Modbus values - need scaling!)
+    # Diagnostic Sensors
+    # Note: Cloud API returns raw values, Modbus ignores these scales (always uses 1.0)
     SensorDefinition(2090, "operating_hours_compressor_heating", "h", "mdi:timer-outline", 1.0, True),
     SensorDefinition(2091, "operating_hours_compressor_dhw", "h", "mdi:timer-outline", 1.0, True),
     SensorDefinition(2095, "operating_hours_additional_source_1", "h", "mdi:timer-outline", 1.0, True),
-    SensorDefinition(2104, "hp_outlet_temperature", "°C", "mdi:thermometer", 0.1, True),  # FIXED: was 1.0
-    SensorDefinition(2101, "hp_inlet_temperature", "°C", "mdi:thermometer", 0.1, True),  # FIXED: was 1.0
-    SensorDefinition(2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 0.1, True),  # FIXED: was 1.0
-    SensorDefinition(2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 0.1, True),  # FIXED: was 1.0
-    SensorDefinition(2371, "cop_value", "", "mdi:chart-line", 0.01, True),  # FIXED: was 1.0
-    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 0.01, True),  # FIXED: was 1.0
+    SensorDefinition(2104, "hp_outlet_temperature", "°C", "mdi:thermometer", 0.1, True),
+    SensorDefinition(2101, "hp_inlet_temperature", "°C", "mdi:thermometer", 0.1, True),
+    SensorDefinition(2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 0.1, True),
+    SensorDefinition(2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 0.1, True),
+    SensorDefinition(2371, "cop_value", "", "mdi:chart-line", 0.01, True),
+    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 0.01, True),
     SensorDefinition(2155, "compressor_activations_heating", "", "mdi:counter", 1, True),
     SensorDefinition(2157, "activations_boiler", "", "mdi:counter", 1, True),
     SensorDefinition(2158, "activations_defrost", "", "mdi:snowflake-melt", 1, True),
     SensorDefinition(2156, "compressor_activations_cooling", "", "mdi:counter", 1, True),
 
-    # Standard Sensors (Cloud API returns raw Modbus values - need scaling!)
-    SensorDefinition(2102, "temperature_outside", "°C", "mdi:weather-sunny", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2109, "loop_1_temperature", "°C", "mdi:thermometer", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2160, "loop_1_thermostat_temperature", "°C", "mdi:thermostat", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2161, "loop_2_thermostat_temperature", "°C", "mdi:thermostat", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2162, "loop_3_thermostat_temperature", "°C", "mdi:thermostat", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2163, "loop_4_thermostat_temperature", "°C", "mdi:thermostat", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2325, "heating_system_pressure", "bar", "mdi:gauge", 0.1),  # FIXED: was 1.0
-    SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),  # No scaling needed
-    SensorDefinition(2129, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),  # No scaling needed
-    SensorDefinition(2362, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1.0),  # No scaling needed
-    SensorDefinition(2364, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 1.0),  # No scaling needed
+    # Standard Sensors
+    # Note: Cloud API returns raw values, Modbus ignores these scales (always uses 1.0)
+    SensorDefinition(2103, "temperature_outside", "°C", "mdi:weather-sunny", 0.1),
+    # Loop 1 & 2 temperature sensors removed - handled by climate entities
+    # SensorDefinition(2130, "loop_1_temperature", "°C", "mdi:thermometer", 0.1),
+    # SensorDefinition(2110, "loop_2_temperature", "°C", "mdi:thermometer", 0.1),
+    SensorDefinition(2160, "loop_1_thermostat_temperature", "°C", "mdi:thermostat", 0.1),
+    SensorDefinition(2161, "loop_2_thermostat_temperature", "°C", "mdi:thermostat", 0.1),
+    SensorDefinition(2162, "loop_3_thermostat_temperature", "°C", "mdi:thermostat", 0.1),
+    SensorDefinition(2163, "loop_4_thermostat_temperature", "°C", "mdi:thermostat", 0.1),
+    SensorDefinition(2325, "heating_system_pressure", "bar", "mdi:gauge", 0.1),
+    SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),
+    SensorDefinition(2129, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),
+    SensorDefinition(2362, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1.0),
+    SensorDefinition(2364, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 1.0),
 
     # Sensors previously in "Additional constants"
-    SensorDefinition(2107, "alternative_source_temperature", "°C", "mdi:thermometer", 0.1),  # FIXED: was 1.0
+    SensorDefinition(2107, "alternative_source_temperature", "°C", "mdi:thermometer", 0.1),
 ]
 
 # List of all enumeration sensors to be created.

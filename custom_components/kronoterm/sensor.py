@@ -23,6 +23,12 @@ from .const import (
 )
 from .entities import KronotermModbusBase
 
+# Import RegisterDefinition for type hints (may not exist if register_map not loaded)
+try:
+    from .register_map import RegisterDefinition
+except ImportError:
+    RegisterDefinition = None
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -192,6 +198,27 @@ async def async_setup_entry(
         _LOGGER.warning("No data from Kronoterm. Skipping sensors.")
         return False
 
+    # Check if this is a Modbus coordinator with register map
+    use_register_map = hasattr(coordinator, "register_map") and coordinator.register_map is not None
+    
+    if use_register_map:
+        _LOGGER.info("Using JSON register map for Modbus TCP entities")
+        return await _async_setup_modbus_entities(
+            coordinator, device_info, async_add_entities
+        )
+    else:
+        _LOGGER.info("Using hardcoded definitions for Cloud API entities")
+        return await _async_setup_cloud_entities(
+            coordinator, device_info, async_add_entities
+        )
+
+
+async def _async_setup_cloud_entities(
+    coordinator: DataUpdateCoordinator,
+    device_info: Dict[str, Any],
+    async_add_entities: AddEntitiesCallback,
+) -> bool:
+    """Setup entities for Cloud API coordinator (original hardcoded approach)."""
     all_entities = []
     sensor_entities = []
 
@@ -367,3 +394,256 @@ async def async_setup_entry(
     else:
         _LOGGER.info("No sensors added.")
     return True
+
+
+async def _async_setup_modbus_entities(
+    coordinator: DataUpdateCoordinator,
+    device_info: Dict[str, Any],
+    async_add_entities: AddEntitiesCallback,
+) -> bool:
+    """Setup entities for Modbus coordinator using JSON register map."""
+    all_entities = []
+    register_map = coordinator.register_map
+    
+    # Get all readable registers suitable for sensors
+    sensors_to_create = register_map.get_sensors()
+    
+    _LOGGER.info("Found %d sensor registers in map", len(sensors_to_create))
+    
+    for reg_def in sensors_to_create:
+        try:
+            # Skip registers based on features not installed
+            if not _should_create_sensor(coordinator, reg_def):
+                continue
+            
+            # Create appropriate entity based on register type
+            if reg_def.type == "Enum":
+                # Enum sensor
+                if not reg_def.values:
+                    _LOGGER.debug("Skipping enum register %d with no value mappings", reg_def.address)
+                    continue
+                
+                entity = KronotermEnumSensor(
+                    coordinator=coordinator,
+                    address=reg_def.address,
+                    name=reg_def.name_en,
+                    options=reg_def.values,
+                    device_info=device_info,
+                    icon=_get_icon_for_register(reg_def),
+                )
+            else:
+                # Numeric sensor (Value, Value32, Status, Control)
+                # Note: scale=1.0 because coordinator already applies scaling
+                entity = KronotermModbusRegSensor(
+                    coordinator=coordinator,
+                    address=reg_def.address,
+                    name=reg_def.name_en,
+                    unit=reg_def.unit,
+                    device_info=device_info,
+                    scale=1.0,  # Coordinator already scaled the value
+                    icon=_get_icon_for_register(reg_def),
+                )
+                
+                # Apply device and state classes based on unit/type
+                _apply_sensor_classes(entity, reg_def)
+            
+            # Mark diagnostic sensors
+            if _is_diagnostic_sensor(reg_def):
+                entity._attr_entity_category = EntityCategory.DIAGNOSTIC
+            
+            all_entities.append(entity)
+            
+        except Exception as e:
+            _LOGGER.warning("Error creating sensor for register %d (%s): %s",
+                          reg_def.address, reg_def.name, e)
+            continue
+    
+    if all_entities:
+        async_add_entities(all_entities)
+        _LOGGER.info("Added %d Modbus sensors from register map", len(all_entities))
+    else:
+        _LOGGER.warning("No Modbus sensors created from register map!")
+    
+    return True
+
+
+def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterDefinition) -> bool:
+    """Check if sensor should be created based on feature flags."""
+    name_lower = reg_def.name_en.lower()
+    
+    # Skip ALL writable registers - they should be switch/number entities, not sensors
+    if "Write" in reg_def.access:
+        return False
+    
+    # Skip registers that have corresponding writable switch entities
+    # Register 2000 (system_operation) is redundant - switch at 2012 shows state
+    if reg_def.address == 2000:  # system_operation - use switch instead
+        return False
+    
+    # Register 2003 (reserve_source) is redundant - switch at 2018 shows state
+    if reg_def.address == 2003:  # reserve_source - use switch instead
+        return False
+    
+    # Skip offset registers - they're handled by number entities only
+    if "offset" in name_lower:
+        return False
+    
+    # Skip pump status registers - they're handled by binary sensor entities only
+    if "pump_status" in name_lower:
+        return False
+    
+    # Skip pool sensors if not installed
+    if "pool" in name_lower and not getattr(coordinator, "pool_installed", False):
+        return False
+    
+    # Skip alternative source if not installed  
+    if "alternative_source" in name_lower and not getattr(coordinator, "alt_source_installed", False):
+        return False
+    
+    # Skip loop sensors based on installation
+    if "loop_2" in name_lower and not getattr(coordinator, "loop2_installed", False):
+        return False
+    if "loop_3" in name_lower and not getattr(coordinator, "loop3_installed", False):
+        return False
+    if "loop_4" in name_lower and not getattr(coordinator, "loop4_installed", False):
+        return False
+    
+    # Skip groundwater volume if value is 0 (not a groundwater heat pump)
+    if "groundwater" in name_lower:
+        # Check if the groundwater volume register (2349) exists and has non-zero value
+        modbus_data = coordinator.data.get("main", {})
+        for reg in modbus_data.get("ModbusReg", []):
+            if reg.get("address") == 2349:
+                value = reg.get("value", 0)
+                if value == 0 or value == 0.0:
+                    return False
+                break
+    
+    # Skip thermostat sensors if thermostat temperature is 0 (no thermostat installed)
+    # Map thermostat sensors to their temperature register addresses
+    thermostat_checks = {
+        "loop_1_thermostat": 2160,
+        "loop_2_thermostat": 2161,
+        "loop_3_thermostat": 2162,
+        "loop_4_thermostat": 2163,
+    }
+    
+    for prefix, temp_address in thermostat_checks.items():
+        if prefix in name_lower:
+            # Check if the thermostat temperature register is 0
+            modbus_data = coordinator.data.get("main", {})
+            for reg in modbus_data.get("ModbusReg", []):
+                if reg.get("address") == temp_address:
+                    value = reg.get("value", 0)
+                    if value == 0 or value == 0.0:
+                        return False
+                    break
+            break
+    
+    return True
+
+
+def _is_diagnostic_sensor(reg_def: RegisterDefinition) -> bool:
+    """Determine if sensor should be marked as diagnostic."""
+    diagnostic_keywords = [
+        "operating_hours",
+        "activations",
+        "alarm",
+        "error",
+        "napaka",
+        "opozorilo",
+        "cop",
+        "scop",
+    ]
+    
+    name_lower = reg_def.name_en.lower()
+    return any(keyword in name_lower for keyword in diagnostic_keywords)
+
+
+def _get_icon_for_register(reg_def: RegisterDefinition) -> str:
+    """Get appropriate icon based on register name and type."""
+    name_lower = reg_def.name_en.lower()
+    
+    # Temperature sensors
+    if "temperature" in name_lower or reg_def.unit == "°C":
+        if "outdoor" in name_lower or "outside" in name_lower or "external" in name_lower:
+            return "mdi:thermometer"
+        elif "water" in name_lower or "dhw" in name_lower:
+            return "mdi:water-thermometer"
+        elif "supply" in name_lower or "outlet" in name_lower:
+            return "mdi:thermometer-chevron-up"
+        elif "return" in name_lower or "inlet" in name_lower:
+            return "mdi:thermometer-chevron-down"
+        elif "thermostat" in name_lower:
+            return "mdi:thermostat"
+        else:
+            return "mdi:thermometer"
+    
+    # Power/Energy
+    if "power" in name_lower or "electrical" in name_lower or reg_def.unit == "W":
+        return "mdi:lightning-bolt"
+    if "energy" in name_lower or reg_def.unit == "kWh":
+        return "mdi:meter-electric"
+    
+    # Pressure
+    if "pressure" in name_lower or reg_def.unit == "bar":
+        return "mdi:gauge"
+    
+    # Time/Hours
+    if "hours" in name_lower or reg_def.unit == "h":
+        return "mdi:timer-outline"
+    
+    # Pumps
+    if "pump" in name_lower or "črpalka" in reg_def.name.lower():
+        return "mdi:pump"
+    
+    # Compressor
+    if "compressor" in name_lower or "kompresor" in reg_def.name.lower():
+        return "mdi:engine"
+    
+    # Load/Percentage
+    if "load" in name_lower or reg_def.unit == "%":
+        return "mdi:gauge"
+    
+    # COP/SCOP
+    if "cop" in name_lower or "scop" in name_lower:
+        return "mdi:chart-line"
+    
+    # Status/Mode
+    if reg_def.type in ("Status", "Enum"):
+        return "mdi:information-outline"
+    
+    # Default
+    return "mdi:flash"
+
+
+def _apply_sensor_classes(entity: KronotermModbusRegSensor, reg_def: RegisterDefinition) -> None:
+    """Apply device_class and state_class based on register properties."""
+    # Temperature
+    if reg_def.unit == "°C":
+        entity._attr_device_class = SensorDeviceClass.TEMPERATURE
+        entity._attr_state_class = SensorStateClass.MEASUREMENT
+    
+    # Energy
+    elif reg_def.unit == "kWh":
+        entity._attr_device_class = SensorDeviceClass.ENERGY
+        entity._attr_state_class = SensorStateClass.TOTAL
+    
+    # Power
+    elif reg_def.unit == "W":
+        entity._attr_device_class = SensorDeviceClass.POWER
+        entity._attr_state_class = SensorStateClass.MEASUREMENT
+    
+    # Pressure
+    elif reg_def.unit == "bar":
+        entity._attr_device_class = SensorDeviceClass.PRESSURE
+        entity._attr_state_class = SensorStateClass.MEASUREMENT
+    
+    # Duration (hours)
+    elif reg_def.unit == "h":
+        entity._attr_device_class = SensorDeviceClass.DURATION
+        entity._attr_state_class = SensorStateClass.TOTAL_INCREASING
+    
+    # Percentage
+    elif reg_def.unit == "%":
+        entity._attr_state_class = SensorStateClass.MEASUREMENT

@@ -98,7 +98,6 @@ def get_modbus_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
         vol.Optional("unit_id", default=defaults.get("unit_id", 20)): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=247)
         ),
-        vol.Required("model", default=defaults.get("model", "unknown")): vol.In(MODEL_OPTIONS),
     })
 
 

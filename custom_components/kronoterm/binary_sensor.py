@@ -24,6 +24,7 @@ class BinarySensorConfig:
 
 BINARY_SENSOR_DEFINITIONS: List[BinarySensorConfig] = [
     # Circulation Pumps
+    BinarySensorConfig(2038, "main_pump_status", icon="mdi:pump"),
     BinarySensorConfig(2045, "circulation_loop_1", icon="mdi:pump", install_flag="loop1_installed"),
     BinarySensorConfig(2055, "circulation_loop_2", icon="mdi:pump", install_flag="loop2_installed"),
     # !!! UPDATE XXXX WITH CORRECT MODBUS ADDRESS !!!
@@ -32,6 +33,9 @@ BINARY_SENSOR_DEFINITIONS: List[BinarySensorConfig] = [
     BinarySensorConfig(2075, "circulation_loop_4", icon="mdi:pump", install_flag="loop4_installed"),
     BinarySensorConfig(2028, "circulation_dhw", bit=0, icon="mdi:pump", install_flag="tap_water_installed"), # Assuming 'tap_water_installed' flag exists
 
+    # System status
+    BinarySensorConfig(2011, "defrost_status", icon="mdi:snowflake-melt"),
+    
     # Other flags
     BinarySensorConfig(2002, "additional_source", bit=0, icon="mdi:fire"), # No install flag needed for this one
     
@@ -95,5 +99,5 @@ async def async_setup_entry(
                 is_available,
             )
 
-    async_add_entities(binary_sensors, update_before_add=True)
+    async_add_entities(binary_sensors, update_before_add=False)
     return True

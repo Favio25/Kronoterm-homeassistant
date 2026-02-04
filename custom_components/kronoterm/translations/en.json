@@ -39,6 +39,9 @@
   },
   "entity": {
     "binary_sensor": {
+      "main_pump_status": {
+        "name": "Main Circulation Pump"
+      },
       "circulation_loop_1": {
         "name": "Circulation Loop 1"
       },
@@ -53,6 +56,9 @@
       },
       "circulation_dhw": {
         "name": "Circulation DHW"
+      },
+      "defrost_status": {
+        "name": "Defrost Status"
       },
       "additional_source": {
         "name": "Additional Source"
@@ -221,6 +227,320 @@
           "heating": "Heating",
           "heating_and_cooling_off": "Heating and Cooling Off"
         }
+      },
+      "system_operation": {
+        "name": "System Operation"
+      },
+      "reserve_source": {
+        "name": "Reserve Source"
+      },
+      "alternative_source": {
+        "name": "Alternative Source"
+      },
+      "error_status": {
+        "name": "Error Status",
+        "state": {
+          "no_error": "No Error",
+          "warning": "Warning",
+          "alarm": "Alarm",
+          "notice": "Notice"
+        }
+      },
+      "operation_mode": {
+        "name": "Operation Mode",
+        "state": {
+          "cooling": "Cooling",
+          "heating": "Heating",
+          "heating_and_cooling_off": "Heating and Cooling Off"
+        }
+      },
+      "operation_program": {
+        "name": "Operation Program",
+        "state": {
+          "normal_operation": "Normal Operation",
+          "eco_mode": "ECO Mode",
+          "comfort_mode": "Comfort Mode",
+          "screed_drying_active": "Screed Drying Active"
+        }
+      },
+      "dhw_quick_heating": {
+        "name": "DHW Quick Heating"
+      },
+      "defrost_status": {
+        "name": "Defrost Status"
+      },
+      "system_temperature_correction": {
+        "name": "System Temperature Correction"
+      },
+      "dhw_setpoint": {
+        "name": "DHW Setpoint"
+      },
+      "dhw_current_setpoint": {
+        "name": "DHW Current Setpoint"
+      },
+      "dhw_schedule_status": {
+        "name": "DHW Schedule Status"
+      },
+      "dhw_eco_offset": {
+        "name": "DHW Eco Offset"
+      },
+      "dhw_comfort_offset": {
+        "name": "DHW Comfort Offset"
+      },
+      "reservoir_current_setpoint": {
+        "name": "Reservoir Current Setpoint"
+      },
+      "reservoir_schedule_status": {
+        "name": "Reservoir Schedule Status"
+      },
+      "main_pump_status": {
+        "name": "Main Pump Status"
+      },
+      "remote_control_status": {
+        "name": "Remote Control Status"
+      },
+      "hp_eco_offset": {
+        "name": "HP Eco Offset"
+      },
+      "hp_comfort_offset": {
+        "name": "HP Comfort Offset"
+      },
+      "loop_1_schedule_status": {
+        "name": "Loop 1 Schedule Status"
+      },
+      "loop_1_pump_status": {
+        "name": "Loop 1 Pump Status"
+      },
+      "loop_1_eco_offset": {
+        "name": "Loop 1 Eco Offset"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Loop 1 Comfort Offset"
+      },
+      "loop_2_setpoint": {
+        "name": "Loop 2 Setpoint"
+      },
+      "loop_2_room_current_setpoint": {
+        "name": "Loop 2 Room Current Setpoint"
+      },
+      "loop_2_current_setpoint": {
+        "name": "Loop 2 Current Setpoint"
+      },
+      "loop_2_schedule_status": {
+        "name": "Loop 2 Schedule Status"
+      },
+      "loop_2_pump_status": {
+        "name": "Loop 2 Pump Status"
+      },
+      "loop_2_thermostat_status": {
+        "name": "Loop 2 Thermostat Status"
+      },
+      "loop_2_eco_offset": {
+        "name": "Loop 2 Eco Offset"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Loop 2 Comfort Offset"
+      },
+      "loop_3_setpoint": {
+        "name": "Loop 3 Setpoint"
+      },
+      "loop_3_room_current_setpoint": {
+        "name": "Loop 3 Room Current Setpoint"
+      },
+      "loop_3_current_setpoint": {
+        "name": "Loop 3 Current Setpoint"
+      },
+      "loop_3_schedule_status": {
+        "name": "Loop 3 Schedule Status"
+      },
+      "loop_3_pump_status": {
+        "name": "Loop 3 Pump Status"
+      },
+      "loop_3_thermostat_status": {
+        "name": "Loop 3 Thermostat Status"
+      },
+      "loop_3_eco_offset": {
+        "name": "Loop 3 Eco Offset"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Loop 3 Comfort Offset"
+      },
+      "loop_4_setpoint": {
+        "name": "Loop 4 Setpoint"
+      },
+      "loop_4_room_current_setpoint": {
+        "name": "Loop 4 Room Current Setpoint"
+      },
+      "loop_4_current_setpoint": {
+        "name": "Loop 4 Current Setpoint"
+      },
+      "loop_4_schedule_status": {
+        "name": "Loop 4 Schedule Status"
+      },
+      "loop_4_pump_status": {
+        "name": "Loop 4 Pump Status"
+      },
+      "loop_4_thermostat_status": {
+        "name": "Loop 4 Thermostat Status"
+      },
+      "loop_4_eco_offset": {
+        "name": "Loop 4 Eco Offset"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Loop 4 Comfort Offset"
+      },
+      "pool_setpoint": {
+        "name": "Pool Setpoint"
+      },
+      "pool_current_setpoint": {
+        "name": "Pool Current Setpoint"
+      },
+      "pool_schedule_status": {
+        "name": "Pool Schedule Status"
+      },
+      "pool_pump_status": {
+        "name": "Pool Pump Status"
+      },
+      "pool_thermostat_status": {
+        "name": "Pool Thermostat Status"
+      },
+      "pool_eco_offset": {
+        "name": "Pool Eco Offset"
+      },
+      "pool_comfort_offset": {
+        "name": "Pool Comfort Offset"
+      },
+      "alternative_source_pump": {
+        "name": "Alternative Source Pump"
+      },
+      "operating_hours_cooling": {
+        "name": "Operating Hours Cooling"
+      },
+      "operating_hours_heating": {
+        "name": "Operating Hours Heating"
+      },
+      "operating_hours_dhw": {
+        "name": "Operating Hours DHW"
+      },
+      "operating_hours_main_pump": {
+        "name": "Operating Hours Main Pump"
+      },
+      "operating_hours_dhw_pump": {
+        "name": "Operating Hours DHW Pump"
+      },
+      "operating_hours_heater_1": {
+        "name": "Operating Hours Heater 1"
+      },
+      "operating_hours_heater_2": {
+        "name": "Operating Hours Heater 2"
+      },
+      "operating_hours_alternative_source": {
+        "name": "Operating Hours Alternative Source"
+      },
+      "operating_hours_heat_source": {
+        "name": "Operating Hours Heat Source"
+      },
+      "operating_hours_passive": {
+        "name": "Operating Hours Passive"
+      },
+      "return_temperature": {
+        "name": "Return Temperature"
+      },
+      "dhw_temperature": {
+        "name": "DHW Temperature"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor Temperature"
+      },
+      "supply_temperature": {
+        "name": "Supply Temperature"
+      },
+      "evaporation_temperature": {
+        "name": "Evaporation Temperature"
+      },
+      "compressor_temperature": {
+        "name": "Compressor Temperature"
+      },
+      "loop_1_current_setpoint": {
+        "name": "Loop 1 Current Setpoint"
+      },
+      "current_power_consumption": {
+        "name": "Current Power Consumption"
+      },
+      "vacation_days": {
+        "name": "Vacation Days"
+      },
+      "loop_1_room_setpoint": {
+        "name": "Loop 1 Room Setpoint"
+      },
+      "loop_1_room_current_setpoint": {
+        "name": "Loop 1 Room Current Setpoint"
+      },
+      "thermal_disinfection_setpoint": {
+        "name": "Thermal Disinfection Setpoint"
+      },
+      "thermal_disinfection_period": {
+        "name": "Thermal Disinfection Period (days)"
+      },
+      "thermal_disinfection_start_time": {
+        "name": "Thermal Disinfection Start Time (minutes)"
+      },
+      "solar_reservoir_setpoint": {
+        "name": "Solar Reservoir Setpoint"
+      },
+      "solar_boiler_setpoint": {
+        "name": "Solar Boiler Setpoint"
+      },
+      "system_pressure_setting": {
+        "name": "System Pressure Setting"
+      },
+      "current_heating_cooling_power": {
+        "name": "Current Heating/Cooling Power"
+      },
+      "electrical_energy_total": {
+        "name": "Heat Pump Electrical Energy"
+      },
+      "thermal_energy_total": {
+        "name": "Heat Pump Thermal Energy"
+      },
+      "cop": {
+        "name": "COP"
+      },
+      "scop": {
+        "name": "SCOP"
+      },
+      "zalogovnik_krivulja_pri_prvi_tocki_15": {
+        "name": "Reservoir Heating Curve Point 1 (-15°C)"
+      },
+      "krog_1_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Loop 1 Heating Curve Point 1"
+      },
+      "krog_2_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Loop 2 Heating Curve Point 1"
+      },
+      "krog_3_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Loop 3 Heating Curve Point 1"
+      },
+      "krog_4_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Loop 4 Heating Curve Point 1"
+      },
+      "zalogovnik_krivulja_pri_drugi_tocki_15": {
+        "name": "Reservoir Heating Curve Point 2 (+15°C)"
+      },
+      "krog_1_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Loop 1 Heating Curve Point 2"
+      },
+      "krog_2_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Loop 2 Heating Curve Point 2"
+      },
+      "krog_3_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Loop 3 Heating Curve Point 2"
+      },
+      "krog_4_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Loop 4 Heating Curve Point 2"
+      },
+      "groundwater_volume": {
+        "name": "Groundwater Volume Pumped"
       }
     },
     "switch": {
@@ -305,8 +625,20 @@
       "dhw_comfort_offset": {
         "name": "DHW Comfort Offset"
       },
+      "hp_eco_offset": {
+        "name": "Heat Pump Eco Offset"
+      },
+      "hp_comfort_offset": {
+        "name": "Heat Pump Comfort Offset"
+      },
+      "pool_eco_offset": {
+        "name": "Pool Eco Offset"
+      },
+      "pool_comfort_offset": {
+        "name": "Pool Comfort Offset"
+      },
       "update_interval": {
-        "name": "Update Interval (min)"
+        "name": "Update Interval"
       },
       "main_temperature_offset": {
         "name": "System temperature offset"
