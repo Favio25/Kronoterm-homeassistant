@@ -45,7 +45,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up Kronoterm switches based on config entry."""
     coordinator = hass.data[DOMAIN].get(entry.entry_id)
-    _LOGGER.warning("🔥 SWITCH PLATFORM SETUP - Coordinator type: %s, Entry: %s", 
+    _LOGGER.debug("Switch platform setup - Coordinator type: %s, Entry: %s", 
                    type(coordinator).__name__ if coordinator else "None", entry.entry_id)
     
     if not coordinator:
@@ -93,7 +93,7 @@ async def async_setup_entry(
         
         # Note: DHW circulation (2328) may not be writable - skipping for now
         
-        _LOGGER.warning("🔥 SWITCH: Created %d Modbus switches", len(entities))
+        _LOGGER.info("Created %d Modbus switches", len(entities))
     else:
         # Cloud API switches read from ShortcutsData
         switch_configs = [

@@ -1,172 +1,402 @@
 {
-    "config": {
-      "step": {
-        "user": {
-          "title": "Kronoterm Wärmepumpeneinrichtung",
-          "description": "Geben Sie Ihren Home Cloud-Benutzernamen und Ihr Passwort ein",
-          "data": {
-            "username": "Home Cloud-Benutzername",
-            "password": "Home Cloud-Passwort"
-          }
+  "config": {
+    "step": {
+      "user": {
+        "title": "Verbindungstyp",
+        "description": "Wählen Sie, wie Sie sich mit Ihrer Kronoterm-Wärmepumpe verbinden möchten",
+        "data": {
+          "connection_type": "Verbindungstyp"
         }
       },
-      "error": {
-        "invalid_auth": "Ungültiger Benutzername oder Passwort.",
-        "cannot_connect": "Verbindung zur Kronoterm Cloud nicht möglich. Überprüfen Sie Netzwerk und Anmeldedaten.",
-        "unknown": "Ein unbekannter Fehler ist aufgetreten."
+      "cloud": {
+        "title": "Cloud-API-Konfiguration",
+        "description": "Geben Sie Ihre Kronoterm Cloud-Zugangsdaten ein",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
       },
-      "abort": {
-        "already_configured": "Gerät ist bereits konfiguriert"
+      "modbus": {
+        "title": "Modbus TCP-Konfiguration",
+        "description": "Konfigurieren Sie die lokale Modbus TCP-Verbindung zu Ihrer Wärmepumpe",
+        "data": {
+          "host": "IP-Adresse",
+          "port": "Port",
+          "unit_id": "Modbus Unit ID",
+          "model": "Wärmepumpen-Modell"
+        },
+        "data_description": {
+          "host": "IP-Adresse Ihrer Kronoterm-Wärmepumpe im lokalen Netzwerk",
+          "port": "Modbus TCP-Port (Standard: 502)",
+          "unit_id": "Modbus-Slave-Adresse (Standard: 20)",
+          "model": "Wählen Sie Ihr Wärmepumpenmodell für genaue Energieberechnung"
+        }
       }
     },
-    "options": {
-      "step": {
-        "init": {
-          "title": "Optionen für Kronoterm Wärmepumpe",
-          "description": "Aktualisieren Sie Ihre Anmeldedaten oder das Abfrageintervall.",
-          "data": {
-            "username": "Home Cloud-Benutzername",
-            "password": "Home Cloud-Passwort",
-            "scan_interval": "Aktualisierungsintervall (Minuten)"
-          }
+    "error": {
+      "cannot_connect": "Verbindung zum Gerät fehlgeschlagen. Bitte überprüfen Sie die Verbindungsdaten.",
+      "cannot_read": "Verbunden, aber Datenabruf vom Gerät fehlgeschlagen. Überprüfen Sie die Unit ID.",
+      "invalid_auth": "Ungültiger Benutzername oder Passwort.",
+      "unknown": "Unerwarteter Fehler aufgetreten. Überprüfen Sie die Logs für Details."
+    },
+    "abort": {
+      "already_configured": "Gerät ist bereits konfiguriert",
+      "reconfigure_successful": "Rekonfiguration erfolgreich. Entitäten wurden beibehalten."
+    }
+  },
+  "reconfigure": {
+    "step": {
+      "reconfigure_connection_type": {
+        "title": "Verbindungstyp ändern",
+        "description": "Aktuelle Verbindung: {current_type}. Neuen Verbindungstyp wählen (Entitäten bleiben erhalten)",
+        "data": {
+          "connection_type": "Verbindungstyp"
         }
       },
-      "error": {
-        "invalid_auth": "Ungültiger Benutzername oder Passwort.",
-        "cannot_connect": "Verbindung zur Kronoterm Cloud nicht möglich. Überprüfen Sie Netzwerk und Anmeldedaten.",
-        "unknown": "Ein unbekannter Fehler ist aufgetreten."
+      "reconfigure_cloud": {
+        "title": "Cloud-API-Konfiguration",
+        "description": "Cloud-Verbindung konfigurieren (Entitäten bleiben erhalten)",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
+      },
+      "reconfigure_modbus": {
+        "title": "Modbus TCP-Konfiguration",
+        "description": "Lokale Modbus-Verbindung konfigurieren (Entitäten bleiben erhalten)",
+        "data": {
+          "host": "IP-Adresse",
+          "port": "Port",
+          "unit_id": "Modbus Unit ID",
+          "model": "Wärmepumpen-Modell"
+        },
+        "data_description": {
+          "host": "IP-Adresse Ihrer Kronoterm-Wärmepumpe im lokalen Netzwerk",
+          "port": "Modbus TCP-Port (Standard: 502)",
+          "unit_id": "Modbus-Slave-Adresse (Standard: 20)",
+          "model": "Wählen Sie Ihr Wärmepumpenmodell für genaue Energieberechnung"
+        }
       }
     },
-    "entity": {
-      "binary_sensor": {
-        "circulation_loop_1": { "name": "Umlaufkreis 1" },
-        "circulation_loop_2": { "name": "Umlaufkreis 2" },
-        "circulation_loop_3": { "name": "Umlaufkreis 3" },
-        "circulation_loop_4": { "name": "Umlaufkreis 4" },
-        "circulation_dhw": { "name": "Umlauf Warmwasser" },
-        "additional_source": { "name": "Zusätzliche Quelle" },
-        "thermostat_loop_1": { "name": "Thermostat Kreis 1 Aktiv" },
-        "thermostat_loop_2": { "name": "Thermostat Kreis 2 Aktiv" },
-        "thermostat_loop_3": { "name": "Thermostat Kreis 3 Aktiv" },
-        "thermostat_loop_4": { "name": "Thermostat Kreis 4 Aktiv" }
+    "error": {
+      "cannot_connect": "Verbindung zum Gerät fehlgeschlagen. Bitte überprüfen Sie die Verbindungsdaten.",
+      "cannot_read": "Verbunden, aber Datenabruf vom Gerät fehlgeschlagen. Überprüfen Sie die Unit ID.",
+      "invalid_auth": "Ungültiger Benutzername oder Passwort.",
+      "unknown": "Unerwarteter Fehler aufgetreten. Überprüfen Sie die Logs für Details."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen",
+        "description": "Kronoterm-Integrationsoptionen konfigurieren",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort",
+          "scan_interval": "Aktualisierungsintervall (Minuten)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Gerät fehlgeschlagen.",
+      "invalid_auth": "Ungültiger Benutzername oder Passwort.",
+      "unknown": "Unerwarteter Fehler aufgetreten."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "circulation_loop_1": {
+        "name": "Umlaufkreis 1"
       },
-      "sensor": {
-        "pool_temperature": { "name": "Pooltemperatur" },
-        "alternative_source_temperature": { "name": "Temperatur der alternativen Quelle" },
-        "compressor_activations_cooling": { "name": "Verdichteraktivierungen – Kühlung" },
-        "heating_source_pressure_set": { "name": "Druckeinstellung Wärmequelle" },
-        "source_pressure": { "name": "Quellendruck" },
-        "energy_heating": { "name": "Energie Heizung (Täglich)" },
-        "energy_dhw": { "name": "Energie Warmwasser (Täglich)" },
-        "energy_circulation": { "name": "Energie Umlauf (Täglich)" },
-        "energy_heater": { "name": "Energie Heizer (Täglich)" },
-        "energy_combined": { "name": "Kombinierte Energie (Täglich)" },
-        "operating_hours_compressor_heating": { "name": "Betriebsstunden Verdichter Heizung" },
-        "operating_hours_compressor_dhw": { "name": "Betriebsstunden Verdichter Warmwasser" },
-        "operating_hours_additional_source_1": { "name": "Betriebsstunden zusätzliche Quelle 1" },
-        "temperature_outside": { "name": "Außentemperatur" },
-        "hp_outlet_temperature": { "name": "Austrittstemperatur Wärmepumpe" },
-        "temperature_compressor_inlet": { "name": "Eintrittstemperatur Verdichter" },
-        "temperature_compressor_outlet": { "name": "Austrittstemperatur Verdichter" },
-        "pressure_setting": { "name": "Druckeinstellung" },
-        "heating_system_pressure": { "name": "Heizsystemdruck" },
-        "hp_load": { "name": "Wärmepumpenlast" },
-        "current_heating_cooling_capacity": { "name": "Aktuelle Heiz-/Kühlleistung" },
-        "cop_value": { "name": "COP‑Wert" },
-        "scop_value": { "name": "SCOP‑Wert" },
-        "compressor_activations_heating": { "name": "Verdichteraktivierungen – Heizung (24 h)" },
-        "activations_boiler": { "name": "Kesselaktivierungen (24 h)" },
-        "activations_defrost": { "name": "Abtauaktivierungen (24 h)" },
-        "electrical_energy_heating_dhw": { "name": "Elektrische Energie Heizung + Warmwasser" },
-        "heating_energy_heating_dhw": { "name": "Heizenergie Heizung + Warmwasser" },
-        "hp_inlet_temperature": { "name": "Eintrittstemperatur Wärmepumpe" },
-        "loop_1_temperature": { "name": "Loop 1 Sensor-Temperatur" },
-        "loop_2_temperature": { "name": "Loop 2 Sensor-Temperatur" },
-        "loop_3_temperature": { "name": "Loop 3 Sensor-Temperatur" },
-        "loop_4_temperature": { "name": "Loop 4 Sensor-Temperatur" },
-        "loop_1_inlet_temperature":{ "name": "Loop 1 Eintrittstemperatur" },
-        "loop_2_inlet_temperature":{ "name": "Loop 2 Eintrittstemperatur" },
-        "loop_3_inlet_temperature":{ "name": "Loop 3 Eintrittstemperatur" },
-        "loop_4_inlet_temperature":{ "name": "Loop 4 Eintrittstemperatur" },
-        "loop_1_thermostat_temperature": { "name": "Loop 1 Thermostat-Temperatur" },
-        "loop_2_thermostat_temperature": { "name": "Loop 2 Thermostat-Temperatur" },
-        "loop_3_thermostat_temperature": { "name": "Loop 3 Thermostat-Temperatur" },
-        "loop_4_thermostat_temperature": { "name": "Loop 4 Thermostat-Temperatur" },
-        "working_function": {
-          "name": "Betriebsfunktion",
-          "state": {
-            "heating": "Heizen",
-            "dhw": "Warmwasserbetrieb",
-            "cooling": "Kühlen",
-            "pool_heating": "Poolheizung",
-            "thermal_disinfection": "Thermische Desinfektion",
-            "standby": "Bereitschaft",
-            "remote_deactivation": "Fernabschaltung"
-          }
-        },
-        "error_warning": {
-          "name": "Fehler/Warnung",
-          "state": {
-            "no_error": "Kein Fehler",
-            "warning": "Warnung",
-            "error": "Fehler"
-          }
-        },
-        "operation_regime": {
-          "name": "Betriebsmodus",
-          "state": {
-            "cooling": "Kühlen",
-            "heating": "Heizen",
-            "heating_and_cooling_off": "Heizen und Kühlen Aus"
-          }
+      "circulation_loop_2": {
+        "name": "Umlaufkreis 2"
+      },
+      "circulation_loop_3": {
+        "name": "Umlaufkreis 3"
+      },
+      "circulation_loop_4": {
+        "name": "Umlaufkreis 4"
+      },
+      "circulation_dhw": {
+        "name": "Umlauf Warmwasser"
+      },
+      "additional_source": {
+        "name": "Zusätzliche Quelle"
+      },
+      "thermostat_loop_1": {
+        "name": "Thermostat Kreis 1 Aktiv"
+      },
+      "thermostat_loop_2": {
+        "name": "Thermostat Kreis 2 Aktiv"
+      },
+      "thermostat_loop_3": {
+        "name": "Thermostat Kreis 3 Aktiv"
+      },
+      "thermostat_loop_4": {
+        "name": "Thermostat Kreis 4 Aktiv"
+      }
+    },
+    "sensor": {
+      "pool_temperature": {
+        "name": "Pooltemperatur"
+      },
+      "alternative_source_temperature": {
+        "name": "Temperatur der alternativen Quelle"
+      },
+      "compressor_activations_cooling": {
+        "name": "Verdichteraktivierungen – Kühlung"
+      },
+      "heating_source_pressure_set": {
+        "name": "Druckeinstellung Wärmequelle"
+      },
+      "source_pressure": {
+        "name": "Quellendruck"
+      },
+      "energy_heating": {
+        "name": "Energie Heizung (Täglich)"
+      },
+      "energy_dhw": {
+        "name": "Energie Warmwasser (Täglich)"
+      },
+      "energy_circulation": {
+        "name": "Energie Umlauf (Täglich)"
+      },
+      "energy_heater": {
+        "name": "Energie Heizer (Täglich)"
+      },
+      "energy_combined": {
+        "name": "Kombinierte Energie (Täglich)"
+      },
+      "operating_hours_compressor_heating": {
+        "name": "Betriebsstunden Verdichter Heizung"
+      },
+      "operating_hours_compressor_dhw": {
+        "name": "Betriebsstunden Verdichter Warmwasser"
+      },
+      "operating_hours_additional_source_1": {
+        "name": "Betriebsstunden zusätzliche Quelle 1"
+      },
+      "temperature_outside": {
+        "name": "Außentemperatur"
+      },
+      "hp_outlet_temperature": {
+        "name": "Austrittstemperatur Wärmepumpe"
+      },
+      "temperature_compressor_inlet": {
+        "name": "Eintrittstemperatur Verdichter"
+      },
+      "temperature_compressor_outlet": {
+        "name": "Austrittstemperatur Verdichter"
+      },
+      "pressure_setting": {
+        "name": "Druckeinstellung"
+      },
+      "heating_system_pressure": {
+        "name": "Heizsystemdruck"
+      },
+      "hp_load": {
+        "name": "Wärmepumpenlast"
+      },
+      "current_heating_cooling_capacity": {
+        "name": "Aktuelle Heiz-/Kühlleistung"
+      },
+      "cop_value": {
+        "name": "COP‑Wert"
+      },
+      "scop_value": {
+        "name": "SCOP‑Wert"
+      },
+      "compressor_activations_heating": {
+        "name": "Verdichteraktivierungen – Heizung (24 h)"
+      },
+      "activations_boiler": {
+        "name": "Kesselaktivierungen (24 h)"
+      },
+      "activations_defrost": {
+        "name": "Abtauaktivierungen (24 h)"
+      },
+      "electrical_energy_heating_dhw": {
+        "name": "Elektrische Energie Heizung + Warmwasser"
+      },
+      "heating_energy_heating_dhw": {
+        "name": "Heizenergie Heizung + Warmwasser"
+      },
+      "hp_inlet_temperature": {
+        "name": "Eintrittstemperatur Wärmepumpe"
+      },
+      "loop_1_temperature": {
+        "name": "Loop 1 Sensor-Temperatur"
+      },
+      "loop_2_temperature": {
+        "name": "Loop 2 Sensor-Temperatur"
+      },
+      "loop_3_temperature": {
+        "name": "Loop 3 Sensor-Temperatur"
+      },
+      "loop_4_temperature": {
+        "name": "Loop 4 Sensor-Temperatur"
+      },
+      "loop_1_inlet_temperature": {
+        "name": "Loop 1 Eintrittstemperatur"
+      },
+      "loop_2_inlet_temperature": {
+        "name": "Loop 2 Eintrittstemperatur"
+      },
+      "loop_3_inlet_temperature": {
+        "name": "Loop 3 Eintrittstemperatur"
+      },
+      "loop_4_inlet_temperature": {
+        "name": "Loop 4 Eintrittstemperatur"
+      },
+      "loop_1_thermostat_temperature": {
+        "name": "Loop 1 Thermostat-Temperatur"
+      },
+      "loop_2_thermostat_temperature": {
+        "name": "Loop 2 Thermostat-Temperatur"
+      },
+      "loop_3_thermostat_temperature": {
+        "name": "Loop 3 Thermostat-Temperatur"
+      },
+      "loop_4_thermostat_temperature": {
+        "name": "Loop 4 Thermostat-Temperatur"
+      },
+      "working_function": {
+        "name": "Betriebsfunktion",
+        "state": {
+          "heating": "Heizen",
+          "dhw": "Warmwasserbetrieb",
+          "cooling": "Kühlen",
+          "pool_heating": "Poolheizung",
+          "thermal_disinfection": "Thermische Desinfektion",
+          "standby": "Bereitschaft",
+          "remote_deactivation": "Fernabschaltung"
         }
       },
-      "switch": {
-        "heatpump_switch": { "name": "Wärmepumpe EIN/AUS" },
-        "dhw_circulation_switch": { "name": "Umlauf Warmwasser" },
-        "fast_heating_switch": { "name": "Schnelles Wasserheizen" },
-        "antilegionella_switch": { "name": "Antilegionellen" },
-        "loop1_temp_source_switch": { "name": "Loop 1 JSON-Temp-Quelle verwenden" },
-        "reservoir_entity_switch": { "name": "Speicher-Klima-Entität aktivieren" },
-        "reserve_source_switch": { "name": "Reservequelle (Elektroheizung)" },
-        "additional_source_switch": { "name": "Zusätzliche Quelle" }
-      },
-      "select": {
-        "loop_1_operation": { "name": "Betriebsmodus Loop 1" },
-        "loop_2_operation": { "name": "Betriebsmodus Loop 2" },
-        "loop_3_operation": { "name": "Betriebsmodus Loop 3" },
-        "loop_4_operation": { "name": "Betriebsmodus Loop 4" },
-        "sanitary_water_operation": { "name": "Betriebsmodus Warmwasser" },
-        "operational_mode": {
-          "name": "Betriebsmodus",
-          "state": {
-            "auto": "Automatisch",
-            "comfort": "Komfort",
-            "eco": "ECO"
-          }
+      "error_warning": {
+        "name": "Fehler/Warnung",
+        "state": {
+          "no_error": "Kein Fehler",
+          "warning": "Warnung",
+          "error": "Fehler"
         }
       },
-      "number": {
-        "loop_1_eco_offset": { "name": "Loop 1 ECO‑Versatz" },
-        "loop_1_comfort_offset": { "name": "Loop 1 KOMFORT‑Versatz" },
-        "loop_2_eco_offset": { "name": "Loop 2 ECO‑Versatz" },
-        "loop_2_comfort_offset": { "name": "Loop 2 KOMFORT‑Versatz" },
-        "loop_3_eco_offset": { "name": "Loop 3 ECO‑Versatz" },
-        "loop_3_comfort_offset": { "name": "Loop 3 KOMFORT‑Versatz" },
-        "loop_4_eco_offset": { "name": "Loop 4 ECO‑Versatz" },
-        "loop_4_comfort_offset": { "name": "Loop 4 KOMFORT‑Versatz" },
-        "dhw_eco_offset": { "name": "Warmwasser ECO‑Versatz" },
-        "dhw_comfort_offset": { "name": "Warmwasser KOMFORT‑Versatz" },
-        "update_interval": { "name": "Aktualisierungsintervall (min)" },
-        "main_temperature_offset": { "name": "Systemtemperatur-Versatz"}
+      "operation_regime": {
+        "name": "Betriebsmodus",
+        "state": {
+          "cooling": "Kühlen",
+          "heating": "Heizen",
+          "heating_and_cooling_off": "Heizen und Kühlen Aus"
+        }
+      }
+    },
+    "switch": {
+      "heatpump_switch": {
+        "name": "Wärmepumpe EIN/AUS"
       },
-      "climate": {
-        "dhw_temperature": { "name": "Warmwassertemperatur" },
-        "loop_1_temperature": { "name": "Loop 1 Temperatur" },
-        "loop_2_temperature": { "name": "Loop 2 Temperatur" },
-        "loop_3_temperature": { "name": "Loop 3 Temperatur" },
-        "loop_4_temperature": { "name": "Loop 4 Temperatur" },
-        "reservoir_temperature": { "name": "Speichertemperatur" }
+      "dhw_circulation_switch": {
+        "name": "Umlauf Warmwasser"
+      },
+      "fast_heating_switch": {
+        "name": "Schnelles Wasserheizen"
+      },
+      "antilegionella_switch": {
+        "name": "Antilegionellen"
+      },
+      "loop1_temp_source_switch": {
+        "name": "Loop 1 JSON-Temp-Quelle verwenden"
+      },
+      "reservoir_entity_switch": {
+        "name": "Speicher-Klima-Entität aktivieren"
+      },
+      "reserve_source_switch": {
+        "name": "Reservequelle (Elektroheizung)"
+      },
+      "additional_source_switch": {
+        "name": "Zusätzliche Quelle"
+      }
+    },
+    "select": {
+      "loop_1_operation": {
+        "name": "Betriebsmodus Loop 1"
+      },
+      "loop_2_operation": {
+        "name": "Betriebsmodus Loop 2"
+      },
+      "loop_3_operation": {
+        "name": "Betriebsmodus Loop 3"
+      },
+      "loop_4_operation": {
+        "name": "Betriebsmodus Loop 4"
+      },
+      "sanitary_water_operation": {
+        "name": "Betriebsmodus Warmwasser"
+      },
+      "operational_mode": {
+        "name": "Betriebsmodus",
+        "state": {
+          "auto": "Automatisch",
+          "comfort": "Komfort",
+          "eco": "ECO"
+        }
+      }
+    },
+    "number": {
+      "loop_1_eco_offset": {
+        "name": "Loop 1 ECO‑Versatz"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Loop 1 KOMFORT‑Versatz"
+      },
+      "loop_2_eco_offset": {
+        "name": "Loop 2 ECO‑Versatz"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Loop 2 KOMFORT‑Versatz"
+      },
+      "loop_3_eco_offset": {
+        "name": "Loop 3 ECO‑Versatz"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Loop 3 KOMFORT‑Versatz"
+      },
+      "loop_4_eco_offset": {
+        "name": "Loop 4 ECO‑Versatz"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Loop 4 KOMFORT‑Versatz"
+      },
+      "dhw_eco_offset": {
+        "name": "Warmwasser ECO‑Versatz"
+      },
+      "dhw_comfort_offset": {
+        "name": "Warmwasser KOMFORT‑Versatz"
+      },
+      "update_interval": {
+        "name": "Aktualisierungsintervall (min)"
+      },
+      "main_temperature_offset": {
+        "name": "Systemtemperatur-Versatz"
+      }
+    },
+    "climate": {
+      "dhw_temperature": {
+        "name": "Warmwassertemperatur"
+      },
+      "loop_1_temperature": {
+        "name": "Loop 1 Temperatur"
+      },
+      "loop_2_temperature": {
+        "name": "Loop 2 Temperatur"
+      },
+      "loop_3_temperature": {
+        "name": "Loop 3 Temperatur"
+      },
+      "loop_4_temperature": {
+        "name": "Loop 4 Temperatur"
+      },
+      "reservoir_temperature": {
+        "name": "Speichertemperatur"
       }
     }
   }
+}

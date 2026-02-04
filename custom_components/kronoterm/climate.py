@@ -32,7 +32,7 @@ async def async_setup_entry(
         return False
 
     coordinator = data.get(entry.entry_id)
-    _LOGGER.warning("🔥 CLIMATE PLATFORM SETUP - Coordinator type: %s, Entry: %s", 
+    _LOGGER.debug("Climate platform setup - Coordinator type: %s, Entry: %s", 
                    type(coordinator).__name__ if coordinator else "None", entry.entry_id)
     if not coordinator:
         _LOGGER.error("Coordinator not found in hass.data[%s] for entry %s", DOMAIN, entry.entry_id)
@@ -45,37 +45,37 @@ async def async_setup_entry(
     
     if is_modbus:
         # Modbus-based climate entities
-        _LOGGER.warning("🔥 Creating Modbus-based climate entities")
+        _LOGGER.debug("Creating Modbus-based climate entities")
         
         # DHW (always available)
         if coordinator.tap_water_installed:
             entities.append(KronotermModbusDHWClimate(entry, coordinator))
-            _LOGGER.warning("🔥 DHW installed, adding Modbus climate entity.")
+            _LOGGER.debug("DHW installed, adding Modbus climate entity")
         
         # Loop 1
         if coordinator.loop1_installed:
             entities.append(KronotermModbusLoop1Climate(entry, coordinator))
-            _LOGGER.warning("🔥 Loop 1 installed, adding Modbus climate entity.")
+            _LOGGER.debug("Loop 1 installed, adding Modbus climate entity")
         
         # Loop 2
         if coordinator.loop2_installed:
             entities.append(KronotermModbusLoop2Climate(entry, coordinator))
-            _LOGGER.warning("🔥 Loop 2 installed, adding Modbus climate entity.")
+            _LOGGER.debug("Loop 2 installed, adding Modbus climate entity")
         
         # Loop 3
         if coordinator.loop3_installed:
             entities.append(KronotermModbusLoop3Climate(entry, coordinator))
-            _LOGGER.warning("🔥 Loop 3 installed, adding Modbus climate entity.")
+            _LOGGER.debug("Loop 3 installed, adding Modbus climate entity")
         
         # Loop 4
         if coordinator.loop4_installed:
             entities.append(KronotermModbusLoop4Climate(entry, coordinator))
-            _LOGGER.warning("🔥 Loop 4 installed, adding Modbus climate entity.")
+            _LOGGER.debug("Loop 4 installed, adding Modbus climate entity")
         
         # Reservoir
         if coordinator.reservoir_installed:
             entities.append(KronotermModbusReservoirClimate(entry, coordinator))
-            _LOGGER.warning("🔥 Reservoir installed, adding Modbus climate entity.")
+            _LOGGER.debug("Reservoir installed, adding Modbus climate entity")
     else:
         # Cloud API-based climate entities
         _LOGGER.info("Creating Cloud API-based climate entities")
@@ -102,7 +102,7 @@ async def async_setup_entry(
             entities.append(KronotermReservoirClimate(entry, coordinator))
             _LOGGER.info("Reservoir installed, adding climate entity.")
 
-    _LOGGER.warning("🔥 CLIMATE: Created %d climate entities (%s mode)", 
+    _LOGGER.info("Created %d climate entities (%s mode)", 
                    len(entities), "Modbus" if is_modbus else "Cloud API")
     async_add_entities(entities)
     return True
