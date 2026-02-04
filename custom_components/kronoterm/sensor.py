@@ -279,7 +279,7 @@ async def _async_setup_cloud_entities(
             name=sensor_def.key,
             unit=sensor_def.unit,
             device_info=device_info,
-            scale=1.0,  # Cloud API returns already-scaled decimal values (20.0, not 200)
+            scale=sensor_def.scaling,
             icon=sensor_def.icon,
         )
 
