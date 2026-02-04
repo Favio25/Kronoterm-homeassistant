@@ -19,25 +19,27 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, CONF_PORT
 
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+# Legacy imports for fallback code only - should be removed in Phase 3
+# All write operations now use register_map exclusively
 from .modbus_registers import (
-    Register,
-    RegisterType,
-    scale_value,
-    format_enum,
-    read_bit,
-    ALL_REGISTERS,
-    DEVICE_ID,
-    FIRMWARE_VERSION,
-    OUTDOOR_TEMP,
-    LOOP1_CURRENT_TEMP,
-    DHW_SETPOINT,
-    LOOP1_ROOM_SETPOINT,
-    SYSTEM_SETPOINT,
-    WORKING_FUNCTION,
-    HP_LOAD_PERCENT,
-    CURRENT_POWER,
-    PRESSURE_MEASURED,
-    COP,
+    Register,  # Only used in fallback read path
+    RegisterType,  # Only used in fallback read path
+    scale_value,  # Only used in fallback read path
+    format_enum,  # Only used in fallback read path
+    read_bit,  # Only used in fallback read path
+    ALL_REGISTERS,  # Only used in fallback read path
+    DEVICE_ID,  # Legacy
+    FIRMWARE_VERSION,  # Only used for initial firmware read
+    OUTDOOR_TEMP,  # Legacy
+    LOOP1_CURRENT_TEMP,  # Legacy
+    DHW_SETPOINT,  # Legacy
+    LOOP1_ROOM_SETPOINT,  # Legacy
+    SYSTEM_SETPOINT,  # Legacy
+    WORKING_FUNCTION,  # Legacy
+    HP_LOAD_PERCENT,  # Legacy
+    CURRENT_POWER,  # Legacy
+    PRESSURE_MEASURED,  # Legacy
+    COP,  # Legacy
 )
 from .register_map import RegisterMap
 
@@ -682,15 +684,8 @@ class ModbusCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Setting temperature for page %d to %.1f°C (modbus value: %d)", 
                     page, new_temp, modbus_value)
         
-        # Create temporary register object for write_register method
-        from .modbus_registers import Register, RegisterType
-        temp_register = Register(
-            address=register_address,
-            name=f"Setpoint_Page_{page}",
-            reg_type=RegisterType.TEMP
-        )
-        
-        return await self.write_register(temp_register, modbus_value)
+        # Write directly using register_by_address (no need for Register object)
+        return await self.write_register_by_address(register_address, modbus_value)
 
     async def async_set_offset(self, page: int, param_name: str, new_value: float) -> bool:
         """Set temperature offset (eco/comfort) for a loop or DHW."""
@@ -720,22 +715,20 @@ class ModbusCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Setting offset for page %d/%s to %.1f°C (modbus value: %d)",
                     page, param_name, new_value, modbus_value)
         
-        from .modbus_registers import Register, RegisterType
-        temp_register = Register(
-            address=register_address,
-            name=f"Offset_{page}_{param_name}",
-            reg_type=RegisterType.TEMP
-        )
-        
-        return await self.write_register(temp_register, modbus_value)
+        # Write directly using register_by_address (no need for Register object)
+        return await self.write_register_by_address(register_address, modbus_value)
 
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
         """Enable/disable heat pump system operation (register 2012)."""
         value = 1 if turn_on else 0
         _LOGGER.info("Setting heat pump state to %s (value: %d)", "ON" if turn_on else "OFF", value)
         
-        from .modbus_registers import SYSTEM_OPERATION_CONTROL
-        return await self.write_register(SYSTEM_OPERATION_CONTROL, value)
+        # Use register_map for JSON-based lookup (address 2012)
+        reg = self.register_map.get_by_name("system_on") or self.register_map.get(2012)
+        if not reg:
+            _LOGGER.error("Register 2012 (system_on) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
         """Set loop operation mode (off/normal/eco/comfort) based on page."""
@@ -755,14 +748,8 @@ class ModbusCoordinator(DataUpdateCoordinator):
         
         _LOGGER.info("Setting loop mode for page %d to %d", page, new_mode)
         
-        from .modbus_registers import Register, RegisterType
-        mode_register = Register(
-            address=register_address,
-            name=f"Loop_Mode_Page_{page}",
-            reg_type=RegisterType.ENUM
-        )
-        
-        return await self.write_register(mode_register, new_mode)
+        # Write directly using register_by_address (no need for Register object)
+        return await self.write_register_by_address(register_address, new_mode)
 
     async def async_set_main_temp_offset(self, new_value: float) -> bool:
         """Set main temperature correction (register 2014, scale=1)."""
@@ -772,16 +759,24 @@ class ModbusCoordinator(DataUpdateCoordinator):
         
         _LOGGER.info("Setting main temperature correction to %d°C", modbus_value)
         
-        from .modbus_registers import MAIN_TEMP_CORRECTION
-        return await self.write_register(MAIN_TEMP_CORRECTION, modbus_value)
+        # Use register_map for JSON-based lookup (address 2014)
+        reg = self.register_map.get_by_name("system_temperature_correction") or self.register_map.get(2014)
+        if not reg:
+            _LOGGER.error("Register 2014 (system_temperature_correction) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, modbus_value)
 
     async def async_set_antilegionella(self, enable: bool) -> bool:
         """Enable/disable anti-legionella (thermal disinfection) function."""
         value = 1 if enable else 0
         _LOGGER.info("Setting anti-legionella to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import ANTI_LEGIONELLA_ENABLE
-        return await self.write_register(ANTI_LEGIONELLA_ENABLE, value)
+        # Use register_map for JSON-based lookup (address 2301)
+        reg = self.register_map.get_by_name("thermal_disinfection") or self.register_map.get(2301)
+        if not reg:
+            _LOGGER.error("Register 2301 (thermal_disinfection) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_dhw_circulation(self, enable: bool) -> bool:
         """Enable/disable DHW circulation pump."""
@@ -796,31 +791,47 @@ class ModbusCoordinator(DataUpdateCoordinator):
         value = 1 if enable else 0
         _LOGGER.info("Setting fast water heating to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import FAST_DHW_HEATING
-        return await self.write_register(FAST_DHW_HEATING, value)
+        # Use register_map for JSON-based lookup (address 2015)
+        reg = self.register_map.get_by_name("dhw_quick_heating_enable") or self.register_map.get(2015)
+        if not reg:
+            _LOGGER.error("Register 2015 (dhw_quick_heating_enable) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_reserve_source(self, enable: bool) -> bool:
         """Enable/disable reserve heating source."""
         value = 1 if enable else 0
         _LOGGER.info("Setting reserve source to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import RESERVE_SOURCE_SWITCH
-        return await self.write_register(RESERVE_SOURCE_SWITCH, value)
+        # Use register_map for JSON-based lookup (address 2018)
+        reg = self.register_map.get_by_name("reserve_source_enable") or self.register_map.get(2018)
+        if not reg:
+            _LOGGER.error("Register 2018 (reserve_source_enable) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_additional_source(self, enable: bool) -> bool:
         """Enable/disable additional heating source."""
         value = 1 if enable else 0
         _LOGGER.info("Setting additional source to %s (value: %d)", "ON" if enable else "OFF", value)
         
-        from .modbus_registers import ADDITIONAL_SOURCE_SWITCH
-        return await self.write_register(ADDITIONAL_SOURCE_SWITCH, value)
+        # Use register_map for JSON-based lookup (address 2016)
+        reg = self.register_map.get_by_name("additional_source_enable") or self.register_map.get(2016)
+        if not reg:
+            _LOGGER.error("Register 2016 (additional_source_enable) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_main_mode(self, new_mode: int) -> bool:
         """Set main operational mode (auto/comfort/eco)."""
         _LOGGER.info("Setting program selection to %d", new_mode)
         
-        from .modbus_registers import PROGRAM_SELECTION
-        return await self.write_register(PROGRAM_SELECTION, new_mode)
+        # Use register_map for JSON-based lookup (address 2013)
+        reg = self.register_map.get_by_name("operation_program_select") or self.register_map.get(2013)
+        if not reg:
+            _LOGGER.error("Register 2013 (operation_program_select) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, new_mode)
 
     async def async_shutdown(self) -> None:
         """Close Modbus connection."""

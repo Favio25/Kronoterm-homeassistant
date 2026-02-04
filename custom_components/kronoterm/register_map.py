@@ -418,6 +418,24 @@ class RegisterMap:
         """Get register definition by address."""
         return self._registers.get(address)
 
+    def get_by_name(self, name_en: str) -> Optional[RegisterDefinition]:
+        """Get register definition by English name.
+        
+        Args:
+            name_en: English name (snake_case) from name_en field
+            
+        Returns:
+            RegisterDefinition if found, None otherwise
+            
+        Example:
+            reg = register_map.get_by_name("system_on")
+            # Returns register 2012 (Vklop sistema)
+        """
+        for reg in self._registers.values():
+            if reg.name_en == name_en:
+                return reg
+        return None
+
     def get_all(self) -> List[RegisterDefinition]:
         """Get all register definitions."""
         return list(self._registers.values())
@@ -436,6 +454,13 @@ class RegisterMap:
         return [
             reg for reg in self._registers.values()
             if "Write" in reg.access and reg.type == "Control" and not reg.disabled
+        ]
+    
+    def get_writable(self) -> List[RegisterDefinition]:
+        """Get all writable registers (Read/Write or W access)."""
+        return [
+            reg for reg in self._registers.values()
+            if "Write" in reg.access and not reg.disabled
         ]
 
     def get_bitmasks(self) -> List[RegisterDefinition]:
