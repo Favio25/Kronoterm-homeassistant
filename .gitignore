@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*.old
+
+# Release artifacts
+*.zip
+*.tar.gz
+*.tar
+
+# Temporary documentation
+PHASE*.md
+REFACTORING*.md
+RELEASE_NOTES*.md
+SESSION*.md
+*-COMPLETE.md
+
+# Test output
+test-results/
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
