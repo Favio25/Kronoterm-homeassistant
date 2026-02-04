@@ -27,9 +27,7 @@ BINARY_SENSOR_DEFINITIONS: List[BinarySensorConfig] = [
     BinarySensorConfig(2038, "main_pump_status", icon="mdi:pump"),
     BinarySensorConfig(2045, "circulation_loop_1", icon="mdi:pump", install_flag="loop1_installed"),
     BinarySensorConfig(2055, "circulation_loop_2", icon="mdi:pump", install_flag="loop2_installed"),
-    # !!! UPDATE XXXX WITH CORRECT MODBUS ADDRESS !!!
     BinarySensorConfig(2065, "circulation_loop_3", icon="mdi:pump", install_flag="loop3_installed"),
-    # !!! UPDATE YYYY WITH CORRECT MODBUS ADDRESS !!!
     BinarySensorConfig(2075, "circulation_loop_4", icon="mdi:pump", install_flag="loop4_installed"),
     BinarySensorConfig(2028, "circulation_dhw", bit=0, icon="mdi:pump", install_flag="tap_water_installed"), # Assuming 'tap_water_installed' flag exists
 
