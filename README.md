@@ -102,14 +102,6 @@ Once connected, configure the integration:
 
 [Example Dashboard YAML](dashboard.yaml)
 
-## Documentation
-
-- **[Climate Entities Guide](docs/CLIMATE-COMPLETE.md)** - Complete climate entity documentation
-- **[Reconfigure Guide](docs/RECONFIGURE.md)** - Switch between Cloud API and Modbus
-- **[Modbus Implementation](docs/MODBUS-JSON-IMPLEMENTATION.md)** - Technical details
-- **[Performance Optimization](docs/PERFORMANCE-OPTIMIZATION.md)** - Batch reading explanation
-- **[Full Documentation](docs/README.md)** - Complete documentation index
-
 ## Key Differences: Cloud API vs Modbus
 
 | Feature | Cloud API | Modbus TCP |
