@@ -63,14 +63,32 @@ Tested with:
 
 ### Modbus TCP Setup
 
+**⚠️ Hardware Requirement:**  
+Kronoterm heat pumps use **Modbus RTU** (RS-485) by default and do not have built-in Modbus TCP support. You need a **Modbus RTU to TCP adapter** to use local Modbus mode.
+
+**Recommended adapters:**
+- [USR-TCP232-410S](https://www.aliexpress.com/item/1005008374731458.html) (Ethernet)
+- Elfin EW11 (WiFi option)
+- Waveshare RS485-to-Ethernet
+- Any RS485-to-TCP converter with configurable serial settings
+
+**Adapter configuration:**
+- Baud rate: 19200
+- Data bits: 8
+- Parity: None (N)
+- Stop bits: 1
+- Protocol: Modbus RTU
+
+Once connected, configure the integration:
+
 1. Select **Modbus TCP** as connection type
-2. Enter your heat pump's IP address
+2. Enter your adapter's IP address
 3. Port: `502` (default)
 4. Unit ID: `20` (default)
 5. Update interval: `5-600` seconds
 
-**Finding your IP address:**
-- Check your Kronoterm display panel (Network settings)
+**Finding your adapter's IP address:**
+- Check adapter documentation (web interface or LED display)
 - Or find it in your router's DHCP list
 
 ## Screenshots
