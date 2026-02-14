@@ -87,6 +87,7 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
         self._attr_native_max_value = max_value
         self._attr_native_step = 0.1
         self._attr_unit_of_measurement = "°C"
+        self._attr_mode = NumberMode.BOX
 
     def _process_value(self, raw_value: Any) -> Optional[float]:
         """Convert raw_value to float, remove non-numeric chars."""
@@ -142,6 +143,7 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
     _attr_native_step = 1.0
     _attr_unit_of_measurement = "°C"
     _attr_icon = "mdi:thermometer-plus"
+    _attr_mode = NumberMode.BOX
 
     def __init__(self, coordinator: DataUpdateCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -242,7 +244,7 @@ class KronotermModbusNumber(KronotermModbusBase, NumberEntity):
         self._attr_native_step = step
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
-        self._attr_mode = NumberMode.AUTO
+        self._attr_mode = NumberMode.BOX
         self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_modbus_number_{address}"
     
     @property
@@ -295,7 +297,7 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
     _attr_native_min_value = 5      # 5 seconds minimum (faster than batch read time)
     _attr_native_max_value = 600    # 10 minutes maximum
     _attr_native_step = 5           # 5 second increments
-    _attr_mode = NumberMode.AUTO
+    _attr_mode = NumberMode.BOX
     _attr_unit_of_measurement = "s"
 
     def __init__(self, coordinator):
