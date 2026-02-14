@@ -471,6 +471,10 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
     """Check if sensor should be created based on feature flags."""
     name_lower = reg_def.name_en.lower()
     
+    # Exception: hp_load (2327) is writable but primarily a status/measurement sensor
+    if reg_def.address == 2327:  # hp_load - current heat pump load %
+        return True
+    
     # Skip ALL writable registers - they should be switch/number entities, not sensors
     if "Write" in reg_def.access:
         return False
