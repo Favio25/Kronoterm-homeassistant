@@ -134,6 +134,27 @@
       },
       "thermostat_loop_4": {
         "name": "Termostato Circuito 4 Attivo"
+      },
+      "main_pump_status": {
+        "name": "Pompa di circolazione principale"
+      },
+      "circulation_pump": {
+        "name": "Pompa di circolazione"
+      },
+      "dhw_circulation_pump": {
+        "name": "Pompa circolazione ACS"
+      },
+      "defrost_status": {
+        "name": "Stato sbrinamento"
+      },
+      "reserve_source_status": {
+        "name": "Stato fonte di riserva"
+      },
+      "alternative_source_status": {
+        "name": "Stato fonte alternativa"
+      },
+      "alternative_source_pump": {
+        "name": "Pompa fonte alternativa"
       }
     },
     "sensor": {
@@ -287,6 +308,341 @@
           "heating": "Riscaldamento",
           "heating_and_cooling_off": "Riscaldamento e Raffreddamento Spenti"
         }
+      },
+      "alternative_source": {
+        "name": "Fonte alternativa"
+      },
+      "error_status": {
+        "name": "Stato errore",
+        "state": {
+          "no_error": "No Error",
+          "warning": "Warning",
+          "alarm": "Alarm",
+          "notice": "Notice"
+        }
+      },
+      "dhw_quick_heating": {
+        "name": "Riscaldamento rapido ACS"
+      },
+      "defrost_status": {
+        "name": "Stato sbrinamento"
+      },
+      "system_temperature_correction": {
+        "name": "Correzione temperatura di sistema"
+      },
+      "dhw_setpoint": {
+        "name": "Setpoint ACS"
+      },
+      "dhw_current_setpoint": {
+        "name": "Setpoint attuale ACS"
+      },
+      "dhw_schedule_status": {
+        "name": "Stato programmazione ACS"
+      },
+      "dhw_eco_offset": {
+        "name": "Offset ECO ACS"
+      },
+      "dhw_comfort_offset": {
+        "name": "Offset comfort ACS"
+      },
+      "reservoir_current_setpoint": {
+        "name": "Setpoint attuale serbatoio"
+      },
+      "reservoir_schedule_status": {
+        "name": "Stato programmazione serbatoio"
+      },
+      "main_pump_status": {
+        "name": "Pompa di circolazione principale"
+      },
+      "hp_eco_offset": {
+        "name": "Offset ECO pompa di calore"
+      },
+      "hp_comfort_offset": {
+        "name": "Offset comfort pompa di calore"
+      },
+      "loop_1_schedule_status": {
+        "name": "Stato programmazione circuito 1"
+      },
+      "loop_1_pump_status": {
+        "name": "Stato pompa circuito 1"
+      },
+      "loop_1_eco_offset": {
+        "name": "Offset ECO circuito 1"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Offset comfort circuito 1"
+      },
+      "loop_2_setpoint": {
+        "name": "Setpoint circuito 2"
+      },
+      "loop_2_room_current_setpoint": {
+        "name": "Setpoint attuale stanza circuito 2"
+      },
+      "loop_2_current_setpoint": {
+        "name": "Setpoint attuale circuito 2"
+      },
+      "loop_2_schedule_status": {
+        "name": "Stato programmazione circuito 2"
+      },
+      "loop_2_pump_status": {
+        "name": "Stato pompa circuito 2"
+      },
+      "loop_2_thermostat_status": {
+        "name": "Stato termostato circuito 2"
+      },
+      "loop_2_eco_offset": {
+        "name": "Offset ECO circuito 2"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Offset comfort circuito 2"
+      },
+      "loop_3_setpoint": {
+        "name": "Setpoint circuito 3"
+      },
+      "loop_3_room_current_setpoint": {
+        "name": "Setpoint attuale stanza circuito 3"
+      },
+      "loop_3_current_setpoint": {
+        "name": "Setpoint attuale circuito 3"
+      },
+      "loop_3_schedule_status": {
+        "name": "Stato programmazione circuito 3"
+      },
+      "loop_3_pump_status": {
+        "name": "Stato pompa circuito 3"
+      },
+      "loop_3_thermostat_status": {
+        "name": "Stato termostato circuito 3"
+      },
+      "loop_3_eco_offset": {
+        "name": "Offset ECO circuito 3"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Offset comfort circuito 3"
+      },
+      "loop_4_setpoint": {
+        "name": "Setpoint circuito 4"
+      },
+      "loop_4_room_current_setpoint": {
+        "name": "Setpoint attuale stanza circuito 4"
+      },
+      "loop_4_current_setpoint": {
+        "name": "Setpoint attuale circuito 4"
+      },
+      "loop_4_schedule_status": {
+        "name": "Stato programmazione circuito 4"
+      },
+      "loop_4_pump_status": {
+        "name": "Stato pompa circuito 4"
+      },
+      "loop_4_thermostat_status": {
+        "name": "Stato termostato circuito 4"
+      },
+      "loop_4_eco_offset": {
+        "name": "Offset ECO circuito 4"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Offset comfort circuito 4"
+      },
+      "pool_setpoint": {
+        "name": "Setpoint piscina"
+      },
+      "pool_current_setpoint": {
+        "name": "Setpoint attuale piscina"
+      },
+      "pool_schedule_status": {
+        "name": "Stato programmazione piscina"
+      },
+      "pool_pump_status": {
+        "name": "Stato pompa piscina"
+      },
+      "pool_thermostat_status": {
+        "name": "Stato termostato piscina"
+      },
+      "pool_eco_offset": {
+        "name": "Offset ECO piscina"
+      },
+      "pool_comfort_offset": {
+        "name": "Offset comfort piscina"
+      },
+      "operating_hours_cooling": {
+        "name": "Ore di funzionamento raffreddamento"
+      },
+      "operating_hours_heating": {
+        "name": "Ore di funzionamento riscaldamento"
+      },
+      "operating_hours_dhw": {
+        "name": "Ore di funzionamento ACS"
+      },
+      "operating_hours_main_pump": {
+        "name": "Ore di funzionamento pompa principale"
+      },
+      "operating_hours_dhw_pump": {
+        "name": "Ore di funzionamento pompa ACS"
+      },
+      "operating_hours_heater_1": {
+        "name": "Ore di funzionamento riscaldatore 1"
+      },
+      "operating_hours_heater_2": {
+        "name": "Ore di funzionamento riscaldatore 2"
+      },
+      "operating_hours_alternative_source": {
+        "name": "Ore di funzionamento fonte alternativa"
+      },
+      "operating_hours_heat_source": {
+        "name": "Ore di funzionamento fonte di calore"
+      },
+      "operating_hours_passive": {
+        "name": "Ore di funzionamento passivo"
+      },
+      "return_temperature": {
+        "name": "Temperatura di ritorno"
+      },
+      "dhw_temperature": {
+        "name": "Temperatura ACS"
+      },
+      "outdoor_temperature": {
+        "name": "Temperatura esterna"
+      },
+      "supply_temperature": {
+        "name": "Temperatura di mandata"
+      },
+      "evaporation_temperature": {
+        "name": "Temperatura di evaporazione"
+      },
+      "compressor_temperature": {
+        "name": "Temperatura compressore"
+      },
+      "loop_1_current_setpoint": {
+        "name": "Setpoint attuale circuito 1"
+      },
+      "current_power_consumption": {
+        "name": "Consumo energetico attuale"
+      },
+      "vacation_days": {
+        "name": "Giorni di vacanza"
+      },
+      "loop_1_room_setpoint": {
+        "name": "Setpoint stanza circuito 1"
+      },
+      "loop_1_room_current_setpoint": {
+        "name": "Setpoint attuale stanza circuito 1"
+      },
+      "thermal_disinfection_setpoint": {
+        "name": "Setpoint disinfezione termica"
+      },
+      "thermal_disinfection_period": {
+        "name": "Periodo disinfezione termica (giorni)"
+      },
+      "thermal_disinfection_start_time": {
+        "name": "Ora inizio disinfezione termica (minuti)"
+      },
+      "solar_reservoir_setpoint": {
+        "name": "Setpoint serbatoio solare"
+      },
+      "solar_boiler_setpoint": {
+        "name": "Setpoint caldaia solare"
+      },
+      "system_pressure_setting": {
+        "name": "Impostazione pressione di sistema"
+      },
+      "current_heating_cooling_power": {
+        "name": "Potenza riscaldamento/raffreddamento attuale"
+      },
+      "electrical_energy_total": {
+        "name": "Energia elettrica pompa di calore"
+      },
+      "thermal_energy_total": {
+        "name": "Energia termica pompa di calore"
+      },
+      "cop": {
+        "name": "COP"
+      },
+      "scop": {
+        "name": "SCOP"
+      },
+      "zalogovnik_krivulja_pri_prvi_tocki_15": {
+        "name": "Curva riscaldamento serbatoio punto 1 (-15°C)"
+      },
+      "krog_1_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Curva riscaldamento circuito 1 punto 1"
+      },
+      "krog_2_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Curva riscaldamento circuito 2 punto 1"
+      },
+      "krog_3_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Curva riscaldamento circuito 3 punto 1"
+      },
+      "krog_4_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Curva riscaldamento circuito 4 punto 1"
+      },
+      "zalogovnik_krivulja_pri_drugi_tocki_15": {
+        "name": "Curva riscaldamento serbatoio punto 2 (+15°C)"
+      },
+      "krog_1_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Curva riscaldamento circuito 1 punto 2"
+      },
+      "krog_2_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Curva riscaldamento circuito 2 punto 2"
+      },
+      "krog_3_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Curva riscaldamento circuito 3 punto 2"
+      },
+      "krog_4_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Curva riscaldamento circuito 4 punto 2"
+      },
+      "groundwater_volume": {
+        "name": "Volume acqua di falda pompata"
+      },
+      "loop_1_inlet_temp": {
+        "name": "Temperatura mandata circuito 1"
+      },
+      "loop_1_temp": {
+        "name": "Temperatura circuito 1"
+      },
+      "loop_2_inlet_temp": {
+        "name": "Temperatura mandata circuito 2"
+      },
+      "loop_2_temp": {
+        "name": "Temperatura circuito 2"
+      },
+      "loop_3_inlet_temp": {
+        "name": "Temperatura mandata circuito 3"
+      },
+      "loop_3_temp": {
+        "name": "Temperatura circuito 3"
+      },
+      "loop_4_inlet_temp": {
+        "name": "Temperatura mandata circuito 4"
+      },
+      "loop_4_temp": {
+        "name": "Temperatura circuito 4"
+      },
+      "operation_mode": {
+        "name": "Modalità operativa",
+        "state": {
+          "cooling": "Cooling",
+          "heating": "Heating",
+          "heating_and_cooling_off": "Heating and Cooling Off"
+        }
+      },
+      "operation_program": {
+        "name": "Programma operativo",
+        "state": {
+          "normal_operation": "Normal Operation",
+          "eco_mode": "ECO Mode",
+          "comfort_mode": "Comfort Mode",
+          "screed_drying_active": "Screed Drying Active"
+        }
+      },
+      "remote_control_status": {
+        "name": "Stato controllo remoto"
+      },
+      "reserve_source": {
+        "name": "Fonte di riserva"
+      },
+      "system_operation": {
+        "name": "Funzionamento sistema"
       }
     },
     "switch": {
@@ -376,6 +732,18 @@
       },
       "main_temperature_offset": {
         "name": "Scarto temperatura sistema"
+      },
+      "hp_eco_offset": {
+        "name": "Offset ECO pompa di calore"
+      },
+      "hp_comfort_offset": {
+        "name": "Offset comfort pompa di calore"
+      },
+      "pool_eco_offset": {
+        "name": "Offset ECO piscina"
+      },
+      "pool_comfort_offset": {
+        "name": "Offset comfort piscina"
       }
     },
     "climate": {

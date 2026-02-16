@@ -134,6 +134,27 @@
       },
       "thermostat_loop_4": {
         "name": "Thermostat Kreis 4 Aktiv"
+      },
+      "main_pump_status": {
+        "name": "Hauptumwälzpumpe"
+      },
+      "circulation_pump": {
+        "name": "Umwälzpumpe"
+      },
+      "dhw_circulation_pump": {
+        "name": "Warmwasser-Zirkulationspumpe"
+      },
+      "defrost_status": {
+        "name": "Abtaustatus"
+      },
+      "reserve_source_status": {
+        "name": "Reservequellen-Status"
+      },
+      "alternative_source_status": {
+        "name": "Alternativquellen-Status"
+      },
+      "alternative_source_pump": {
+        "name": "Alternativquellen-Pumpe"
       }
     },
     "sensor": {
@@ -287,6 +308,341 @@
           "heating": "Heizen",
           "heating_and_cooling_off": "Heizen und Kühlen Aus"
         }
+      },
+      "alternative_source": {
+        "name": "Alternativquelle"
+      },
+      "error_status": {
+        "name": "Fehlerstatus",
+        "state": {
+          "no_error": "No Error",
+          "warning": "Warning",
+          "alarm": "Alarm",
+          "notice": "Notice"
+        }
+      },
+      "dhw_quick_heating": {
+        "name": "Warmwasser-Schnellheizung"
+      },
+      "defrost_status": {
+        "name": "Abtaustatus"
+      },
+      "system_temperature_correction": {
+        "name": "Systemtemperaturkorrektur"
+      },
+      "dhw_setpoint": {
+        "name": "Warmwasser-Sollwert"
+      },
+      "dhw_current_setpoint": {
+        "name": "Aktueller Warmwasser-Sollwert"
+      },
+      "dhw_schedule_status": {
+        "name": "Warmwasser Zeitplanstatus"
+      },
+      "dhw_eco_offset": {
+        "name": "Warmwasser ECO-Offset"
+      },
+      "dhw_comfort_offset": {
+        "name": "Warmwasser Komfort-Offset"
+      },
+      "reservoir_current_setpoint": {
+        "name": "Aktueller Pufferspeicher-Sollwert"
+      },
+      "reservoir_schedule_status": {
+        "name": "Pufferspeicher Zeitplanstatus"
+      },
+      "main_pump_status": {
+        "name": "Hauptumwälzpumpe"
+      },
+      "hp_eco_offset": {
+        "name": "Wärmepumpe ECO-Offset"
+      },
+      "hp_comfort_offset": {
+        "name": "Wärmepumpe Komfort-Offset"
+      },
+      "loop_1_schedule_status": {
+        "name": "Zeitplanstatus Kreis 1"
+      },
+      "loop_1_pump_status": {
+        "name": "Pumpenstatus Kreis 1"
+      },
+      "loop_1_eco_offset": {
+        "name": "ECO-Offset Kreis 1"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Komfort-Offset Kreis 1"
+      },
+      "loop_2_setpoint": {
+        "name": "Sollwert Kreis 2"
+      },
+      "loop_2_room_current_setpoint": {
+        "name": "Aktueller Raum-Sollwert Kreis 2"
+      },
+      "loop_2_current_setpoint": {
+        "name": "Aktueller Sollwert Kreis 2"
+      },
+      "loop_2_schedule_status": {
+        "name": "Zeitplanstatus Kreis 2"
+      },
+      "loop_2_pump_status": {
+        "name": "Pumpenstatus Kreis 2"
+      },
+      "loop_2_thermostat_status": {
+        "name": "Thermostatstatus Kreis 2"
+      },
+      "loop_2_eco_offset": {
+        "name": "ECO-Offset Kreis 2"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Komfort-Offset Kreis 2"
+      },
+      "loop_3_setpoint": {
+        "name": "Sollwert Kreis 3"
+      },
+      "loop_3_room_current_setpoint": {
+        "name": "Aktueller Raum-Sollwert Kreis 3"
+      },
+      "loop_3_current_setpoint": {
+        "name": "Aktueller Sollwert Kreis 3"
+      },
+      "loop_3_schedule_status": {
+        "name": "Zeitplanstatus Kreis 3"
+      },
+      "loop_3_pump_status": {
+        "name": "Pumpenstatus Kreis 3"
+      },
+      "loop_3_thermostat_status": {
+        "name": "Thermostatstatus Kreis 3"
+      },
+      "loop_3_eco_offset": {
+        "name": "ECO-Offset Kreis 3"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Komfort-Offset Kreis 3"
+      },
+      "loop_4_setpoint": {
+        "name": "Sollwert Kreis 4"
+      },
+      "loop_4_room_current_setpoint": {
+        "name": "Aktueller Raum-Sollwert Kreis 4"
+      },
+      "loop_4_current_setpoint": {
+        "name": "Aktueller Sollwert Kreis 4"
+      },
+      "loop_4_schedule_status": {
+        "name": "Zeitplanstatus Kreis 4"
+      },
+      "loop_4_pump_status": {
+        "name": "Pumpenstatus Kreis 4"
+      },
+      "loop_4_thermostat_status": {
+        "name": "Thermostatstatus Kreis 4"
+      },
+      "loop_4_eco_offset": {
+        "name": "ECO-Offset Kreis 4"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Komfort-Offset Kreis 4"
+      },
+      "pool_setpoint": {
+        "name": "Pool-Sollwert"
+      },
+      "pool_current_setpoint": {
+        "name": "Aktueller Pool-Sollwert"
+      },
+      "pool_schedule_status": {
+        "name": "Pool Zeitplanstatus"
+      },
+      "pool_pump_status": {
+        "name": "Pool Pumpenstatus"
+      },
+      "pool_thermostat_status": {
+        "name": "Pool Thermostatstatus"
+      },
+      "pool_eco_offset": {
+        "name": "Pool ECO-Offset"
+      },
+      "pool_comfort_offset": {
+        "name": "Pool Komfort-Offset"
+      },
+      "operating_hours_cooling": {
+        "name": "Betriebsstunden Kühlung"
+      },
+      "operating_hours_heating": {
+        "name": "Betriebsstunden Heizung"
+      },
+      "operating_hours_dhw": {
+        "name": "Betriebsstunden Warmwasser"
+      },
+      "operating_hours_main_pump": {
+        "name": "Betriebsstunden Hauptpumpe"
+      },
+      "operating_hours_dhw_pump": {
+        "name": "Betriebsstunden Warmwasserpumpe"
+      },
+      "operating_hours_heater_1": {
+        "name": "Betriebsstunden Heizung 1"
+      },
+      "operating_hours_heater_2": {
+        "name": "Betriebsstunden Heizung 2"
+      },
+      "operating_hours_alternative_source": {
+        "name": "Betriebsstunden Alternativquelle"
+      },
+      "operating_hours_heat_source": {
+        "name": "Betriebsstunden Wärmequelle"
+      },
+      "operating_hours_passive": {
+        "name": "Betriebsstunden Passiv"
+      },
+      "return_temperature": {
+        "name": "Rücklauftemperatur"
+      },
+      "dhw_temperature": {
+        "name": "Warmwassertemperatur"
+      },
+      "outdoor_temperature": {
+        "name": "Außentemperatur"
+      },
+      "supply_temperature": {
+        "name": "Vorlauftemperatur"
+      },
+      "evaporation_temperature": {
+        "name": "Verdampfungstemperatur"
+      },
+      "compressor_temperature": {
+        "name": "Kompressortemperatur"
+      },
+      "loop_1_current_setpoint": {
+        "name": "Aktueller Sollwert Kreis 1"
+      },
+      "current_power_consumption": {
+        "name": "Aktueller Stromverbrauch"
+      },
+      "vacation_days": {
+        "name": "Urlaubstage"
+      },
+      "loop_1_room_setpoint": {
+        "name": "Raum-Sollwert Kreis 1"
+      },
+      "loop_1_room_current_setpoint": {
+        "name": "Aktueller Raum-Sollwert Kreis 1"
+      },
+      "thermal_disinfection_setpoint": {
+        "name": "Thermische Desinfektion Sollwert"
+      },
+      "thermal_disinfection_period": {
+        "name": "Thermische Desinfektion Periode (Tage)"
+      },
+      "thermal_disinfection_start_time": {
+        "name": "Thermische Desinfektion Startzeit (Minuten)"
+      },
+      "solar_reservoir_setpoint": {
+        "name": "Solar Pufferspeicher Sollwert"
+      },
+      "solar_boiler_setpoint": {
+        "name": "Solar Boiler Sollwert"
+      },
+      "system_pressure_setting": {
+        "name": "Systemdruckeinstellung"
+      },
+      "current_heating_cooling_power": {
+        "name": "Aktuelle Heiz-/Kühlleistung"
+      },
+      "electrical_energy_total": {
+        "name": "Elektrische Energie Wärmepumpe"
+      },
+      "thermal_energy_total": {
+        "name": "Wärmeenergie Wärmepumpe"
+      },
+      "cop": {
+        "name": "COP"
+      },
+      "scop": {
+        "name": "SCOP"
+      },
+      "zalogovnik_krivulja_pri_prvi_tocki_15": {
+        "name": "Pufferspeicher Heizkurve Punkt 1 (-15°C)"
+      },
+      "krog_1_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Heizkurve Kreis 1 Punkt 1"
+      },
+      "krog_2_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Heizkurve Kreis 2 Punkt 1"
+      },
+      "krog_3_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Heizkurve Kreis 3 Punkt 1"
+      },
+      "krog_4_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Heizkurve Kreis 4 Punkt 1"
+      },
+      "zalogovnik_krivulja_pri_drugi_tocki_15": {
+        "name": "Pufferspeicher Heizkurve Punkt 2 (+15°C)"
+      },
+      "krog_1_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Heizkurve Kreis 1 Punkt 2"
+      },
+      "krog_2_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Heizkurve Kreis 2 Punkt 2"
+      },
+      "krog_3_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Heizkurve Kreis 3 Punkt 2"
+      },
+      "krog_4_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Heizkurve Kreis 4 Punkt 2"
+      },
+      "groundwater_volume": {
+        "name": "Gepumptes Grundwasservolumen"
+      },
+      "loop_1_inlet_temp": {
+        "name": "Vorlauftemperatur Kreis 1"
+      },
+      "loop_1_temp": {
+        "name": "Temperatur Kreis 1"
+      },
+      "loop_2_inlet_temp": {
+        "name": "Vorlauftemperatur Kreis 2"
+      },
+      "loop_2_temp": {
+        "name": "Temperatur Kreis 2"
+      },
+      "loop_3_inlet_temp": {
+        "name": "Vorlauftemperatur Kreis 3"
+      },
+      "loop_3_temp": {
+        "name": "Temperatur Kreis 3"
+      },
+      "loop_4_inlet_temp": {
+        "name": "Vorlauftemperatur Kreis 4"
+      },
+      "loop_4_temp": {
+        "name": "Temperatur Kreis 4"
+      },
+      "operation_mode": {
+        "name": "Betriebsmodus",
+        "state": {
+          "cooling": "Cooling",
+          "heating": "Heating",
+          "heating_and_cooling_off": "Heating and Cooling Off"
+        }
+      },
+      "operation_program": {
+        "name": "Betriebsprogramm",
+        "state": {
+          "normal_operation": "Normal Operation",
+          "eco_mode": "ECO Mode",
+          "comfort_mode": "Comfort Mode",
+          "screed_drying_active": "Screed Drying Active"
+        }
+      },
+      "remote_control_status": {
+        "name": "Fernsteuerungsstatus"
+      },
+      "reserve_source": {
+        "name": "Reservequelle"
+      },
+      "system_operation": {
+        "name": "Systembetrieb"
       }
     },
     "switch": {
@@ -376,6 +732,18 @@
       },
       "main_temperature_offset": {
         "name": "Systemtemperatur-Versatz"
+      },
+      "hp_eco_offset": {
+        "name": "Wärmepumpe ECO-Offset"
+      },
+      "hp_comfort_offset": {
+        "name": "Wärmepumpe Komfort-Offset"
+      },
+      "pool_eco_offset": {
+        "name": "Pool ECO-Offset"
+      },
+      "pool_comfort_offset": {
+        "name": "Pool Komfort-Offset"
       }
     },
     "climate": {

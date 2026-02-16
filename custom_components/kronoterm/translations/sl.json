@@ -134,6 +134,27 @@
       },
       "thermostat_loop_4": {
         "name": "Termostat krog 4 aktiven"
+      },
+      "main_pump_status": {
+        "name": "Glavna obtočna črpalka"
+      },
+      "circulation_pump": {
+        "name": "Obtočna črpalka"
+      },
+      "dhw_circulation_pump": {
+        "name": "Obtočna črpalka sanitarne vode"
+      },
+      "defrost_status": {
+        "name": "Status odtaljevanja"
+      },
+      "reserve_source_status": {
+        "name": "Status rezervnega vira"
+      },
+      "alternative_source_status": {
+        "name": "Status alternativnega vira"
+      },
+      "alternative_source_pump": {
+        "name": "Črpalka alternativnega vira"
       }
     },
     "sensor": {
@@ -287,6 +308,341 @@
           "heating": "Ogrevanje",
           "heating_and_cooling_off": "Ogrevanje in hlajenje sta izključena"
         }
+      },
+      "alternative_source": {
+        "name": "Alternativni vir"
+      },
+      "error_status": {
+        "name": "Status napake",
+        "state": {
+          "no_error": "No Error",
+          "warning": "Warning",
+          "alarm": "Alarm",
+          "notice": "Notice"
+        }
+      },
+      "dhw_quick_heating": {
+        "name": "Hitro ogrevanje sanitarne vode"
+      },
+      "defrost_status": {
+        "name": "Status odtaljevanja"
+      },
+      "system_temperature_correction": {
+        "name": "Korekcija sistemske temperature"
+      },
+      "dhw_setpoint": {
+        "name": "Nastavljena vrednost sanitarne vode"
+      },
+      "dhw_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost sanitarne vode"
+      },
+      "dhw_schedule_status": {
+        "name": "Status urnika sanitarne vode"
+      },
+      "dhw_eco_offset": {
+        "name": "Odmik ECO sanitarne vode"
+      },
+      "dhw_comfort_offset": {
+        "name": "Odmik komfort sanitarne vode"
+      },
+      "reservoir_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost zalogovnika"
+      },
+      "reservoir_schedule_status": {
+        "name": "Status urnika zalogovnika"
+      },
+      "main_pump_status": {
+        "name": "Glavna obtočna črpalka"
+      },
+      "hp_eco_offset": {
+        "name": "Odmik ECO toplotne črpalke"
+      },
+      "hp_comfort_offset": {
+        "name": "Odmik komfort toplotne črpalke"
+      },
+      "loop_1_schedule_status": {
+        "name": "Status urnika kroga 1"
+      },
+      "loop_1_pump_status": {
+        "name": "Status črpalke kroga 1"
+      },
+      "loop_1_eco_offset": {
+        "name": "Odmik ECO kroga 1"
+      },
+      "loop_1_comfort_offset": {
+        "name": "Odmik komfort kroga 1"
+      },
+      "loop_2_setpoint": {
+        "name": "Nastavljena vrednost kroga 2"
+      },
+      "loop_2_room_current_setpoint": {
+        "name": "Trenutna sobna nastavljena vrednost kroga 2"
+      },
+      "loop_2_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost kroga 2"
+      },
+      "loop_2_schedule_status": {
+        "name": "Status urnika kroga 2"
+      },
+      "loop_2_pump_status": {
+        "name": "Status črpalke kroga 2"
+      },
+      "loop_2_thermostat_status": {
+        "name": "Status termostata kroga 2"
+      },
+      "loop_2_eco_offset": {
+        "name": "Odmik ECO kroga 2"
+      },
+      "loop_2_comfort_offset": {
+        "name": "Odmik komfort kroga 2"
+      },
+      "loop_3_setpoint": {
+        "name": "Nastavljena vrednost kroga 3"
+      },
+      "loop_3_room_current_setpoint": {
+        "name": "Trenutna sobna nastavljena vrednost kroga 3"
+      },
+      "loop_3_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost kroga 3"
+      },
+      "loop_3_schedule_status": {
+        "name": "Status urnika kroga 3"
+      },
+      "loop_3_pump_status": {
+        "name": "Status črpalke kroga 3"
+      },
+      "loop_3_thermostat_status": {
+        "name": "Status termostata kroga 3"
+      },
+      "loop_3_eco_offset": {
+        "name": "Odmik ECO kroga 3"
+      },
+      "loop_3_comfort_offset": {
+        "name": "Odmik komfort kroga 3"
+      },
+      "loop_4_setpoint": {
+        "name": "Nastavljena vrednost kroga 4"
+      },
+      "loop_4_room_current_setpoint": {
+        "name": "Trenutna sobna nastavljena vrednost kroga 4"
+      },
+      "loop_4_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost kroga 4"
+      },
+      "loop_4_schedule_status": {
+        "name": "Status urnika kroga 4"
+      },
+      "loop_4_pump_status": {
+        "name": "Status črpalke kroga 4"
+      },
+      "loop_4_thermostat_status": {
+        "name": "Status termostata kroga 4"
+      },
+      "loop_4_eco_offset": {
+        "name": "Odmik ECO kroga 4"
+      },
+      "loop_4_comfort_offset": {
+        "name": "Odmik komfort kroga 4"
+      },
+      "pool_setpoint": {
+        "name": "Nastavljena vrednost bazena"
+      },
+      "pool_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost bazena"
+      },
+      "pool_schedule_status": {
+        "name": "Status urnika bazena"
+      },
+      "pool_pump_status": {
+        "name": "Status črpalke bazena"
+      },
+      "pool_thermostat_status": {
+        "name": "Status termostata bazena"
+      },
+      "pool_eco_offset": {
+        "name": "Odmik ECO bazena"
+      },
+      "pool_comfort_offset": {
+        "name": "Odmik komfort bazena"
+      },
+      "operating_hours_cooling": {
+        "name": "Obratovalne ure hlajenje"
+      },
+      "operating_hours_heating": {
+        "name": "Obratovalne ure ogrevanje"
+      },
+      "operating_hours_dhw": {
+        "name": "Obratovalne ure sanitarna voda"
+      },
+      "operating_hours_main_pump": {
+        "name": "Obratovalne ure glavna črpalka"
+      },
+      "operating_hours_dhw_pump": {
+        "name": "Obratovalne ure črpalka sanitarne vode"
+      },
+      "operating_hours_heater_1": {
+        "name": "Obratovalne ure grelnik 1"
+      },
+      "operating_hours_heater_2": {
+        "name": "Obratovalne ure grelnik 2"
+      },
+      "operating_hours_alternative_source": {
+        "name": "Obratovalne ure alternativni vir"
+      },
+      "operating_hours_heat_source": {
+        "name": "Obratovalne ure toplotni vir"
+      },
+      "operating_hours_passive": {
+        "name": "Obratovalne ure pasivno"
+      },
+      "return_temperature": {
+        "name": "Temperatura povrata"
+      },
+      "dhw_temperature": {
+        "name": "Temperatura sanitarne vode"
+      },
+      "outdoor_temperature": {
+        "name": "Zunanja temperatura"
+      },
+      "supply_temperature": {
+        "name": "Temperatura dovoda"
+      },
+      "evaporation_temperature": {
+        "name": "Temperatura izhlapevanja"
+      },
+      "compressor_temperature": {
+        "name": "Temperatura kompresorja"
+      },
+      "loop_1_current_setpoint": {
+        "name": "Trenutna nastavljena vrednost kroga 1"
+      },
+      "current_power_consumption": {
+        "name": "Trenutna poraba energije"
+      },
+      "vacation_days": {
+        "name": "Dnevi počitnic"
+      },
+      "loop_1_room_setpoint": {
+        "name": "Nastavljena sobna temperatura kroga 1"
+      },
+      "loop_1_room_current_setpoint": {
+        "name": "Trenutna sobna nastavljena vrednost kroga 1"
+      },
+      "thermal_disinfection_setpoint": {
+        "name": "Nastavljena vrednost termične dezinfekcije"
+      },
+      "thermal_disinfection_period": {
+        "name": "Perioda termične dezinfekcije (dnevi)"
+      },
+      "thermal_disinfection_start_time": {
+        "name": "Čas začetka termične dezinfekcije (minute)"
+      },
+      "solar_reservoir_setpoint": {
+        "name": "Nastavljena vrednost solarnega zalogovnika"
+      },
+      "solar_boiler_setpoint": {
+        "name": "Nastavljena vrednost solarnega bojlerja"
+      },
+      "system_pressure_setting": {
+        "name": "Nastavitev sistemskega tlaka"
+      },
+      "current_heating_cooling_power": {
+        "name": "Trenutna moč ogrevanja/hlajenja"
+      },
+      "electrical_energy_total": {
+        "name": "Električna energija toplotne črpalke"
+      },
+      "thermal_energy_total": {
+        "name": "Toplotna energija toplotne črpalke"
+      },
+      "cop": {
+        "name": "COP"
+      },
+      "scop": {
+        "name": "SCOP"
+      },
+      "zalogovnik_krivulja_pri_prvi_tocki_15": {
+        "name": "Ogrevalna krivulja zalogovnika točka 1 (-15°C)"
+      },
+      "krog_1_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Ogrevalna krivulja kroga 1 točka 1"
+      },
+      "krog_2_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Ogrevalna krivulja kroga 2 točka 1"
+      },
+      "krog_3_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Ogrevalna krivulja kroga 3 točka 1"
+      },
+      "krog_4_krivulja_pri_prvi_tocki_15_ali_20": {
+        "name": "Ogrevalna krivulja kroga 4 točka 1"
+      },
+      "zalogovnik_krivulja_pri_drugi_tocki_15": {
+        "name": "Ogrevalna krivulja zalogovnika točka 2 (+15°C)"
+      },
+      "krog_1_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Ogrevalna krivulja kroga 1 točka 2"
+      },
+      "krog_2_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Ogrevalna krivulja kroga 2 točka 2"
+      },
+      "krog_3_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Ogrevalna krivulja kroga 3 točka 2"
+      },
+      "krog_4_krivulja_pri_drugi_tocki_15_ali_40": {
+        "name": "Ogrevalna krivulja kroga 4 točka 2"
+      },
+      "groundwater_volume": {
+        "name": "Količina črpane podzemne vode"
+      },
+      "loop_1_inlet_temp": {
+        "name": "Temperatura vstopa kroga 1"
+      },
+      "loop_1_temp": {
+        "name": "Temperatura kroga 1"
+      },
+      "loop_2_inlet_temp": {
+        "name": "Temperatura vstopa kroga 2"
+      },
+      "loop_2_temp": {
+        "name": "Temperatura kroga 2"
+      },
+      "loop_3_inlet_temp": {
+        "name": "Temperatura vstopa kroga 3"
+      },
+      "loop_3_temp": {
+        "name": "Temperatura kroga 3"
+      },
+      "loop_4_inlet_temp": {
+        "name": "Temperatura vstopa kroga 4"
+      },
+      "loop_4_temp": {
+        "name": "Temperatura kroga 4"
+      },
+      "operation_mode": {
+        "name": "Način delovanja",
+        "state": {
+          "cooling": "Cooling",
+          "heating": "Heating",
+          "heating_and_cooling_off": "Heating and Cooling Off"
+        }
+      },
+      "operation_program": {
+        "name": "Program delovanja",
+        "state": {
+          "normal_operation": "Normal Operation",
+          "eco_mode": "ECO Mode",
+          "comfort_mode": "Comfort Mode",
+          "screed_drying_active": "Screed Drying Active"
+        }
+      },
+      "remote_control_status": {
+        "name": "Status daljinskega upravljanja"
+      },
+      "reserve_source": {
+        "name": "Rezervni vir"
+      },
+      "system_operation": {
+        "name": "Delovanje sistema"
       }
     },
     "switch": {
@@ -376,6 +732,18 @@
       },
       "main_temperature_offset": {
         "name": "Odmik sistemske temperature"
+      },
+      "hp_eco_offset": {
+        "name": "Odmik ECO toplotne črpalke"
+      },
+      "hp_comfort_offset": {
+        "name": "Odmik komfort toplotne črpalke"
+      },
+      "pool_eco_offset": {
+        "name": "Odmik ECO bazena"
+      },
+      "pool_comfort_offset": {
+        "name": "Odmik komfort bazena"
       }
     },
     "climate": {
