@@ -97,7 +97,7 @@ async def async_setup_entry(
             "async_set_dhw_circulation"
         ))
         
-        _LOGGER.info("Created %d Modbus switches", len(entities))
+        _LOGGER.debug("Created %d Modbus switches", len(entities))
     else:
         # Cloud API switches read from ShortcutsData
         switch_configs = [

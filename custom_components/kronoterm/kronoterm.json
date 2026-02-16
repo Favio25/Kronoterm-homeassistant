@@ -1713,7 +1713,7 @@
       "access": "Read",
       "unit": "x 1 W",
       "source": "Page 8, 20",
-      "name_en": "current_heating_cooling_capacity"
+      "name_en": "current_heating_cooling_power"
     },
     {
       "address": 2130,
@@ -2187,7 +2187,7 @@
       "access": "Read",
       "unit": "x 1 W",
       "source": "Page 9, 20",
-      "name_en": "current_heating_cooling_power"
+      "name_en": "current_heating_cooling_capacity"
     },
     {
       "address": 2330,

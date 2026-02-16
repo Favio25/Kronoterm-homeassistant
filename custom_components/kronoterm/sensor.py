@@ -38,6 +38,17 @@ _LOGGER = logging.getLogger(__name__)
 
 class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
     """Numeric Modbus register sensor."""
+    
+    # Mapping of setpoint registers to their operation mode registers
+    # These sensors show 5000 (500°C) when their zone is OFF
+    SETPOINT_TO_OPERATION_MODE = {
+        2024: 2026,  # dhw_current_setpoint → dhw_operation_mode
+        2034: 2035,  # reservoir_current_setpoint → reservoir_operation_mode
+        2051: 2052,  # loop_2_room_current_setpoint → loop_2_operation_mode
+        2061: 2062,  # loop_3_room_current_setpoint → loop_3_operation_mode
+        2071: 2072,  # loop_4_room_current_setpoint → loop_4_operation_mode
+        2191: 2042,  # loop_1_room_current_setpoint → loop_1_operation_mode
+    }
 
     def __init__(
         self,
@@ -80,6 +91,41 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
 
     @property
     def native_value(self) -> Optional[float]:
+        """Return sensor value, checking operation mode for setpoint sensors.
+        
+        Setpoint sensors show 5000 (500°C after scaling) when their zone is OFF.
+        Uses dual-check approach:
+        1. Check operation_mode = 0 (proper OFF state)
+        2. Filter values >= 500.0 (catches installation-specific dependencies)
+        
+        Note: Value filter ONLY applies to setpoint sensors (temperatures).
+        Power/energy sensors can legitimately exceed 500.
+        """
+        # Check if this is a setpoint sensor that depends on operation mode
+        if self._address in self.SETPOINT_TO_OPERATION_MODE:
+            operation_mode_address = self.SETPOINT_TO_OPERATION_MODE[self._address]
+            
+            # Get operation mode value
+            modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", []) if self.coordinator.data else []
+            operation_mode = None
+            for reg in modbus_list:
+                if reg.get("address") == operation_mode_address:
+                    operation_mode = reg.get("value")
+                    break
+            
+            # Check 1: If zone is OFF (operation_mode = 0), return None
+            if operation_mode == 0:
+                return None
+            
+            # Check 2: Fallback filter for dependency-based OFF (ONLY for setpoint sensors)
+            # Example: Reservoir shows 500 when Loop 1 is OFF (installation-specific)
+            value = self._compute_value()
+            if value is not None and value >= 500.0:
+                return None
+            
+            return value
+        
+        # Normal processing for non-setpoint sensors (no value filter!)
         return self._compute_value()
 
 

@@ -35,17 +35,19 @@ class RegisterDefinition:
 class RegisterMap:
     """Register map loader and accessor."""
 
-    def __init__(self, json_path: Path):
-        """Load register map from JSON file."""
+    def __init__(self, data: dict):
+        """Initialize register map from loaded JSON data.
+        
+        Args:
+            data: Already-loaded JSON data dict
+        """
         self._registers: Dict[int, RegisterDefinition] = {}
         self._meta_info: Dict[str, Any] = {}
-        self._load_json(json_path)
+        self._load_from_dict(data)
 
-    def _load_json(self, json_path: Path) -> None:
-        """Load and parse the JSON file."""
+    def _load_from_dict(self, data: dict) -> None:
+        """Parse the JSON data."""
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
             
             self._meta_info = data.get("meta_info", {})
             _LOGGER.info(
@@ -96,7 +98,7 @@ class RegisterMap:
             _LOGGER.info("Loaded %d register definitions", len(self._registers))
             
         except Exception as e:
-            _LOGGER.error("Failed to load register map from %s: %s", json_path, e)
+            _LOGGER.error("Failed to parse register map data: %s", e)
             raise
 
     def _parse_unit(self, unit_str: Optional[str]) -> tuple[Optional[str], float]:

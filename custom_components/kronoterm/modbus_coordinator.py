@@ -7,6 +7,7 @@ Alternative to cloud API for local control.
 
 import logging
 import asyncio
+import json
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -53,14 +54,9 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.client: Optional[AsyncModbusTcpClient] = None
         self._connected = False
 
-        # Load register map from JSON
+        # Register map will be loaded async in async_connect()
         self.register_map: Optional[RegisterMap] = None
-        try:
-            json_path = Path(__file__).parent / "kronoterm.json"
-            self.register_map = RegisterMap(json_path)
-            _LOGGER.warning("✅ Loaded register map with %d registers from JSON", len(self.register_map.get_all()))
-        except Exception as e:
-            _LOGGER.warning("❌ Could not load register map: %s. Falling back to hardcoded registers.", e)
+        self._json_path = Path(__file__).parent / "kronoterm.json"
 
         # Shared device info
         self.shared_device_info: Dict[str, Any] = {}
@@ -101,6 +97,21 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
 
     async def async_initialize(self) -> None:
         """Initialize Modbus connection and fetch device info."""
+        # Load register map from JSON file asynchronously
+        if not self.register_map:
+            try:
+                # Read JSON file in executor to avoid blocking event loop
+                def _read_json():
+                    with open(self._json_path, "r", encoding="utf-8") as f:
+                        return json.load(f)
+                
+                data = await self.hass.async_add_executor_job(_read_json)
+                self.register_map = RegisterMap(data)
+                _LOGGER.debug("Loaded register map with %d registers from JSON", len(self.register_map.get_all()))
+            except Exception as e:
+                _LOGGER.error("Could not load register map: %s", e)
+                raise UpdateFailed(f"Failed to load register map: {e}")
+        
         _LOGGER.info("Initializing Modbus connection to %s:%s (unit_id=%s)", 
                      self.host, self.port, self.unit_id)
         

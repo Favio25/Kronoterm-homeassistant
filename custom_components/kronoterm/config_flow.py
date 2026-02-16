@@ -24,6 +24,11 @@ from .config_flow_modbus import (
     get_modbus_schema,
 )
 
+from .entity_cleanup import (
+    disable_mode_specific_entities,
+    enable_mode_specific_entities,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 SENSITIVE_KEYS = [CONF_USERNAME, CONF_PASSWORD]
@@ -220,6 +225,19 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data=user_input,
                     title="Kronoterm Heat Pump (Cloud)"
                 )
+                
+                # Disable Modbus-only entities, re-enable Cloud entities
+                await disable_mode_specific_entities(
+                    self.hass, 
+                    self.reconfig_entry.entry_id, 
+                    "cloud"
+                )
+                await enable_mode_specific_entities(
+                    self.hass,
+                    self.reconfig_entry.entry_id,
+                    "cloud"
+                )
+                
                 # Reload the entry to apply changes
                 await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
                 return self.async_abort(reason="reconfigure_successful")
@@ -260,6 +278,19 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data=user_input,
                     title="Kronoterm Heat Pump (Modbus)"
                 )
+                
+                # Disable Cloud-only entities, re-enable Modbus entities
+                await disable_mode_specific_entities(
+                    self.hass,
+                    self.reconfig_entry.entry_id,
+                    "modbus"
+                )
+                await enable_mode_specific_entities(
+                    self.hass,
+                    self.reconfig_entry.entry_id,
+                    "modbus"
+                )
+                
                 # Reload the entry to apply changes
                 await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
                 return self.async_abort(reason="reconfigure_successful")

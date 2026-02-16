@@ -84,25 +84,20 @@ async def async_setup_entry(
 
         if coordinator.loop1_installed:
             entities.append(KronotermLoop1Climate(entry, coordinator))
-            _LOGGER.info("Loop 1 installed, adding climate entity.")
 
         if coordinator.loop2_installed:
             entities.append(KronotermLoop2Climate(entry, coordinator))
-            _LOGGER.info("Loop 2 installed, adding climate entity.")
 
         if coordinator.loop3_installed:
             entities.append(KronotermLoop3Climate(entry, coordinator))
-            _LOGGER.info("Loop 3 installed, adding climate entity.")
 
         if coordinator.loop4_installed:
             entities.append(KronotermLoop4Climate(entry, coordinator))
-            _LOGGER.info("Loop 4 installed, adding climate entity.")
 
         if coordinator.reservoir_installed:
             entities.append(KronotermReservoirClimate(entry, coordinator))
-            _LOGGER.info("Reservoir installed, adding climate entity.")
 
-    _LOGGER.info("Created %d climate entities (%s mode)", 
+    _LOGGER.debug("Created %d climate entities (%s mode)", 
                    len(entities), "Modbus" if is_modbus else "Cloud API")
     async_add_entities(entities)
     return True
@@ -455,6 +450,7 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         thermostat_temp_address: int | None,
         target_temp_address: int,
         write_temp_address: int,
+        operation_mode_address: int,
         supports_cooling: bool = False
     ) -> None:
         """Initialize the Modbus climate entity."""
@@ -467,13 +463,12 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
 
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
+        # All zones support OFF mode via operation_mode register
         self._supports_cooling = supports_cooling
         if supports_cooling:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
-            self._attr_hvac_mode = HVACMode.HEAT
         else:
-            self._attr_hvac_modes = [HVACMode.HEAT]
-            self._attr_hvac_mode = HVACMode.HEAT
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 
         self._attr_min_temp = min_temp
         self._attr_max_temp = max_temp
@@ -487,6 +482,10 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         self._thermostat_temp_address = thermostat_temp_address
         self._target_temp_address = target_temp_address
         self._write_temp_address = write_temp_address
+        self._operation_mode_address = operation_mode_address
+        
+        # Remember last HEAT mode (1=Normal, 2=Schedule) to restore when turning back ON
+        self._last_heat_mode = 1  # Default to Normal mode
 
     @property
     def temperature_unit(self) -> str:
@@ -495,8 +494,34 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return the current HVAC operation mode."""
-        return self._attr_hvac_mode
+        """Return the current HVAC operation mode based on operation_mode register.
+        
+        Also checks target temperature for dependency-based OFF states.
+        
+        Operation mode values:
+        0 = Izklop (OFF)
+        1 = Normalni režim (Normal/HEAT)
+        2 = Delovanje po urniku (Schedule/HEAT)
+        """
+        operation_mode = self._get_register_value(self._operation_mode_address)
+        
+        if operation_mode is None:
+            return HVACMode.OFF
+        
+        # Check 1: Proper OFF state
+        if operation_mode == 0:
+            return HVACMode.OFF
+        
+        # Check 2: Dependency-based OFF (target temp shows 500)
+        # This catches cases like: Reservoir functionally OFF when Loop 1 is OFF
+        target_temp = self._get_register_value(self._target_temp_address)
+        if target_temp is not None and target_temp >= 500.0:
+            return HVACMode.OFF
+        
+        # Zone is ON
+        # Remember the last non-OFF mode to restore it later
+        self._last_heat_mode = operation_mode
+        return HVACMode.HEAT
 
     def _get_register_value(self, address: int) -> float | None:
         """Helper to get register value from coordinator data."""
@@ -529,12 +554,30 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        """Return the target temperature."""
+        """Return the target temperature.
+        
+        Returns None (unavailable) when:
+        - Zone is OFF (operation_mode = 0)
+        - Value is 500+ (OFF value from installation-specific dependencies)
+        - Value is -60.0 (sensor error)
+        """
+        # Check if zone is OFF (proper state)
+        operation_mode = self._get_register_value(self._operation_mode_address)
+        if operation_mode == 0:
+            return None
+        
+        # Get target temperature
         temp = self._get_register_value(self._target_temp_address)
-        if temp is not None and temp != -60.0:
-            return temp
-
-        return None
+        
+        # Filter invalid values
+        if temp is None:
+            return None
+        if temp == -60.0:  # Sensor error
+            return None
+        if temp >= 500.0:  # OFF value (5000 raw) from dependencies
+            return None
+        
+        return temp
 
     async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
@@ -567,6 +610,48 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         else:
             _LOGGER.error("%s: Failed to update temperature", self.name)
 
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set new HVAC mode (OFF or HEAT) by writing to operation_mode register.
+        
+        When turning back to HEAT, restores the previous mode (Normal or Schedule).
+        
+        Operation mode values:
+        0 = Izklop (OFF)
+        1 = Normalni režim (Normal/HEAT)
+        2 = Delovanje po urniku (Schedule/HEAT)
+        """
+        if hvac_mode not in self._attr_hvac_modes:
+            _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
+            return
+
+        # Map HVAC mode to operation mode value
+        if hvac_mode == HVACMode.OFF:
+            operation_mode_value = 0
+        elif hvac_mode == HVACMode.HEAT:
+            # Restore previous mode (Normal=1 or Schedule=2)
+            operation_mode_value = self._last_heat_mode
+            _LOGGER.debug("%s: Restoring previous HEAT mode: %d", self.name, operation_mode_value)
+        elif hvac_mode == HVACMode.COOL:
+            operation_mode_value = 1  # For future cooling support
+        else:
+            _LOGGER.error("%s: Unknown HVAC mode: %s", self.name, hvac_mode)
+            return
+
+        _LOGGER.info("%s: Setting HVAC mode to %s (writing %d to address %d)",
+                     self.name, hvac_mode, operation_mode_value, self._operation_mode_address)
+
+        success = await self.coordinator.async_write_register(
+            self._operation_mode_address, operation_mode_value
+        )
+        
+        if success:
+            _LOGGER.info("%s: Successfully updated HVAC mode to %s",
+                         self.name, hvac_mode)
+            # Request immediate refresh
+            await self.coordinator.async_request_refresh()
+        else:
+            _LOGGER.error("%s: Failed to update HVAC mode", self.name)
+
 
 class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
     """Modbus-based climate entity for domestic hot water (DHW)."""
@@ -584,6 +669,7 @@ class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
             thermostat_temp_address=None,  # DHW has no thermostat
             target_temp_address=2024,  # dhw_current_setpoint
             write_temp_address=2023,  # dhw_setpoint
+            operation_mode_address=2026,  # dhw_operation_mode
         )
 
 
@@ -603,6 +689,7 @@ class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
             thermostat_temp_address=2160,  # loop_1_thermostat_temperature
             target_temp_address=2191,  # loop_1_room_current_setpoint
             write_temp_address=2187,  # loop_1_room_setpoint
+            operation_mode_address=2042,  # loop_1_operation_mode
         )
 
 
@@ -622,6 +709,7 @@ class KronotermModbusLoop2Climate(KronotermModbusBaseClimate):
             thermostat_temp_address=2161,  # loop_2_thermostat_temperature
             target_temp_address=2051,  # loop_2_room_current_setpoint
             write_temp_address=2049,  # loop_2_setpoint
+            operation_mode_address=2052,  # loop_2_operation_mode
         )
 
 
@@ -641,6 +729,7 @@ class KronotermModbusLoop3Climate(KronotermModbusBaseClimate):
             thermostat_temp_address=2162,  # loop_3_thermostat_temperature
             target_temp_address=2061,  # loop_3_room_current_setpoint
             write_temp_address=2059,  # loop_3_setpoint
+            operation_mode_address=2062,  # loop_3_operation_mode
         )
 
 
@@ -660,6 +749,7 @@ class KronotermModbusLoop4Climate(KronotermModbusBaseClimate):
             thermostat_temp_address=2163,  # loop_4_thermostat_temperature
             target_temp_address=2071,  # loop_4_room_current_setpoint
             write_temp_address=2069,  # loop_4_setpoint
+            operation_mode_address=2072,  # loop_4_operation_mode
         )
 
 
@@ -679,4 +769,5 @@ class KronotermModbusReservoirClimate(KronotermModbusBaseClimate):
             thermostat_temp_address=None,  # No thermostat for reservoir
             target_temp_address=2034,  # reservoir_current_setpoint
             write_temp_address=2305,  # solar_reservoir_setpoint
+            operation_mode_address=2035,  # reservoir_operation_mode
         )
