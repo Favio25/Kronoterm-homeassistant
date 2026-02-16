@@ -29,13 +29,20 @@ BINARY_SENSOR_DEFINITIONS: List[BinarySensorConfig] = [
     BinarySensorConfig(2055, "circulation_loop_2", icon="mdi:pump", install_flag="loop2_installed"),
     BinarySensorConfig(2065, "circulation_loop_3", icon="mdi:pump", install_flag="loop3_installed"),
     BinarySensorConfig(2075, "circulation_loop_4", icon="mdi:pump", install_flag="loop4_installed"),
-    BinarySensorConfig(2028, "circulation_dhw", bit=0, icon="mdi:pump", install_flag="tap_water_installed"), # Assuming 'tap_water_installed' flag exists
+    # Register 2028 bitmask - two separate sensors (MA_2028 in manual)
+    BinarySensorConfig(2028, "circulation_pump", bit=0, icon="mdi:pump"),  # Bit 0: Status cirkulacijske črpalke
+    BinarySensorConfig(2028, "dhw_circulation_pump", bit=1, icon="mdi:pump"),  # Bit 1: Status obtočne črpalke za sanitarno vodo
 
     # System status
     BinarySensorConfig(2011, "defrost_status", icon="mdi:snowflake-melt"),
     
+    # Heat sources (on/off status sensors - separate from control switches)
+    BinarySensorConfig(2003, "reserve_source_status", icon="mdi:heating-coil"),  # Internal electric heater
+    BinarySensorConfig(2004, "alternative_source_status", icon="mdi:solar-power"),  # Renewable/manual (solar, wood)
+    BinarySensorConfig(2088, "alternative_source_pump", icon="mdi:pump"),  # Alternative source circulation pump
+    
     # Other flags
-    BinarySensorConfig(2002, "additional_source", bit=0, icon="mdi:fire"), # No install flag needed for this one
+    BinarySensorConfig(2002, "additional_source", bit=0, icon="mdi:gas-burner"),  # External backup boiler
     
     # Example: Add thermostat flags if needed
     # BinarySensorConfig(LOOP1_THERMOSTAT_FLAG_ADDR, "thermostat_loop_1", icon="mdi:thermostat", install_flag="loop1_installed"),

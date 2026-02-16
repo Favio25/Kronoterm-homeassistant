@@ -95,9 +95,7 @@ def get_modbus_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
         vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, 502)): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=65535)
         ),
-        vol.Optional("unit_id", default=defaults.get("unit_id", 20)): vol.All(
-            vol.Coerce(int), vol.Range(min=1, max=247)
-        ),
+        vol.Optional("unit_id", default=defaults.get("unit_id", 20)): vol.Coerce(int),
     })
 
 

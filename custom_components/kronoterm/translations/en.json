@@ -120,11 +120,26 @@
       "circulation_loop_4": {
         "name": "Circulation Loop 4"
       },
+      "circulation_pump": {
+        "name": "Circulation Pump"
+      },
+      "dhw_circulation_pump": {
+        "name": "DHW Circulation Pump"
+      },
       "circulation_dhw": {
         "name": "Circulation DHW"
       },
       "defrost_status": {
         "name": "Defrost Status"
+      },
+      "reserve_source_status": {
+        "name": "Reserve Source Status"
+      },
+      "alternative_source_status": {
+        "name": "Alternative Source Status"
+      },
+      "alternative_source_pump": {
+        "name": "Alternative Source Pump"
       },
       "additional_source": {
         "name": "Additional Source"
@@ -233,13 +248,25 @@
       "loop_1_temperature": {
         "name": "Loop 1 Temperature"
       },
+      "loop_1_temp": {
+        "name": "Loop 1 Temperature"
+      },
       "loop_2_temperature": {
+        "name": "Loop 2 Temperature"
+      },
+      "loop_2_temp": {
         "name": "Loop 2 Temperature"
       },
       "loop_3_temperature": {
         "name": "Loop 3 Temperature"
       },
+      "loop_3_temp": {
+        "name": "Loop 3 Temperature"
+      },
       "loop_4_temperature": {
+        "name": "Loop 4 Temperature"
+      },
+      "loop_4_temp": {
         "name": "Loop 4 Temperature"
       },
       "loop_1_thermostat_temperature": {
@@ -257,13 +284,25 @@
       "loop_1_inlet_temperature": {
         "name": "Loop 1 Inlet Temperature"
       },
+      "loop_1_inlet_temp": {
+        "name": "Loop 1 Inlet Temperature"
+      },
       "loop_2_inlet_temperature": {
+        "name": "Loop 2 Inlet Temperature"
+      },
+      "loop_2_inlet_temp": {
         "name": "Loop 2 Inlet Temperature"
       },
       "loop_3_inlet_temperature": {
         "name": "Loop 3 Inlet Temperature"
       },
+      "loop_3_inlet_temp": {
+        "name": "Loop 3 Inlet Temperature"
+      },
       "loop_4_inlet_temperature": {
+        "name": "Loop 4 Inlet Temperature"
+      },
+      "loop_4_inlet_temp": {
         "name": "Loop 4 Inlet Temperature"
       },
       "working_function": {
@@ -475,9 +514,6 @@
       },
       "pool_comfort_offset": {
         "name": "Pool Comfort Offset"
-      },
-      "alternative_source_pump": {
-        "name": "Alternative Source Pump"
       },
       "operating_hours_cooling": {
         "name": "Operating Hours Cooling"

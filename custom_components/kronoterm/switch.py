@@ -85,13 +85,17 @@ async def async_setup_entry(
             "async_set_reserve_source"
         ))
         
-        # Anti-Legionella - register 2301 (NEW - was missing!)
+        # Anti-Legionella - register 2301
         entities.append(KronotermModbusSwitch(
             entry, coordinator, 2301, "antilegionella_switch",
             "async_set_antilegionella"
         ))
         
-        # Note: DHW circulation (2328) may not be writable - skipping for now
+        # DHW Circulation - register 2328
+        entities.append(KronotermModbusSwitch(
+            entry, coordinator, 2328, "dhw_circulation_switch",
+            "async_set_dhw_circulation"
+        ))
         
         _LOGGER.info("Created %d Modbus switches", len(entities))
     else:
@@ -271,7 +275,8 @@ class KronotermModbusSwitch(SwitchEntity):
         self._address = address
         self._set_method_name = set_method_name
         
-        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_modbus_{address}"
+        # Use translation_key-based unique_id to match Cloud API format (prevents duplicates on reconfigure)
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{translation_key}"
         self._attr_translation_key = translation_key
         self._attr_device_info = coordinator.shared_device_info
         self._attr_has_entity_name = True

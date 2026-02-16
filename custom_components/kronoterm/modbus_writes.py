@@ -207,18 +207,21 @@ class ModbusWriteMixin:
     async def async_set_dhw_circulation(self, enable: bool) -> bool:
         """Enable/disable DHW circulation pump.
         
-        Note: Register 2328 might not exist or be writable.
-        DHW pumps are controlled via bitfield at 2028.
-        
         Args:
             enable: True to enable, False to disable
             
         Returns:
-            False (not implemented)
+            True if successful, False otherwise
         """
-        _LOGGER.warning("DHW circulation switch may not be directly writable via Modbus")
-        _LOGGER.warning("Check register 2028 (DHW bitfield) for pump control")
-        return False
+        value = 1 if enable else 0
+        _LOGGER.info("Setting DHW circulation to %s (value: %d)", "ON" if enable else "OFF", value)
+        
+        # Use register 2328 (dhw_circulation_pump)
+        reg = self.register_map.get_by_name("dhw_circulation_pump") or self.register_map.get(2328)
+        if not reg:
+            _LOGGER.error("Register 2328 (dhw_circulation_pump) not found in register map")
+            return False
+        return await self.write_register_by_address(reg.address, value)
 
     async def async_set_fast_water_heating(self, enable: bool) -> bool:
         """Enable/disable fast DHW heating.

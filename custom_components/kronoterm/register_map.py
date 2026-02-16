@@ -441,11 +441,11 @@ class RegisterMap:
         return list(self._registers.values())
 
     def get_sensors(self) -> List[RegisterDefinition]:
-        """Get all readable registers suitable for sensors."""
+        """Get all readable registers suitable for sensors (includes Bitmask for binary sensors)."""
         return [
             reg for reg in self._registers.values()
             if "Read" in reg.access 
-            and reg.type in ("Value", "Value32", "Status", "Enum")
+            and reg.type in ("Value", "Value32", "Status", "Enum", "Bitmask")
             and not reg.disabled
         ]
 

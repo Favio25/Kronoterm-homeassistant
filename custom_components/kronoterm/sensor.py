@@ -53,8 +53,8 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         self._scale = scale
         self._unit = unit
         self._icon = icon
-        # Include config entry ID to prevent conflicts with Cloud API integration
-        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_modbus_{address}"
+        # Use name-based unique_id to match Cloud API format (prevents duplicates on reconfigure)
+        self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_{name}"
 
     @property
     def unique_id(self) -> str:
@@ -408,10 +408,33 @@ async def _async_setup_modbus_entities(
     # Get all readable registers suitable for sensors
     sensors_to_create = register_map.get_sensors()
     
+    # Skip registers that are handled by binary_sensor.py (Status registers with 0/1 values + Bitmasks)
+    BINARY_SENSOR_ADDRESSES = {
+        2002,  # additional_activations (bitmask)
+        2003,  # reserve_source_status
+        2004,  # alternative_source_status
+        2011,  # defrost_status
+        2028,  # circulation_pump_status (bitmask)
+        2038,  # main_pump_status
+        2045,  # circulation_loop_1
+        2055,  # circulation_loop_2
+        2065,  # circulation_loop_3
+        2075,  # circulation_loop_4
+        2088,  # alternative_source_pump
+    }
+    
     _LOGGER.info("Found %d sensor registers in map", len(sensors_to_create))
     
     for reg_def in sensors_to_create:
         try:
+            # Skip Bitmask registers (handled by binary_sensor.py)
+            if reg_def.type == "Bitmask":
+                continue
+            
+            # Skip registers that are binary sensors
+            if reg_def.address in BINARY_SENSOR_ADDRESSES:
+                continue
+            
             # Skip registers based on features not installed
             if not _should_create_sensor(coordinator, reg_def):
                 continue
@@ -484,8 +507,8 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
     if reg_def.address == 2000:  # system_operation - use switch instead
         return False
     
-    # Register 2003 (reserve_source) is redundant - switch at 2018 shows state
-    if reg_def.address == 2003:  # reserve_source - use switch instead
+    # Skip registers that should be binary sensors instead of enum sensors
+    if reg_def.address in (2003, 2004, 2011):  # reserve_source, alternative_source, defrost_status
         return False
     
     # Skip offset registers - they're handled by number entities only
@@ -500,8 +523,8 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
     if "pool" in name_lower and not getattr(coordinator, "pool_installed", False):
         return False
     
-    # Skip alternative source if not installed  
-    if "alternative_source" in name_lower and not getattr(coordinator, "alt_source_installed", False):
+    # Skip alternative_source_temperature if not installed (but keep alternative_source status sensor)
+    if "alternative_source_temperature" in name_lower and not getattr(coordinator, "alt_source_installed", False):
         return False
     
     # Skip loop sensors based on installation

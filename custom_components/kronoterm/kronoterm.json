@@ -144,7 +144,7 @@
         "3": "Obvestilo"
       },
       "source": "Page 6, 10",
-      "name_en": "error_status"
+      "name_en": "error_warning"
     },
     {
       "address": 2007,
@@ -158,7 +158,7 @@
         "2": "Ogrevanje in hlajenje off"
       },
       "source": "Page 6, 11",
-      "name_en": "operation_mode"
+      "name_en": "operation_regime"
     },
     {
       "address": 2008,
@@ -202,8 +202,7 @@
         "1": "Izvaja se odtaljevanje"
       },
       "source": "Page 6, 11",
-      "name_en": "defrost_status",
-      "disabled": true
+      "name_en": "defrost_status"
     },
     {
       "address": 2012,
@@ -967,7 +966,7 @@
       "access": "Read",
       "unit": "ure",
       "source": "Page 7, 19",
-      "name_en": "operating_hours_heating"
+      "name_en": "operating_hours_compressor_heating"
     },
     {
       "address": 2091,
@@ -976,7 +975,7 @@
       "access": "Read",
       "unit": "ure",
       "source": "Page 7, 19",
-      "name_en": "operating_hours_dhw"
+      "name_en": "operating_hours_compressor_dhw"
     },
     {
       "address": 2093,
@@ -1003,7 +1002,7 @@
       "access": "Read",
       "unit": "ure",
       "source": "Page 7, 19",
-      "name_en": "operating_hours_heater_1"
+      "name_en": "operating_hours_additional_source_1"
     },
     {
       "address": 2096,
@@ -1048,7 +1047,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "return_temperature"
+      "name_en": "hp_inlet_temperature"
     },
     {
       "address": 2102,
@@ -1066,7 +1065,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "outdoor_temperature"
+      "name_en": "temperature_outside"
     },
     {
       "address": 2104,
@@ -1075,7 +1074,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "supply_temperature"
+      "name_en": "hp_outlet_temperature"
     },
     {
       "address": 2105,
@@ -1084,7 +1083,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "evaporation_temperature"
+      "name_en": "temperature_compressor_inlet"
     },
     {
       "address": 2106,
@@ -1093,7 +1092,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "compressor_temperature"
+      "name_en": "temperature_compressor_outlet"
     },
     {
       "address": 2107,
@@ -1120,7 +1119,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "loop_2_temperature"
+      "name_en": "loop_2_temp"
     },
     {
       "address": 2111,
@@ -1129,7 +1128,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "loop_3_temperature"
+      "name_en": "loop_3_temp"
     },
     {
       "address": 2112,
@@ -1138,7 +1137,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 7, 19",
-      "name_en": "loop_4_temperature"
+      "name_en": "loop_4_temp"
     },
     {
       "address": 2113,
@@ -1705,7 +1704,7 @@
       "access": "Read/Write",
       "unit": "x 0.1°C",
       "source": "Page 8, 14",
-      "name_en": "loop_1_current_setpoint"
+      "name_en": "loop_1_inlet_temp"
     },
     {
       "address": 2129,
@@ -1714,7 +1713,7 @@
       "access": "Read",
       "unit": "x 1 W",
       "source": "Page 8, 20",
-      "name_en": "current_power_consumption"
+      "name_en": "current_heating_cooling_capacity"
     },
     {
       "address": 2130,
@@ -1723,7 +1722,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 8, 19",
-      "name_en": "loop_1_temperature"
+      "name_en": "loop_1_temp"
     },
     {
       "address": 2139,
@@ -1814,7 +1813,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 8, 15",
-      "name_en": "loop_2_current_setpoint"
+      "name_en": "loop_2_inlet_temp"
     },
     {
       "address": 2189,
@@ -1823,7 +1822,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 8, 16",
-      "name_en": "loop_3_current_setpoint"
+      "name_en": "loop_3_inlet_temp"
     },
     {
       "address": 2190,
@@ -1832,7 +1831,7 @@
       "access": "Read",
       "unit": "x 0.1°C",
       "source": "Page 8, 17",
-      "name_en": "loop_4_current_setpoint"
+      "name_en": "loop_4_inlet_temp"
     },
     {
       "address": 2191,
@@ -2148,7 +2147,7 @@
       "access": "Read/Write",
       "unit": "x 0.1 bar",
       "source": "Page 9, 12",
-      "name_en": "system_pressure_setting"
+      "name_en": "heating_system_pressure"
     },
     {
       "address": 2326,
@@ -2167,6 +2166,19 @@
       "unit": "%",
       "source": "Page 9, 12",
       "name_en": "hp_load"
+    },
+    {
+      "address": 2328,
+      "name": "Cirkulacijska črpalka sanitarne vode",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 9, 12",
+      "name_en": "dhw_circulation_pump"
     },
     {
       "address": 2329,
@@ -2820,7 +2832,7 @@
       "unit": "x 1 kWh",
       "note": "32 bit combined",
       "source": "Page 9, 20",
-      "name_en": "electrical_energy_total",
+      "name_en": "electrical_energy_heating_dhw",
       "register32_high": 2361,
       "register32_low": 2362
     },
@@ -2832,7 +2844,7 @@
       "unit": "x 1 kWh",
       "note": "32 bit combined",
       "source": "Page 9, 20",
-      "name_en": "thermal_energy_total",
+      "name_en": "heating_energy_heating_dhw",
       "register32_high": 2363,
       "register32_low": 2364
     },
@@ -2843,7 +2855,7 @@
       "access": "Read",
       "unit": "x 0.01",
       "source": "Page 9, 20",
-      "name_en": "cop",
+      "name_en": "cop_value",
       "scale": 0.01
     },
     {
@@ -2853,7 +2865,7 @@
       "access": "Read",
       "unit": "x 0.01",
       "source": "Page 9, 20",
-      "name_en": "scop",
+      "name_en": "scop_value",
       "scale": 0.01
     }
   ]
