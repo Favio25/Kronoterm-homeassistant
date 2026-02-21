@@ -213,13 +213,17 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
         payloads = []
         for date_str in date_candidates[:3]:
-            payloads.append([( "d1", date_str), ("d2", date_str)])
+            payloads.append([("d1", date_str), ("d2", date_str)])
         payloads.append([("d1", str(start_ts)), ("d2", str(end_ts))])
         payloads.append([("d1", str(start_ts * 1000)), ("d2", str(end_ts * 1000))])
+        payloads.append([("d1", "0"), ("d2", "0")])
+        payloads.append([("d1", "-7"), ("d2", "0")])
+        payloads.append([("d1", "-30"), ("d2", "0")])
         payloads.append([("d2", "0")])
 
-        for extra in payloads:
+        for idx, extra in enumerate(payloads, start=1):
             form = CONSUMPTION_FORM_BASE + extra
+            _LOGGER.warning("Consumption attempt %d with params: %s", idx, extra)
             try:
                 resp = await self._request_with_retries(
                     "POST",
