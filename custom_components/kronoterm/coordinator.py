@@ -284,6 +284,17 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 data["main_settings"] = loop_results[6]
                 data["system_data"] = loop_results[7]
                 data["consumption"] = loop_results[8]
+                try:
+                    consumption = loop_results[8] or {}
+                    trend = consumption.get("trend_consumption", {})
+                    _LOGGER.info(
+                        "Consumption fetched: keys=%s trend_keys=%s sample=%s",
+                        list(consumption.keys()),
+                        list(trend.keys()) if isinstance(trend, dict) else None,
+                        {k: (trend.get(k) or [])[-1] if isinstance(trend.get(k), list) and trend.get(k) else None for k in ("CompHeating","CompTapWater","CPLoops","CPAddSource")},
+                    )
+                except Exception as log_err:
+                    _LOGGER.warning("Failed to log consumption data: %s", log_err)
             except Exception as e:
                 _LOGGER.error("Error fetching loops: %s", e)
             
