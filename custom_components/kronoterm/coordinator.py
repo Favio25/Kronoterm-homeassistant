@@ -313,6 +313,9 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_temperature(self, page: int, new_temp: float) -> bool:
         return await self._async_set_page_parameter(page, API_PARAM_KEYS["TEMP"], str(round(new_temp, 1)))
 
+    async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
+        return await self._async_set_page_parameter(page, API_PARAM_KEYS["MODE"], str(new_mode))
+
 
 class KronotermDHWCoordinator(KronotermBaseCoordinator):
     """Coordinator for DHW Heat Pumps (Water Cloud)."""
