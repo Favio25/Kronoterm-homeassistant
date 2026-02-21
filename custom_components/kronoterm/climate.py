@@ -249,6 +249,49 @@ class KronotermJsonClimate(KronotermBaseClimate):
         self._current_temp_json_key = current_temp_json_key
         self._target_temp_json_key = target_temp_json_key
 
+
+class KronotermLoopJsonClimate(KronotermJsonClimate):
+    """Loop climate with preset modes mapped from loop mode register."""
+
+    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: DataUpdateCoordinator,
+        operation_mode_address: int,
+        **kwargs: Any
+    ) -> None:
+        super().__init__(entry=entry, coordinator=coordinator, **kwargs)
+        self._operation_mode_address = operation_mode_address
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+
+    def _get_mode_from_modbus(self) -> Optional[int]:
+        modbus_list = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == self._operation_mode_address:
+                try:
+                    return int(float(reg.get("value")))
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    @property
+    def preset_mode(self) -> str | None:
+        val = self._get_mode_from_modbus()
+        if val is None:
+            return None
+        return self.PRESET_MAP.get(val)
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown loop preset_mode: %s", preset_mode)
+            return
+        await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+
     @property
     def _json_data(self) -> dict | None:
         """Helper to get the specific data blob for this entity."""
@@ -390,7 +433,7 @@ class KronotermDHWClimate(KronotermJsonClimate):
 #
 #   Loop 1 (Refactored to match other loops)
 #
-class KronotermLoop1Climate(KronotermJsonClimate):
+class KronotermLoop1Climate(KronotermLoopJsonClimate):
     """Climate entity for heating Loop 1."""
 
     def __init__(
@@ -404,13 +447,13 @@ class KronotermLoop1Climate(KronotermJsonClimate):
             coordinator=coordinator,
             data_key="loop1",
             current_temp_json_key="heating_circle_1_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 1 Temperature",
             translation_key="loop_1_temperature",
             unique_id_suffix="loop1_climate",
             min_temp=10,
             max_temp=90,
             page=5,
+            operation_mode_address=2042,
         )
 # --- MODIFIED: END OF Loop 1 REPLACEMENT ---
 
@@ -418,7 +461,7 @@ class KronotermLoop1Climate(KronotermJsonClimate):
 #
 #   Loop 2 - Refactored
 #
-class KronotermLoop2Climate(KronotermJsonClimate):
+class KronotermLoop2Climate(KronotermLoopJsonClimate):
     """Climate entity for heating Loop 2."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
@@ -427,13 +470,13 @@ class KronotermLoop2Climate(KronotermJsonClimate):
             coordinator=coordinator,
             data_key="loop2",
             current_temp_json_key="heating_circle_2_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 2 Temperature",
             translation_key="loop_2_temperature",
             unique_id_suffix="loop2_climate",
             min_temp=10,
             max_temp=90,
             page=6,
+            operation_mode_address=2052,
         )
 
 
@@ -441,7 +484,7 @@ class KronotermLoop2Climate(KronotermJsonClimate):
 #
 #   Loop 3
 #
-class KronotermLoop3Climate(KronotermJsonClimate):
+class KronotermLoop3Climate(KronotermLoopJsonClimate):
     """Climate entity for heating Loop 3."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
@@ -450,13 +493,13 @@ class KronotermLoop3Climate(KronotermJsonClimate):
             coordinator=coordinator,
             data_key="loop3",
             current_temp_json_key="heating_circle_3_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 3 Temperature",
             translation_key="loop_3_temperature",
             unique_id_suffix="loop3_climate",
             min_temp=10,
             max_temp=90,
             page=7,
+            operation_mode_address=2062,
         )
 
 
@@ -464,7 +507,7 @@ class KronotermLoop3Climate(KronotermJsonClimate):
 #
 #   Loop 4
 #
-class KronotermLoop4Climate(KronotermJsonClimate):
+class KronotermLoop4Climate(KronotermLoopJsonClimate):
     """Climate entity for heating Loop 4."""
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
@@ -473,13 +516,13 @@ class KronotermLoop4Climate(KronotermJsonClimate):
             coordinator=coordinator,
             data_key="loop4",
             current_temp_json_key="heating_circle_4_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
             fallback_name="Loop 4 Temperature",
             translation_key="loop_4_temperature",
             unique_id_suffix="loop4_climate",
             min_temp=10,
             max_temp=90,
             page=8,
+            operation_mode_address=2072,
         )
 
 
@@ -512,6 +555,9 @@ class KronotermReservoirClimate(KronotermJsonClimate):
 class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
     """Base class for Modbus-based Kronoterm Climate Entities."""
 
+    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
     def __init__(
         self,
         entry: ConfigEntry,
@@ -526,7 +572,8 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         target_temp_address: int,
         write_temp_address: int,
         operation_mode_address: int,
-        supports_cooling: bool = False
+        supports_cooling: bool = False,
+        enable_preset: bool = False,
     ) -> None:
         """Initialize the Modbus climate entity."""
         super().__init__(coordinator)
@@ -536,7 +583,12 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         self._attr_name = fallback_name
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
 
-        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+        self._enable_preset = enable_preset
+        if enable_preset:
+            self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+            self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+        else:
+            self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
         # All zones support OFF mode via operation_mode register
         self._supports_cooling = supports_cooling
@@ -727,6 +779,28 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         else:
             _LOGGER.error("%s: Failed to update HVAC mode", self.name)
 
+    @property
+    def preset_mode(self) -> str | None:
+        if not self._enable_preset:
+            return None
+        operation_mode = self._get_register_value(self._operation_mode_address)
+        if operation_mode is None:
+            return None
+        return self.PRESET_MAP.get(int(operation_mode))
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        if not self._enable_preset:
+            return
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown preset_mode: %s", preset_mode)
+            return
+        success = await self.coordinator.async_write_register(
+            self._operation_mode_address, value
+        )
+        if success:
+            await self.coordinator.async_request_refresh()
+
 
 class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
     """Modbus-based climate entity for domestic hot water (DHW)."""
@@ -765,6 +839,7 @@ class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
             target_temp_address=2191,  # loop_1_room_current_setpoint
             write_temp_address=2187,  # loop_1_room_setpoint
             operation_mode_address=2042,  # loop_1_operation_mode
+            enable_preset=True,
         )
 
 
@@ -785,6 +860,7 @@ class KronotermModbusLoop2Climate(KronotermModbusBaseClimate):
             target_temp_address=2051,  # loop_2_room_current_setpoint
             write_temp_address=2049,  # loop_2_setpoint
             operation_mode_address=2052,  # loop_2_operation_mode
+            enable_preset=True,
         )
 
 
@@ -805,6 +881,7 @@ class KronotermModbusLoop3Climate(KronotermModbusBaseClimate):
             target_temp_address=2061,  # loop_3_room_current_setpoint
             write_temp_address=2059,  # loop_3_setpoint
             operation_mode_address=2062,  # loop_3_operation_mode
+            enable_preset=True,
         )
 
 
@@ -825,6 +902,7 @@ class KronotermModbusLoop4Climate(KronotermModbusBaseClimate):
             target_temp_address=2071,  # loop_4_room_current_setpoint
             write_temp_address=2069,  # loop_4_setpoint
             operation_mode_address=2072,  # loop_4_operation_mode
+            enable_preset=True,
         )
 
 
