@@ -19,7 +19,7 @@ from .const import (
     API_QUERIES_SET_DHW,
     PAGE_TO_SET_QUERY_KEY,
     API_PARAM_KEYS,
-    CONSUMPTION_FORM_DATA_STATIC,
+    CONSUMPTION_FORM_BASE,
     DEFAULT_SCAN_INTERVAL,
     REQUEST_TIMEOUT,
     MAX_RETRY_ATTEMPTS,
@@ -198,6 +198,43 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         super().__init__(hass, session, config_entry, BASE_URL, API_QUERIES_GET, API_QUERIES_SET)
         _LOGGER.info("Initializing Kronoterm Main Coordinator")
 
+    async def _fetch_consumption(self) -> Optional[Dict[str, Any]]:
+        """Fetch daily consumption with multiple date formats (API is picky)."""
+        today = datetime.now().date()
+        date_candidates = [
+            today.strftime("%Y-%m-%d"),
+            today.strftime("%d.%m.%Y"),
+            today.strftime("%d-%m-%Y"),
+        ]
+        start_ts = int(datetime.combine(today, datetime.min.time()).timestamp())
+        end_ts = int(datetime.combine(today, datetime.max.time()).timestamp())
+        date_candidates += [str(start_ts), str(end_ts)]
+        date_candidates_ms = [str(start_ts * 1000), str(end_ts * 1000)]
+
+        payloads = []
+        for date_str in date_candidates[:3]:
+            payloads.append([( "d1", date_str), ("d2", date_str)])
+        payloads.append([("d1", str(start_ts)), ("d2", str(end_ts))])
+        payloads.append([("d1", str(start_ts * 1000)), ("d2", str(end_ts * 1000))])
+        payloads.append([("d2", "0")])
+
+        for extra in payloads:
+            form = CONSUMPTION_FORM_BASE + extra
+            try:
+                resp = await self._request_with_retries(
+                    "POST",
+                    self.api_queries_get["consumption"],
+                    form,
+                )
+            except Exception as err:
+                _LOGGER.warning("Consumption request failed with %s", err)
+                continue
+            if resp and "trend_consumption" in resp:
+                return resp
+            if resp:
+                _LOGGER.warning("Consumption response (no trend): %s", resp.get("desc"))
+        return resp if 'resp' in locals() else None
+
     def _get_headers(self) -> Dict[str, str]:
         return {
             "phonegap": "1.5.0",
@@ -272,7 +309,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                     self._request_with_retries(
                         "POST",
                         self.api_queries_get["consumption"],
-                        CONSUMPTION_FORM_DATA_STATIC,
+                        self._fetch_consumption(),
                     ),
                 )
                 data["loop1"] = loop_results[0]
