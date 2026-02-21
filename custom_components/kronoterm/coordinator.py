@@ -214,6 +214,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         payloads = []
         for date_str in date_candidates[:3]:
             payloads.append([("d1", date_str), ("d2", date_str)])
+        payloads.append([("d1", today.strftime("%Y%m%d")), ("d2", today.strftime("%Y%m%d"))])
+        payloads.append([("d1", today.strftime("%Y/%m/%d")), ("d2", today.strftime("%Y/%m/%d"))])
+        payloads.append([("d1", f"{today.strftime('%Y-%m-%d')} 00:00:00"), ("d2", f"{today.strftime('%Y-%m-%d')} 23:59:59")])
+        payloads.append([("d1", f"{today.strftime('%d.%m.%Y')} 00:00:00"), ("d2", f"{today.strftime('%d.%m.%Y')} 23:59:59")])
         payloads.append([("d1", str(start_ts)), ("d2", str(end_ts))])
         payloads.append([("d1", str(start_ts * 1000)), ("d2", str(end_ts * 1000))])
         payloads.append([("d1", "0"), ("d2", "0")])
