@@ -121,7 +121,6 @@ MAIN_MODE_OPTIONS = {
 
 # Base form data for consumption fetching (date params added dynamically)
 CONSUMPTION_FORM_BASE = [
-    ("type", "day"),
     # aValues:
     ("aValues[]", "17"),
     # dValues:

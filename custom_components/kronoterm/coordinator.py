@@ -199,49 +199,30 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         _LOGGER.info("Initializing Kronoterm Main Coordinator")
 
     async def _fetch_consumption(self) -> Optional[Dict[str, Any]]:
-        """Fetch daily consumption with multiple date formats (API is picky)."""
+        """Fetch monthly consumption using the cloud UI parameters."""
         today = datetime.now().date()
-        date_candidates = [
-            today.strftime("%Y-%m-%d"),
-            today.strftime("%d.%m.%Y"),
-            today.strftime("%d-%m-%Y"),
+        form = CONSUMPTION_FORM_BASE + [
+            ("year", str(today.year)),
+            ("d1", str(today.month)),
+            ("d2", "0"),
+            ("type", "month"),
         ]
-        start_ts = int(datetime.combine(today, datetime.min.time()).timestamp())
-        end_ts = int(datetime.combine(today, datetime.max.time()).timestamp())
-        date_candidates += [str(start_ts), str(end_ts)]
-        date_candidates_ms = [str(start_ts * 1000), str(end_ts * 1000)]
+        _LOGGER.warning("Consumption request params: year=%s d1=%s d2=0 type=month", today.year, today.month)
+        try:
+            resp = await self._request_with_retries(
+                "POST",
+                self.api_queries_get["consumption"],
+                form,
+            )
+        except Exception as err:
+            _LOGGER.warning("Consumption request failed with %s", err)
+            return None
 
-        payloads = []
-        for date_str in date_candidates[:3]:
-            payloads.append([("d1", date_str), ("d2", date_str)])
-        payloads.append([("d1", today.strftime("%Y%m%d")), ("d2", today.strftime("%Y%m%d"))])
-        payloads.append([("d1", today.strftime("%Y/%m/%d")), ("d2", today.strftime("%Y/%m/%d"))])
-        payloads.append([("d1", f"{today.strftime('%Y-%m-%d')} 00:00:00"), ("d2", f"{today.strftime('%Y-%m-%d')} 23:59:59")])
-        payloads.append([("d1", f"{today.strftime('%d.%m.%Y')} 00:00:00"), ("d2", f"{today.strftime('%d.%m.%Y')} 23:59:59")])
-        payloads.append([("d1", str(start_ts)), ("d2", str(end_ts))])
-        payloads.append([("d1", str(start_ts * 1000)), ("d2", str(end_ts * 1000))])
-        payloads.append([("d1", "0"), ("d2", "0")])
-        payloads.append([("d1", "-7"), ("d2", "0")])
-        payloads.append([("d1", "-30"), ("d2", "0")])
-        payloads.append([("d2", "0")])
-
-        for idx, extra in enumerate(payloads, start=1):
-            form = CONSUMPTION_FORM_BASE + extra
-            _LOGGER.warning("Consumption attempt %d with params: %s", idx, extra)
-            try:
-                resp = await self._request_with_retries(
-                    "POST",
-                    self.api_queries_get["consumption"],
-                    form,
-                )
-            except Exception as err:
-                _LOGGER.warning("Consumption request failed with %s", err)
-                continue
-            if resp and "trend_consumption" in resp:
-                return resp
-            if resp:
-                _LOGGER.warning("Consumption response (no trend): %s", resp.get("desc"))
-        return resp if 'resp' in locals() else None
+        if resp and "trend_consumption" in resp:
+            return resp
+        if resp:
+            _LOGGER.warning("Consumption response (no trend): %s", resp.get("desc"))
+        return resp
 
     def _get_headers(self) -> Dict[str, str]:
         return {
