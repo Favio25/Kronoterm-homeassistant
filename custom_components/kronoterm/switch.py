@@ -33,9 +33,13 @@ def _get_shortcuts_value(data: Optional[Dict[str, Any]], key: str) -> bool:
 
     shortcuts = data.get("shortcuts", {})
     shortcuts_data = shortcuts.get("ShortcutsData", {})
-    
-    # Return bool(value) - handles 0/1 or True/False
-    return bool(shortcuts_data.get(key, 0))
+
+    raw = shortcuts_data.get(key, 0)
+    # Normalize strings like "0"/"1"
+    try:
+        return int(raw) == 1
+    except (TypeError, ValueError):
+        return bool(raw)
 
 
 async def async_setup_entry(
