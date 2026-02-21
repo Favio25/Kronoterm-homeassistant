@@ -118,14 +118,6 @@ async def validate_credentials(data: dict, preferred_type: str = "auto") -> tupl
         ok = await _try_dhw()
         return (None, "dhw") if ok else ("invalid_auth", None)
 
-    # auto mode: try main first, then dhw
-    main_ok = await _try_main()
-    if main_ok:
-        return None, "cloud"
-    dhw_ok = await _try_dhw()
-    if dhw_ok:
-        return None, "dhw"
-
     return "invalid_auth", None
 
 
@@ -196,7 +188,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
-            vol.Optional("cloud_type", default="auto"): vol.In(["auto", "cloud", "dhw"]),
+            vol.Required("cloud_type", default="dhw"): vol.In(["cloud", "dhw"]),
         })
         
         return self.async_show_form(
@@ -318,7 +310,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME, default=default_username): str,
             vol.Required(CONF_PASSWORD, default=default_password): str,
-            vol.Optional("cloud_type", default=current_data.get("cloud_type", "auto")): vol.In(["auto", "cloud", "dhw"]),
+            vol.Required("cloud_type", default=current_data.get("cloud_type", "dhw")): vol.In(["cloud", "dhw"]),
         })
         
         return self.async_show_form(

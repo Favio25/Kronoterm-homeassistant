@@ -14,8 +14,15 @@
         "data": {
           "username": "Username",
           "password": "Password",
-          "cloud_type": "Cloud Type"
+          "cloud_type": "Heat Pump Type"
+        },
+        "data_description": {
+          "cloud_type": "Select Heat Pump Type"
         }
+      },
+      "cloud_type": {
+        "cloud": "Heating heat pump",
+        "dhw": "Sanitary water heat pump"
       },
       "modbus": {
         "title": "Modbus TCP Configuration",
@@ -78,7 +85,10 @@
         "data": {
           "username": "Username",
           "password": "Password",
-          "cloud_type": "Cloud Type"
+          "cloud_type": "Heat Pump Type"
+        },
+        "data_description": {
+          "cloud_type": "Select Heat Pump Type"
         }
       },
       "reconfigure_modbus": {
