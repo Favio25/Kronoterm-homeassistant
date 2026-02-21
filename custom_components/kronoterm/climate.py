@@ -471,23 +471,10 @@ class KronotermDHWClimate(KronotermJsonClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        # Prefer ModbusReg address 2102 for cloud mode
-        raw = self._get_modbus_value(2102)
-        try:
-            if raw is not None:
-                return float(raw)
-        except (TypeError, ValueError):
-            pass
         return super().current_temperature
 
     @property
     def target_temperature(self) -> float | None:
-        raw = self._get_modbus_value(2023)
-        try:
-            if raw is not None:
-                return float(raw)
-        except (TypeError, ValueError):
-            pass
         return super().target_temperature
 
 
@@ -611,22 +598,10 @@ class KronotermReservoirClimate(KronotermJsonClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        raw = self._get_modbus_value(2101)
-        try:
-            if raw is not None:
-                return float(raw)
-        except (TypeError, ValueError):
-            pass
         return super().current_temperature
 
     @property
     def target_temperature(self) -> float | None:
-        raw = self._get_modbus_value(2034)
-        try:
-            if raw is not None:
-                return float(raw)
-        except (TypeError, ValueError):
-            pass
         return super().target_temperature
 
 
