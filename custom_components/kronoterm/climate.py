@@ -260,6 +260,40 @@ class KronotermJsonClimate(KronotermBaseClimate):
                 return reg.get("value")
         return None
 
+    @property
+    def _json_data(self) -> dict | None:
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._data_key)
+
+    @property
+    def current_temperature(self) -> float | None:
+        data = self._json_data
+        if not data:
+            return None
+        temps = data.get(self._current_temp_section, {})
+        raw = temps.get(self._current_temp_json_key)
+        if not raw or raw in ("-60.0", "unknown", "unavailable"):
+            return None
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        data = self._json_data
+        if not data:
+            return None
+        circle_data = data.get("HeatingCircleData", {})
+        raw = circle_data.get(self._target_temp_json_key)
+        if not raw or raw in ("unknown", "unavailable"):
+            return None
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
 
 class KronotermLoopJsonClimate(KronotermJsonClimate):
     """Loop climate with preset modes mapped from loop mode register."""
@@ -335,46 +369,7 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
                 self._last_heat_mode = value
             await self.coordinator.async_request_refresh()
 
-    @property
-    def _json_data(self) -> dict | None:
-        """Helper to get the specific data blob for this entity."""
-        if not self.coordinator.data:
-            return None
-        return self.coordinator.data.get(self._data_key)
-
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the current temperature from the dedicated JSON data blob."""
-        data = self._json_data
-        if not data:
-            return None
-
-        temps = data.get(self._current_temp_section, {})
-        raw = temps.get(self._current_temp_json_key)
-        if not raw or raw in ("-60.0", "unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except (ValueError, TypeError):
-            return None
-
-    @property
-    def target_temperature(self) -> float | None:
-        """Return the target temperature from the dedicated JSON data blob."""
-        data = self._json_data
-        if not data:
-            return None
-
-        circle_data = data.get("HeatingCircleData", {})
-        raw = circle_data.get(self._target_temp_json_key)
-        if not raw or raw in ("unknown", "unavailable"):
-            return None
-
-        try:
-            return float(raw)
-        except (ValueError, TypeError):
-            return None
+    # JSON helpers now live in KronotermJsonClimate
 
 
 #
