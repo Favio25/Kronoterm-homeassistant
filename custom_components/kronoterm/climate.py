@@ -947,6 +947,7 @@ class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
             target_temp_address=2024,  # dhw_current_setpoint
             write_temp_address=2023,  # dhw_setpoint
             operation_mode_address=2026,  # dhw_operation_mode
+            enable_preset=True,
         )
 
 
@@ -1051,4 +1052,5 @@ class KronotermModbusReservoirClimate(KronotermModbusBaseClimate):
             target_temp_address=2034,  # reservoir_current_setpoint
             write_temp_address=2305,  # solar_reservoir_setpoint
             operation_mode_address=2035,  # reservoir_operation_mode
+            enable_preset=True,
         )
