@@ -471,26 +471,24 @@ class KronotermDHWClimate(KronotermJsonClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        temp = super().current_temperature
-        if temp is not None:
-            return temp
-        # Fallback to ModbusReg address 2102 for cloud mode
+        # Prefer ModbusReg address 2102 for cloud mode
         raw = self._get_modbus_value(2102)
         try:
-            return float(raw) if raw is not None else None
+            if raw is not None:
+                return float(raw)
         except (TypeError, ValueError):
-            return None
+            pass
+        return super().current_temperature
 
     @property
     def target_temperature(self) -> float | None:
-        temp = super().target_temperature
-        if temp is not None:
-            return temp
         raw = self._get_modbus_value(2023)
         try:
-            return float(raw) if raw is not None else None
+            if raw is not None:
+                return float(raw)
         except (TypeError, ValueError):
-            return None
+            pass
+        return super().target_temperature
 
 
 # --- MODIFIED: START OF Loop 1 REPLACEMENT ---
@@ -613,25 +611,23 @@ class KronotermReservoirClimate(KronotermJsonClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        temp = super().current_temperature
-        if temp is not None:
-            return temp
         raw = self._get_modbus_value(2101)
         try:
-            return float(raw) if raw is not None else None
+            if raw is not None:
+                return float(raw)
         except (TypeError, ValueError):
-            return None
+            pass
+        return super().current_temperature
 
     @property
     def target_temperature(self) -> float | None:
-        temp = super().target_temperature
-        if temp is not None:
-            return temp
         raw = self._get_modbus_value(2034)
         try:
-            return float(raw) if raw is not None else None
+            if raw is not None:
+                return float(raw)
         except (TypeError, ValueError):
-            return None
+            pass
+        return super().target_temperature
 
 
 # ===================================================================
