@@ -241,6 +241,7 @@ class KronotermJsonClimate(KronotermBaseClimate):
         data_key: str,
         current_temp_json_key: str,
         target_temp_json_key: str = "circle_temp",
+        current_temp_section: str = "TemperaturesAndConfig",
         **kwargs: Any
     ) -> None:
         """Initialize the JSON-based climate entity."""
@@ -248,6 +249,7 @@ class KronotermJsonClimate(KronotermBaseClimate):
         self._data_key = data_key
         self._current_temp_json_key = current_temp_json_key
         self._target_temp_json_key = target_temp_json_key
+        self._current_temp_section = current_temp_section
 
     def _get_modbus_value(self, address: int) -> Optional[float]:
         if not self.coordinator.data:
@@ -347,7 +349,7 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
         if not data:
             return None
 
-        temps = data.get("TemperaturesAndConfig", {})
+        temps = data.get(self._current_temp_section, {})
         raw = temps.get(self._current_temp_json_key)
         if not raw or raw in ("-60.0", "unknown", "unavailable"):
             return None
@@ -459,8 +461,9 @@ class KronotermDHWClimate(KronotermJsonClimate):
             entry=entry,
             coordinator=coordinator,
             data_key="dhw",
-            current_temp_json_key="tap_water_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
+            current_temp_json_key="circle_calc_temp",
+            target_temp_json_key="circle_temp",
+            current_temp_section="HeatingCircleData",
             fallback_name="DHW Temperature",
             translation_key="dhw_temperature",
             unique_id_suffix="dhw_climate",
@@ -586,8 +589,9 @@ class KronotermReservoirClimate(KronotermJsonClimate):
             entry=entry,
             coordinator=coordinator,
             data_key="reservoir",
-            current_temp_json_key="reservoir_temp",
-            # target_temp_json_key defaults to "circle_temp", which is correct
+            current_temp_json_key="circle_calc_temp",
+            target_temp_json_key="circle_temp",
+            current_temp_section="HeatingCircleData",
             fallback_name="Reservoir Temperature",
             translation_key="reservoir_temperature",
             unique_id_suffix="reservoir_climate",
