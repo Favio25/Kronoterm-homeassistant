@@ -176,19 +176,43 @@
         "name": "Inlet Air Temperature"
       },
       "dhw_compressor_status": {
-        "name": "Compressor Status"
+        "name": "Compressor Status",
+        "state": {
+          "standby": "Standby",
+          "launch": "Launch",
+          "protect": "Protect",
+          "running": "Running"
+        }
       },
       "dhw_error_status": {
-        "name": "Error Status"
+        "name": "Error Status",
+        "state": {
+          "no_error": "No Error",
+          "error": "Error"
+        }
       },
       "dhw_warning_status": {
-        "name": "Warning Status"
+        "name": "Warning Status",
+        "state": {
+          "no_warning": "No Warning",
+          "warning": "Warning"
+        }
       },
       "dhw_additional_source_status": {
-        "name": "Additional Source Status"
+        "name": "Additional Source Status",
+        "state": {
+          "not_active": "Not Active",
+          "electric_heater": "Electric Heater",
+          "additional_source": "Additional Source",
+          "both": "Both"
+        }
       },
       "dhw_reserve_source_status": {
-        "name": "Reserve Source Status"
+        "name": "Reserve Source Status",
+        "state": {
+          "off": "Off",
+          "on": "On"
+        }
       },
       "pool_temperature": {
         "name": "Pool Temperature"

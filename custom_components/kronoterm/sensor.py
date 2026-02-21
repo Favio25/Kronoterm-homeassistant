@@ -226,6 +226,51 @@ class KronotermJsonSensor(CoordinatorEntity, SensorEntity):
             return None
 
 
+class KronotermJsonEnumSensor(CoordinatorEntity, SensorEntity):
+    """Enum sensor reading nested JSON fields."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        device_info: Dict[str, Any],
+        unique_id_suffix: str,
+        translation_key: str,
+        data_path: List[str],
+        options: Dict[int, str],
+        icon: Optional[str] = None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._device_info = device_info
+        self._data_path = data_path
+        self._options = options
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
+        self._attr_icon = icon
+        self._attr_options = list(self._options.values())
+
+    @property
+    def device_info(self) -> Dict[str, Any]:
+        return self._device_info
+
+    @property
+    def native_value(self) -> Optional[str]:
+        value = self.coordinator.data
+        if not value:
+            return None
+        try:
+            for key in self._data_path:
+                value = value[key]
+            if value is None:
+                return None
+            int_val = int(float(value))
+            return self._options.get(int_val)
+        except (KeyError, IndexError, TypeError, ValueError):
+            return None
+
+
 # -----------------------------------------------------------------------------
 # SETUP ENTRY
 # -----------------------------------------------------------------------------
@@ -348,54 +393,78 @@ async def _async_setup_dhw_entities(
         )
     )
 
-    # StatusBar values
+    # StatusBar values (enum)
     entities.append(
-        KronotermJsonSensor(
+        KronotermJsonEnumSensor(
             coordinator,
             device_info,
             "dhw_compressor_status",
             "dhw_compressor_status",
             ["main", "StatusBar", "compressor_status"],
+            {
+                0: "standby",
+                1: "launch",
+                2: "protect",
+                3: "running",
+            },
             icon="mdi:engine",
         )
     )
     entities.append(
-        KronotermJsonSensor(
+        KronotermJsonEnumSensor(
             coordinator,
             device_info,
             "dhw_error_status",
             "dhw_error_status",
             ["main", "StatusBar", "error_status"],
+            {
+                0: "no_error",
+                1: "error",
+            },
             icon="mdi:alert",
         )
     )
     entities.append(
-        KronotermJsonSensor(
+        KronotermJsonEnumSensor(
             coordinator,
             device_info,
             "dhw_warning_status",
             "dhw_warning_status",
             ["main", "StatusBar", "warning_status"],
+            {
+                0: "no_warning",
+                1: "warning",
+            },
             icon="mdi:alert-outline",
         )
     )
     entities.append(
-        KronotermJsonSensor(
+        KronotermJsonEnumSensor(
             coordinator,
             device_info,
             "dhw_additional_source_status",
             "dhw_additional_source_status",
             ["main", "StatusBar", "add_src_status"],
+            {
+                0: "not_active",
+                1: "electric_heater",
+                2: "additional_source",
+                3: "both",
+            },
             icon="mdi:flash",
         )
     )
     entities.append(
-        KronotermJsonSensor(
+        KronotermJsonEnumSensor(
             coordinator,
             device_info,
             "dhw_reserve_source_status",
             "dhw_reserve_source_status",
             ["main", "StatusBar", "reserve_source_status"],
+            {
+                0: "off",
+                1: "on",
+            },
             icon="mdi:radiator",
         )
     )
