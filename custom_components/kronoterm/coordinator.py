@@ -402,6 +402,22 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
             days = 0
         return await self._send_shortcut("shrtct_holiday", enable, additional_value=days)
 
+    async def async_set_dhw_eco_offset(self, value: float) -> bool:
+        form_data = [
+            ("param_name", "boiler_eco_offset"),
+            ("param_value", str(round(value, 1))),
+            ("page", "1"),
+        ]
+        return await self._send_set_request("main", form_data)
+
+    async def async_set_dhw_comfort_offset(self, value: float) -> bool:
+        form_data = [
+            ("param_name", "boiler_comfort_offset"),
+            ("param_value", str(round(value, 1))),
+            ("page", "1"),
+        ]
+        return await self._send_set_request("main", form_data)
+
     async def _send_shortcut(self, param_name: str, enable: bool, additional_value: Optional[int] = None) -> bool:
         form_data = [
             ("param_name", param_name),

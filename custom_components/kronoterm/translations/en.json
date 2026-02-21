@@ -166,12 +166,6 @@
       "dhw_target_temperature": {
         "name": "DHW Target Temperature"
       },
-      "dhw_eco_offset_basic": {
-        "name": "DHW Eco Offset"
-      },
-      "dhw_comfort_offset_basic": {
-        "name": "DHW Comfort Offset"
-      },
       "dhw_boiler_temperature": {
         "name": "DHW Boiler Temperature"
       },

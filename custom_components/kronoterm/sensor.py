@@ -305,29 +305,7 @@ async def _async_setup_dhw_entities(
         )
     )
 
-    # Eco/Comfort offsets (BasicData)
-    entities.append(
-        KronotermJsonSensor(
-            coordinator,
-            device_info,
-            "dhw_eco_offset",
-            "dhw_eco_offset_basic",
-            ["main", "BasicData", "boiler_eco_offset"],
-            unit="°C",
-            icon="mdi:thermometer-minus",
-        )
-    )
-    entities.append(
-        KronotermJsonSensor(
-            coordinator,
-            device_info,
-            "dhw_comfort_offset",
-            "dhw_comfort_offset_basic",
-            ["main", "BasicData", "boiler_comf_offset"],
-            unit="°C",
-            icon="mdi:thermometer-plus",
-        )
-    )
+    # Eco/Comfort offsets are exposed as number entities, not sensors
 
     # GlobalOverview temps
     entities.append(

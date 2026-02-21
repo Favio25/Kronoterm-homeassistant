@@ -127,6 +127,49 @@ class KronotermOffsetNumber(KronotermModbusBase, NumberEntity):
 # ---------------------------------------
 # MAIN TEMP OFFSET ENTITY (Refined)
 # ---------------------------------------
+class KronotermDHWOffsetNumber(CoordinatorEntity, NumberEntity):
+    """Number entity for DHW eco/comfort offsets (Water Cloud)."""
+
+    _attr_has_entity_name = True
+    _attr_native_step = 0.1
+    _attr_unit_of_measurement = "°C"
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, coordinator: DataUpdateCoordinator, entry: ConfigEntry, name: str, data_key: str, set_method: str):
+        super().__init__(coordinator)
+        self._entry = entry
+        self._data_key = data_key
+        self._set_method = set_method
+        self._attr_translation_key = name
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_{name}"
+        self._attr_device_info = coordinator.shared_device_info
+        self._attr_native_min_value = -10.0
+        self._attr_native_max_value = 10.0
+
+    @property
+    def native_value(self) -> Optional[float]:
+        if not self.coordinator.data:
+            return None
+        raw = (
+            self.coordinator.data.get("main", {})
+            .get("BasicData", {})
+            .get(self._data_key)
+        )
+        if raw is None:
+            return None
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
+
+    async def async_set_native_value(self, value: float) -> None:
+        method = getattr(self.coordinator, self._set_method, None)
+        if not method:
+            _LOGGER.error("Coordinator missing method %s", self._set_method)
+            return
+        await method(value)
+
+
 class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
     """
     System temperature offset number entity.
@@ -360,9 +403,21 @@ async def async_setup_entry(
     _LOGGER.debug("Modbus list length: %d", len(modbus_list))
     _LOGGER.debug("Available addresses (first 10): %s", sorted(list(available_addresses))[:10])
 
-    # Skip number entities for DHW cloud (not applicable)
+    # DHW cloud: expose eco/comfort offsets + update interval only
     if getattr(coordinator, "system_type", "cloud") == "dhw":
-        _LOGGER.info("Skipping number entities for DHW cloud")
+        _LOGGER.info("Setting up DHW number entities")
+        entities.append(
+            KronotermDHWOffsetNumber(
+                coordinator, entry, "dhw_eco_offset", "boiler_eco_offset", "async_set_dhw_eco_offset"
+            )
+        )
+        entities.append(
+            KronotermDHWOffsetNumber(
+                coordinator, entry, "dhw_comfort_offset", "boiler_comf_offset", "async_set_dhw_comfort_offset"
+            )
+        )
+        entities.append(CoordinatorUpdateIntervalNumber(coordinator))
+        async_add_entities(entities, update_before_add=False)
         return
 
     # 1) Create standard Modbus offset entities
