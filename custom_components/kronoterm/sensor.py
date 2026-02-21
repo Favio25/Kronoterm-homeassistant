@@ -286,9 +286,6 @@ async def async_setup_entry(
         return False
 
     device_info = coordinator.shared_device_info
-    if not coordinator.data:
-        _LOGGER.warning("No data from Kronoterm. Skipping sensors.")
-        return False
 
     # Use instance checks instead of hasattr or string checks if possible, or robust checks
     is_dhw = isinstance(coordinator, KronotermDHWCoordinator) or coordinator.system_type == "dhw"
@@ -755,40 +752,41 @@ async def _async_setup_modbus_entities(
 def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterDefinition) -> bool:
     """Check if sensor should be created based on feature flags."""
     name_lower = reg_def.name_en.lower()
-    
+    modbus_data = coordinator.data.get("main", {}) if coordinator.data else {}
+
     # Exception: hp_load (2327) is writable but primarily a status/measurement sensor
     if reg_def.address == 2327:  # hp_load - current heat pump load %
         return True
-    
+
     # Skip ALL writable registers - they should be switch/number entities, not sensors
     if "Write" in reg_def.access:
         return False
-    
+
     # Skip registers that have corresponding writable switch entities
     # Register 2000 (system_operation) is redundant - switch at 2012 shows state
     if reg_def.address == 2000:  # system_operation - use switch instead
         return False
-    
+
     # Skip registers that should be binary sensors instead of enum sensors
     if reg_def.address in (2003, 2004, 2011):  # reserve_source, alternative_source, defrost_status
         return False
-    
+
     # Skip offset registers - they're handled by number entities only
     if "offset" in name_lower:
         return False
-    
+
     # Skip pump status registers - they're handled by binary sensor entities only
     if "pump_status" in name_lower:
         return False
-    
+
     # Skip pool sensors if not installed
     if "pool" in name_lower and not getattr(coordinator, "pool_installed", False):
         return False
-    
+
     # Skip alternative_source_temperature if not installed (but keep alternative_source status sensor)
     if "alternative_source_temperature" in name_lower and not getattr(coordinator, "alt_source_installed", False):
         return False
-    
+
     # Skip loop sensors based on installation
     if "loop_2" in name_lower and not getattr(coordinator, "loop2_installed", False):
         return False
@@ -796,31 +794,30 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
         return False
     if "loop_4" in name_lower and not getattr(coordinator, "loop4_installed", False):
         return False
-    
+
+    # If we don't have data yet, skip value-based filtering below
+    if not modbus_data:
+        return True
+
     # Skip groundwater volume if value is 0 (not a groundwater heat pump)
     if "groundwater" in name_lower:
-        # Check if the groundwater volume register (2349) exists and has non-zero value
-        modbus_data = coordinator.data.get("main", {})
         for reg in modbus_data.get("ModbusReg", []):
             if reg.get("address") == 2349:
                 value = reg.get("value", 0)
                 if value == 0 or value == 0.0:
                     return False
                 break
-    
+
     # Skip thermostat sensors if thermostat temperature is 0 (no thermostat installed)
-    # Map thermostat sensors to their temperature register addresses
     thermostat_checks = {
         "loop_1_thermostat": 2160,
         "loop_2_thermostat": 2161,
         "loop_3_thermostat": 2162,
         "loop_4_thermostat": 2163,
     }
-    
+
     for prefix, temp_address in thermostat_checks.items():
         if prefix in name_lower:
-            # Check if the thermostat temperature register is 0
-            modbus_data = coordinator.data.get("main", {})
             for reg in modbus_data.get("ModbusReg", []):
                 if reg.get("address") == temp_address:
                     value = reg.get("value", 0)
@@ -828,7 +825,7 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
                         return False
                     break
             break
-    
+
     return True
 
 
