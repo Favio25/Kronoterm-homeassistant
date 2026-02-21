@@ -37,6 +37,11 @@ async def async_setup_entry(
         _LOGGER.error("Coordinator not found in hass.data[%s]", DOMAIN)
         return
 
+    # Skip select entities for DHW cloud (not applicable)
+    if getattr(coordinator, "system_type", "cloud") == "dhw":
+        _LOGGER.info("Skipping select entities for DHW cloud")
+        return
+
     # Get the list of all addresses reported by the heat pump
     modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
     available_addresses = {reg.get("address") for reg in modbus_list}

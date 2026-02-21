@@ -360,6 +360,11 @@ async def async_setup_entry(
     _LOGGER.debug("Modbus list length: %d", len(modbus_list))
     _LOGGER.debug("Available addresses (first 10): %s", sorted(list(available_addresses))[:10])
 
+    # Skip number entities for DHW cloud (not applicable)
+    if getattr(coordinator, "system_type", "cloud") == "dhw":
+        _LOGGER.info("Skipping number entities for DHW cloud")
+        return
+
     # 1) Create standard Modbus offset entities
     for config in OFFSET_CONFIGS:
         is_installed = getattr(coordinator, config.install_flag, False)
