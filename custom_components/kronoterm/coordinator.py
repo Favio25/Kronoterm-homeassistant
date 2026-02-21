@@ -418,6 +418,14 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
         ]
         return await self._send_set_request("main", form_data)
 
+    async def async_set_dhw_default_mode(self, mode: int) -> bool:
+        form_data = [
+            ("param_name", "default_mode"),
+            ("param_value", str(int(mode))),
+            ("page", "1"),
+        ]
+        return await self._send_set_request("main", form_data)
+
     async def _send_shortcut(self, param_name: str, enable: bool, additional_value: Optional[int] = None) -> bool:
         form_data = [
             ("param_name", param_name),

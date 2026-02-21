@@ -136,7 +136,6 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
 
         # Show a single target-temperature control in HA's UI
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-
         # If hardware can do cooling, add COOL + OFF
         self._supports_cooling = supports_cooling
         if supports_cooling:
@@ -298,6 +297,20 @@ class KronotermJsonClimate(KronotermBaseClimate):
 class KronotermDHWCloudClimate(KronotermBaseClimate):
     """DHW climate entity for Water Cloud (BasicData fields)."""
 
+    PRESET_MAP = {
+        0: "off",
+        1: "normal",
+        2: "eco",
+        3: "comfort",
+        4: "lux_plus",
+        5: "ext_source",
+        6: "pv",
+        8: "f1",
+        9: "f2",
+        10: "f3",
+    }
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
@@ -309,6 +322,8 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
             max_temp=90,
             page=1,
         )
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
 
     @property
     def current_temperature(self) -> float | None:
@@ -331,6 +346,25 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
             return float(raw)
         except (TypeError, ValueError):
             return None
+
+    @property
+    def preset_mode(self) -> str | None:
+        data = (self.coordinator.data or {}).get("main", {})
+        raw = data.get("BasicData", {}).get("default_mode")
+        try:
+            return self.PRESET_MAP.get(int(raw))
+        except (TypeError, ValueError):
+            return None
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown DHW preset_mode: %s", preset_mode)
+            return
+        if hasattr(self.coordinator, "async_set_dhw_default_mode"):
+            await self.coordinator.async_set_dhw_default_mode(value)
+        else:
+            _LOGGER.error("Coordinator missing async_set_dhw_default_mode")
 
 
 class KronotermDHWClimate(KronotermJsonClimate):
