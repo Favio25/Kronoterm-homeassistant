@@ -281,7 +281,7 @@ async def _async_setup_dhw_entities(
             coordinator,
             device_info,
             "dhw_current_temperature",
-            "dhw_current_temperature", # Need to add to strings.json
+            "dhw_current_temperature",
             ["main", "BasicData", "boiler_calc_temp"],
             unit="°C",
             icon="mdi:water-thermometer",
@@ -290,7 +290,7 @@ async def _async_setup_dhw_entities(
         )
     )
 
-    # boiler_setpoint (Target Temperature) - exposed as sensor too
+    # boiler_setpoint (Target Temperature)
     entities.append(
         KronotermJsonSensor(
             coordinator,
@@ -300,6 +300,71 @@ async def _async_setup_dhw_entities(
             ["main", "BasicData", "boiler_setpoint"],
             unit="°C",
             icon="mdi:thermometer",
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+    )
+
+    # Eco/Comfort offsets (BasicData)
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_eco_offset",
+            "dhw_eco_offset_basic",
+            ["main", "BasicData", "boiler_eco_offset"],
+            unit="°C",
+            icon="mdi:thermometer-minus",
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_comfort_offset",
+            "dhw_comfort_offset_basic",
+            ["main", "BasicData", "boiler_comf_offset"],
+            unit="°C",
+            icon="mdi:thermometer-plus",
+        )
+    )
+
+    # GlobalOverview temps
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_boiler_temp",
+            "dhw_boiler_temperature",
+            ["main", "GlobalOverview", "boiler_temp"],
+            unit="°C",
+            icon="mdi:water-thermometer",
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_external_source_temp",
+            "dhw_external_source_temperature",
+            ["main", "GlobalOverview", "ext_src_temp"],
+            unit="°C",
+            icon="mdi:thermometer",
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_inlet_air_temp",
+            "dhw_inlet_air_temperature",
+            ["main", "GlobalOverview", "inlet_air_temp"],
+            unit="°C",
+            icon="mdi:weather-windy",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
         )

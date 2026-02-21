@@ -166,6 +166,21 @@
       "dhw_target_temperature": {
         "name": "DHW Target Temperature"
       },
+      "dhw_eco_offset_basic": {
+        "name": "DHW Eco Offset"
+      },
+      "dhw_comfort_offset_basic": {
+        "name": "DHW Comfort Offset"
+      },
+      "dhw_boiler_temperature": {
+        "name": "DHW Boiler Temperature"
+      },
+      "dhw_external_source_temperature": {
+        "name": "External Source Temperature"
+      },
+      "dhw_inlet_air_temperature": {
+        "name": "Inlet Air Temperature"
+      },
       "pool_temperature": {
         "name": "Pool Temperature"
       },
