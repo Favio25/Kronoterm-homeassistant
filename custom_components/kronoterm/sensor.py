@@ -348,6 +348,58 @@ async def _async_setup_dhw_entities(
         )
     )
 
+    # StatusBar values
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_compressor_status",
+            "dhw_compressor_status",
+            ["main", "StatusBar", "compressor_status"],
+            icon="mdi:engine",
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_error_status",
+            "dhw_error_status",
+            ["main", "StatusBar", "error_status"],
+            icon="mdi:alert",
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_warning_status",
+            "dhw_warning_status",
+            ["main", "StatusBar", "warning_status"],
+            icon="mdi:alert-outline",
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_additional_source_status",
+            "dhw_additional_source_status",
+            ["main", "StatusBar", "add_src_status"],
+            icon="mdi:flash",
+        )
+    )
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_reserve_source_status",
+            "dhw_reserve_source_status",
+            ["main", "StatusBar", "reserve_source_status"],
+            icon="mdi:radiator",
+        )
+    )
+
     if entities:
         async_add_entities(entities)
     return True

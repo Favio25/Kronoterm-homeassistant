@@ -175,6 +175,21 @@
       "dhw_inlet_air_temperature": {
         "name": "Inlet Air Temperature"
       },
+      "dhw_compressor_status": {
+        "name": "Compressor Status"
+      },
+      "dhw_error_status": {
+        "name": "Error Status"
+      },
+      "dhw_warning_status": {
+        "name": "Warning Status"
+      },
+      "dhw_additional_source_status": {
+        "name": "Additional Source Status"
+      },
+      "dhw_reserve_source_status": {
+        "name": "Reserve Source Status"
+      },
       "pool_temperature": {
         "name": "Pool Temperature"
       },
