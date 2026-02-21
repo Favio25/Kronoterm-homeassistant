@@ -275,14 +275,14 @@ async def _async_setup_dhw_entities(
     """Setup entities for DHW Cloud API."""
     entities = []
     
-    # boiler_calc_temp (Current Temperature)
+    # boiler_temp (Current Temperature from GlobalOverview)
     entities.append(
         KronotermJsonSensor(
             coordinator,
             device_info,
             "dhw_current_temperature",
             "dhw_current_temperature",
-            ["main", "BasicData", "boiler_calc_temp"],
+            ["main", "GlobalOverview", "boiler_temp"],
             unit="°C",
             icon="mdi:water-thermometer",
             device_class=SensorDeviceClass.TEMPERATURE,

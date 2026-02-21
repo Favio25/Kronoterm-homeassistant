@@ -313,11 +313,11 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
     @property
     def current_temperature(self) -> float | None:
         data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("BasicData", {}).get("boiler_temp")
+        raw = data.get("GlobalOverview", {}).get("boiler_temp")
         if raw is None:
             raw = data.get("BasicData", {}).get("boiler_calc_temp")
         if raw is None:
-            raw = data.get("GlobalOverview", {}).get("boiler_temp")
+            raw = data.get("BasicData", {}).get("boiler_temp")
         try:
             return float(raw)
         except (TypeError, ValueError):
