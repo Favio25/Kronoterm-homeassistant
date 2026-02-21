@@ -290,7 +290,11 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
         if value is None:
             _LOGGER.warning("Unknown loop preset_mode: %s", preset_mode)
             return
-        await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        if not success:
+            _LOGGER.error("Failed to set loop preset_mode=%s (page=%s)", preset_mode, self._page)
+        else:
+            await self.coordinator.async_request_refresh()
 
     @property
     def _json_data(self) -> dict | None:

@@ -47,40 +47,41 @@ async def async_setup_entry(
     available_addresses = {reg.get("address") for reg in modbus_list}
 
     # Define the configuration for each select entity.
-    entity_configs: List[SelectConfig] = [
-        SelectConfig("Loop 1 Operation", 2042, 5, "loop1_installed"),
-        SelectConfig("Loop 2 Operation", 2052, 6, "loop2_installed"),
-        SelectConfig("Sanitary Water Operation", 2026, 9, "tap_water_installed"), # Assuming 'tap_water_installed'
-        SelectConfig("Loop 3 Operation", 2062, 7, "loop3_installed"),
-        SelectConfig("Loop 4 Operation", 2072, 8, "loop4_installed"),
-    ]
+    # NOTE: Loop mode selects are intentionally disabled; presets are now on climate entities.
+    # entity_configs: List[SelectConfig] = [
+    #     SelectConfig("Loop 1 Operation", 2042, 5, "loop1_installed"),
+    #     SelectConfig("Loop 2 Operation", 2052, 6, "loop2_installed"),
+    #     SelectConfig("Sanitary Water Operation", 2026, 9, "tap_water_installed"),
+    #     SelectConfig("Loop 3 Operation", 2062, 7, "loop3_installed"),
+    #     SelectConfig("Loop 4 Operation", 2072, 8, "loop4_installed"),
+    # ]
 
     entities = []
-    for config in entity_configs:
-        # Check if the feature is installed (e.g., coordinator.loop1_installed)
-        is_installed = getattr(coordinator, config.install_flag, False)
-
-        # Check if the specific Modbus address is reported by the pump
-        is_available = config.address in available_addresses
-        
-        if is_installed and is_available:
-            entities.append(
-                KronotermModeSelect(
-                    entry=entry,
-                    name=config.name,
-                    address=config.address,
-                    page=config.page,
-                    coordinator=coordinator,
-                )
-            )
-        else:
-            _LOGGER.info(
-                "Skipping entity %s: Installed=%s, Address %s Available=%s",
-                config.name,
-                is_installed,
-                config.address,
-                is_available,
-            )
+    # for config in entity_configs:
+    #     # Check if the feature is installed (e.g., coordinator.loop1_installed)
+    #     is_installed = getattr(coordinator, config.install_flag, False)
+    #
+    #     # Check if the specific Modbus address is reported by the pump
+    #     is_available = config.address in available_addresses
+    #     
+    #     if is_installed and is_available:
+    #         entities.append(
+    #             KronotermModeSelect(
+    #                 entry=entry,
+    #                 name=config.name,
+    #                 address=config.address,
+    #                 page=config.page,
+    #                 coordinator=coordinator,
+    #             )
+    #         )
+    #     else:
+    #         _LOGGER.info(
+    #             "Skipping entity %s: Installed=%s, Address %s Available=%s",
+    #             config.name,
+    #             is_installed,
+    #             config.address,
+    #             is_available,
+    #         )
 
     # Add operational mode select (ECO/Auto/Comfort) - works for both Cloud and Modbus
     entities.append(KronotermOperationalModeSelect(entry, coordinator))
