@@ -451,6 +451,9 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 class KronotermDHWClimate(KronotermJsonClimate):
     """Climate entity for domestic hot water (DHW)."""
 
+    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
@@ -466,6 +469,21 @@ class KronotermDHWClimate(KronotermJsonClimate):
             max_temp=90,
             page=9,
         )
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+
+    def _get_preset_value(self) -> Optional[int]:
+        data = self._json_data or {}
+        mode_blob = data.get("HeatingCircleData", {})
+        for key in ("mode", "operation_mode", "circle_mode", "loop_mode"):
+            raw = mode_blob.get(key)
+            if raw is None:
+                continue
+            try:
+                return int(float(raw))
+            except (TypeError, ValueError):
+                continue
+        return None
 
     @property
     def current_temperature(self) -> float | None:
@@ -474,6 +492,24 @@ class KronotermDHWClimate(KronotermJsonClimate):
     @property
     def target_temperature(self) -> float | None:
         return super().target_temperature
+
+    @property
+    def preset_mode(self) -> str | None:
+        value = self._get_preset_value()
+        if value is None:
+            return None
+        return self.PRESET_MAP.get(value)
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown DHW preset_mode: %s", preset_mode)
+            return
+        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        if not success:
+            _LOGGER.error("Failed to set DHW preset_mode=%s (page=%s)", preset_mode, self._page)
+        else:
+            await self.coordinator.async_request_refresh()
 
 
 # --- MODIFIED: START OF Loop 1 REPLACEMENT ---
@@ -579,6 +615,9 @@ class KronotermLoop4Climate(KronotermLoopJsonClimate):
 class KronotermReservoirClimate(KronotermJsonClimate):
     """Climate entity for reservoir temperature."""
 
+    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
         super().__init__(
             entry=entry,
@@ -594,6 +633,21 @@ class KronotermReservoirClimate(KronotermJsonClimate):
             max_temp=90,
             page=4,
         )
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+
+    def _get_preset_value(self) -> Optional[int]:
+        data = self._json_data or {}
+        mode_blob = data.get("HeatingCircleData", {})
+        for key in ("mode", "operation_mode", "circle_mode", "loop_mode"):
+            raw = mode_blob.get(key)
+            if raw is None:
+                continue
+            try:
+                return int(float(raw))
+            except (TypeError, ValueError):
+                continue
+        return None
 
     @property
     def current_temperature(self) -> float | None:
@@ -602,6 +656,24 @@ class KronotermReservoirClimate(KronotermJsonClimate):
     @property
     def target_temperature(self) -> float | None:
         return super().target_temperature
+
+    @property
+    def preset_mode(self) -> str | None:
+        value = self._get_preset_value()
+        if value is None:
+            return None
+        return self.PRESET_MAP.get(value)
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown reservoir preset_mode: %s", preset_mode)
+            return
+        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        if not success:
+            _LOGGER.error("Failed to set reservoir preset_mode=%s (page=%s)", preset_mode, self._page)
+        else:
+            await self.coordinator.async_request_refresh()
 
 
 # ===================================================================
