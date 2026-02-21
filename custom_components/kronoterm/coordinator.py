@@ -287,7 +287,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 try:
                     consumption = loop_results[8] or {}
                     trend = consumption.get("trend_consumption", {})
-                    _LOGGER.info(
+                    _LOGGER.warning(
                         "Consumption fetched: keys=%s trend_keys=%s sample=%s",
                         list(consumption.keys()),
                         list(trend.keys()) if isinstance(trend, dict) else None,
