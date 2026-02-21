@@ -42,6 +42,19 @@ class ModbusWriteMixin:
         
         return await self.write_register_by_address(address, modbus_value)
 
+    async def async_write_register_raw(self, address: int, value: int) -> bool:
+        """Write a raw integer value to a Modbus register.
+
+        Args:
+            address: Modbus register address
+            value: Raw integer value to write
+
+        Returns:
+            True if successful, False otherwise
+        """
+        _LOGGER.info("Writing raw value %d to register %d", value, address)
+        return await self.write_register_by_address(address, int(value))
+
     async def async_set_temperature(self, page: int, new_temp: float) -> bool:
         """Set temperature setpoint for a loop or DHW based on page.
         

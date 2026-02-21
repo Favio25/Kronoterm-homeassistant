@@ -895,10 +895,15 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         _LOGGER.info("%s: Setting HVAC mode to %s (writing %d to address %d)",
                      self.name, hvac_mode, operation_mode_value, self._operation_mode_address)
 
-        success = await self.coordinator.async_write_register(
-            self._operation_mode_address, operation_mode_value
-        )
-        
+        if hasattr(self.coordinator, "async_write_register_raw"):
+            success = await self.coordinator.async_write_register_raw(
+                self._operation_mode_address, operation_mode_value
+            )
+        else:
+            success = await self.coordinator.write_register_by_address(
+                self._operation_mode_address, int(operation_mode_value)
+            )
+
         if success:
             _LOGGER.info("%s: Successfully updated HVAC mode to %s",
                          self.name, hvac_mode)
@@ -923,11 +928,18 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         if value is None:
             _LOGGER.warning("Unknown preset_mode: %s", preset_mode)
             return
-        success = await self.coordinator.async_write_register(
-            self._operation_mode_address, value
-        )
+        if hasattr(self.coordinator, "async_write_register_raw"):
+            success = await self.coordinator.async_write_register_raw(
+                self._operation_mode_address, value
+            )
+        else:
+            success = await self.coordinator.write_register_by_address(
+                self._operation_mode_address, int(value)
+            )
         if success:
             await self.coordinator.async_request_refresh()
+        else:
+            _LOGGER.error("Failed to set preset_mode=%s (address=%s)", preset_mode, self._operation_mode_address)
 
 
 class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
