@@ -79,23 +79,26 @@ async def async_setup_entry(
     else:
         # Cloud API-based climate entities
         _LOGGER.info("Creating Cloud API-based climate entities")
-        
-        entities.append(KronotermDHWClimate(entry, coordinator))
 
-        if coordinator.loop1_installed:
-            entities.append(KronotermLoop1Climate(entry, coordinator))
+        if getattr(coordinator, "system_type", "cloud") == "dhw":
+            entities.append(KronotermDHWCloudClimate(entry, coordinator))
+        else:
+            entities.append(KronotermDHWClimate(entry, coordinator))
 
-        if coordinator.loop2_installed:
-            entities.append(KronotermLoop2Climate(entry, coordinator))
+            if coordinator.loop1_installed:
+                entities.append(KronotermLoop1Climate(entry, coordinator))
 
-        if coordinator.loop3_installed:
-            entities.append(KronotermLoop3Climate(entry, coordinator))
+            if coordinator.loop2_installed:
+                entities.append(KronotermLoop2Climate(entry, coordinator))
 
-        if coordinator.loop4_installed:
-            entities.append(KronotermLoop4Climate(entry, coordinator))
+            if coordinator.loop3_installed:
+                entities.append(KronotermLoop3Climate(entry, coordinator))
 
-        if coordinator.reservoir_installed:
-            entities.append(KronotermReservoirClimate(entry, coordinator))
+            if coordinator.loop4_installed:
+                entities.append(KronotermLoop4Climate(entry, coordinator))
+
+            if coordinator.reservoir_installed:
+                entities.append(KronotermReservoirClimate(entry, coordinator))
 
     _LOGGER.debug("Created %d climate entities (%s mode)", 
                    len(entities), "Modbus" if is_modbus else "Cloud API")
@@ -292,6 +295,44 @@ class KronotermJsonClimate(KronotermBaseClimate):
 #
 #   Domestic Hot Water (DHW) - Refactored
 #
+class KronotermDHWCloudClimate(KronotermBaseClimate):
+    """DHW climate entity for Water Cloud (BasicData fields)."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            fallback_name="DHW Temperature",
+            translation_key="dhw_temperature",
+            unique_id_suffix="dhw_climate",
+            min_temp=10,
+            max_temp=90,
+            page=1,
+        )
+
+    @property
+    def current_temperature(self) -> float | None:
+        data = (self.coordinator.data or {}).get("main", {})
+        raw = data.get("BasicData", {}).get("boiler_temp")
+        if raw is None:
+            raw = data.get("BasicData", {}).get("boiler_calc_temp")
+        if raw is None:
+            raw = data.get("GlobalOverview", {}).get("boiler_temp")
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        data = (self.coordinator.data or {}).get("main", {})
+        raw = data.get("BasicData", {}).get("boiler_setpoint")
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
+
 class KronotermDHWClimate(KronotermJsonClimate):
     """Climate entity for domestic hot water (DHW)."""
 
