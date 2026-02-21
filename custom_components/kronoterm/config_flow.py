@@ -188,7 +188,10 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
-            vol.Required("cloud_type", default="dhw"): vol.In(["cloud", "dhw"]),
+            vol.Required("cloud_type", default="dhw"): vol.In({
+                "cloud": "Heating heat pump",
+                "dhw": "Sanitary water heat pump",
+            }),
         })
         
         return self.async_show_form(
@@ -310,7 +313,10 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME, default=default_username): str,
             vol.Required(CONF_PASSWORD, default=default_password): str,
-            vol.Required("cloud_type", default=current_data.get("cloud_type", "dhw")): vol.In(["cloud", "dhw"]),
+            vol.Required("cloud_type", default=current_data.get("cloud_type", "dhw")): vol.In({
+                "cloud": "Heating heat pump",
+                "dhw": "Sanitary water heat pump",
+            }),
         })
         
         return self.async_show_form(
