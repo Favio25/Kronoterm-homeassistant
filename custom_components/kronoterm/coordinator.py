@@ -306,11 +306,6 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                     self._request_with_retries("GET", self.api_queries_get["loop4"]),
                     self._request_with_retries("GET", self.api_queries_get["main_settings"]),
                     self._request_with_retries("GET", self.api_queries_get["system_data"]),
-                    self._request_with_retries(
-                        "POST",
-                        self.api_queries_get["consumption"],
-                        self._fetch_consumption(),
-                    ),
                 )
                 data["loop1"] = loop_results[0]
                 data["loop2"] = loop_results[1]
@@ -320,7 +315,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 data["loop4"] = loop_results[5]
                 data["main_settings"] = loop_results[6]
                 data["system_data"] = loop_results[7]
-                data["consumption"] = loop_results[8]
+                data["consumption"] = await self._fetch_consumption()
                 try:
                     consumption = loop_results[8] or {}
                     trend = consumption.get("trend_consumption", {})
