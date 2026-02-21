@@ -22,6 +22,7 @@ from .const import (
     EnumSensorDefinition,
 )
 from .entities import KronotermModbusBase
+from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator # Add this import
 
 # Import RegisterDefinition for type hints (may not exist if register_map not loaded)
 try:
@@ -244,6 +245,9 @@ async def async_setup_entry(
         _LOGGER.warning("No data from Kronoterm. Skipping sensors.")
         return False
 
+    # Use instance checks instead of hasattr or string checks if possible, or robust checks
+    is_dhw = isinstance(coordinator, KronotermDHWCoordinator) or coordinator.system_type == "dhw"
+    
     # Check if this is a Modbus coordinator with register map
     use_register_map = hasattr(coordinator, "register_map") and coordinator.register_map is not None
     
@@ -252,11 +256,59 @@ async def async_setup_entry(
         return await _async_setup_modbus_entities(
             coordinator, device_info, async_add_entities
         )
+    elif is_dhw:
+        _LOGGER.info("Using DHW Cloud entities")
+        return await _async_setup_dhw_entities(
+            coordinator, device_info, async_add_entities
+        )
     else:
         _LOGGER.info("Using hardcoded definitions for Cloud API entities")
         return await _async_setup_cloud_entities(
             coordinator, device_info, async_add_entities
         )
+
+async def _async_setup_dhw_entities(
+    coordinator: DataUpdateCoordinator,
+    device_info: Dict[str, Any],
+    async_add_entities: AddEntitiesCallback,
+) -> bool:
+    """Setup entities for DHW Cloud API."""
+    entities = []
+    
+    # boiler_calc_temp (Current Temperature)
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_current_temperature",
+            "dhw_current_temperature", # Need to add to strings.json
+            ["main", "BasicData", "boiler_calc_temp"],
+            unit="°C",
+            icon="mdi:water-thermometer",
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+    )
+
+    # boiler_setpoint (Target Temperature) - exposed as sensor too
+    entities.append(
+        KronotermJsonSensor(
+            coordinator,
+            device_info,
+            "dhw_target_temperature",
+            "dhw_target_temperature",
+            ["main", "BasicData", "boiler_setpoint"],
+            unit="°C",
+            icon="mdi:thermometer",
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+        )
+    )
+
+    if entities:
+        async_add_entities(entities)
+    return True
+
 
 
 async def _async_setup_cloud_entities(

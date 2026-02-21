@@ -13,7 +13,8 @@
         "description": "Enter your Kronoterm cloud account credentials",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "cloud_type": "Cloud Type"
         }
       },
       "modbus": {
@@ -58,7 +59,8 @@
         "description": "Configure cloud connection (entities will be preserved)",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "cloud_type": "Cloud Type"
         }
       },
       "reconfigure_modbus": {

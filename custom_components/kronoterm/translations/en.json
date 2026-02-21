@@ -13,7 +13,8 @@
         "description": "Enter your Kronoterm cloud account credentials",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "cloud_type": "Cloud Type"
         }
       },
       "modbus": {
@@ -76,7 +77,8 @@
         "description": "Configure cloud connection (entities will be preserved)",
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "cloud_type": "Cloud Type"
         }
       },
       "reconfigure_modbus": {
@@ -158,6 +160,12 @@
       }
     },
     "sensor": {
+      "dhw_current_temperature": {
+        "name": "DHW Current Temperature"
+      },
+      "dhw_target_temperature": {
+        "name": "DHW Target Temperature"
+      },
       "pool_temperature": {
         "name": "Pool Temperature"
       },

@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.exceptions import ConfigEntryNotReady
 from .const import DOMAIN
-from .coordinator import KronotermCoordinator
+from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator
 from .modbus_coordinator import ModbusCoordinator
 from .config_flow_modbus import CONNECTION_TYPE_MODBUS
 
@@ -26,15 +26,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Check connection type and create appropriate coordinator
     connection_type = entry.data.get("connection_type", "cloud")
+    system_type = entry.data.get("system_type", "cloud")
     
     if connection_type == CONNECTION_TYPE_MODBUS:
         _LOGGER.info("Setting up Kronoterm with Modbus TCP connection")
         coordinator = ModbusCoordinator(hass, entry)
+    elif system_type == "dhw":
+        _LOGGER.info("Setting up Kronoterm DHW (Water Cloud) connection")
+        # Create a new client session for DHW to ensure isolation
+        # We don't use the shared hass session to avoid cookie conflicts with main cloud
+        from homeassistant.helpers.aiohttp_client import async_create_clientsession
+        session = async_create_clientsession(hass, cookie_jar=None) # Default jar is fine if new session
+        coordinator = KronotermDHWCoordinator(hass, session, entry)
     else:
         _LOGGER.info("Setting up Kronoterm with Cloud API connection")
-        # Use Home Assistant's built-in client session for cloud API
+        # Use Home Assistant's built-in client session for main cloud API
         session = async_get_clientsession(hass)
-        coordinator = KronotermCoordinator(hass, session, entry)
+        coordinator = KronotermMainCoordinator(hass, session, entry)
 
     try:
         await coordinator.async_initialize()

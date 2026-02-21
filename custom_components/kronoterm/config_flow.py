@@ -11,7 +11,9 @@ from homeassistant.const import CONF_USERNAME, CONF_PASSWORD, CONF_HOST, CONF_PO
 from .const import (
     DOMAIN, 
     BASE_URL, 
-    API_QUERIES_GET, 
+    BASE_URL_DHW,
+    API_QUERIES_GET,
+    API_QUERIES_GET_DHW,
     DEFAULT_SCAN_INTERVAL, 
     REQUEST_TIMEOUT
 )
@@ -42,45 +44,90 @@ def sanitize_user_input(user_input: dict) -> dict:
         for key, value in user_input.items()
     }
 
-async def validate_credentials(data: dict) -> str | None:
+async def validate_credentials(data: dict, preferred_type: str = "auto") -> tuple[str | None, str | None]:
     """
     Validate the credentials by attempting a lightweight API call.
-    Returns an error code string on failure, or None on success.
+    Returns (error_code, system_type) on failure/success.
     
-    Uses its own session to avoid cookie reuse from other instances.
+    preferred_type: "auto" | "cloud" | "dhw"
     """
     username = data[CONF_USERNAME]
     password = data[CONF_PASSWORD]
     auth = aiohttp.BasicAuth(username, password)
     
-    query_params = API_QUERIES_GET["info"]
     timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
 
-    # Create a new, temporary session that has no cookies
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(
-                BASE_URL, 
-                auth=auth, 
-                params=query_params, 
-                timeout=timeout
-            ) as response:
-                if response.status == 200:
-                    _LOGGER.debug("Authentication successful")
-                    return None  # Success
-                if response.status == 401:
-                    _LOGGER.warning("Authentication failed: Invalid username or password")
-                    return "invalid_auth"
-                
-                _LOGGER.error("Authentication failed: HTTP %s", response.status)
-                return "cannot_connect"
+    async def _try_main() -> bool:
+        _LOGGER.debug("Attempting connection to Main Cloud...")
+        headers_main = {
+            "phonegap": "1.5.0",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(
+                    BASE_URL, 
+                    auth=auth, 
+                    params=API_QUERIES_GET["menu"], 
+                    headers=headers_main,
+                    timeout=timeout
+                ) as response:
+                    if response.status == 200:
+                        try:
+                            data = await response.json()
+                            return "hp_id" in data
+                        except Exception:
+                            return False
+                    if response.status == 401:
+                        return False
+            except Exception as e:
+                _LOGGER.debug("Main Cloud connection failed: %s", e)
+        return False
 
-        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
-            _LOGGER.error("Authentication failed: Connection error: %s", err)
-            return "cannot_connect"
-        except Exception as err:
-            _LOGGER.error("Authentication failed: Unexpected error: %s", err, exc_info=True)
-            return "unknown"
+    async def _try_dhw() -> bool:
+        _LOGGER.debug("Attempting connection to DHW Cloud...")
+        headers_dhw = {
+            "phonegap": "1.0.7",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(
+                    BASE_URL_DHW, 
+                    auth=auth, 
+                    params=API_QUERIES_GET_DHW["menu"], 
+                    headers=headers_dhw,
+                    timeout=timeout
+                ) as response:
+                    if response.status == 200:
+                        try:
+                            data = await response.json()
+                            return "hp_id" in data
+                        except Exception:
+                            return False
+                    if response.status == 401:
+                        return False
+            except Exception as e:
+                _LOGGER.debug("DHW Cloud connection failed: %s", e)
+        return False
+
+    if preferred_type == "cloud":
+        ok = await _try_main()
+        return (None, "cloud") if ok else ("invalid_auth", None)
+    if preferred_type == "dhw":
+        ok = await _try_dhw()
+        return (None, "dhw") if ok else ("invalid_auth", None)
+
+    # auto mode: try main first, then dhw
+    main_ok = await _try_main()
+    if main_ok:
+        return None, "cloud"
+    dhw_ok = await _try_dhw()
+    if dhw_ok:
+        return None, "dhw"
+
+    return "invalid_auth", None
+
 
 
 class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -123,22 +170,33 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             sanitized_input = sanitize_user_input(user_input)
             _LOGGER.debug("User input received: %s", sanitized_input)
             
+            preferred_type = user_input.get("cloud_type", "auto")
             # Validate credentials
-            error_code = await validate_credentials(user_input)
-            if not error_code:
+            error_code, system_type = await validate_credentials(user_input, preferred_type)
+            
+            if not error_code and system_type:
                 # Auth success, add connection type and create entry
                 user_input["connection_type"] = CONNECTION_TYPE_CLOUD
+                user_input["system_type"] = system_type  # Store system type (cloud/dhw)
+                
+                title = "Kronoterm Heat Pump (Cloud)"
+                if system_type == "dhw":
+                    title = "Kronoterm DHW (Water Cloud)"
+                
                 return self.async_create_entry(
-                    title="Kronoterm Heat Pump (Cloud)", 
+                    title=title, 
                     data=user_input
                 )
-            else:
+            elif error_code:
                 # Auth failed, set error and show form again
                 errors["base"] = error_code
+            else:
+                errors["base"] = "unknown"
 
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
+            vol.Optional("cloud_type", default="auto"): vol.In(["auto", "cloud", "dhw"]),
         })
         
         return self.async_show_form(
@@ -215,15 +273,23 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             sanitized_input = sanitize_user_input(user_input)
             _LOGGER.debug("Reconfigure cloud input: %s", sanitized_input)
             
+            preferred_type = user_input.get("cloud_type", "auto")
             # Validate credentials
-            error_code = await validate_credentials(user_input)
-            if not error_code:
+            error_code, system_type = await validate_credentials(user_input, preferred_type)
+            
+            if not error_code and system_type:
                 # Auth success, update the entry
                 user_input["connection_type"] = CONNECTION_TYPE_CLOUD
+                user_input["system_type"] = system_type
+                
+                title = "Kronoterm Heat Pump (Cloud)"
+                if system_type == "dhw":
+                    title = "Kronoterm DHW (Water Cloud)"
+                
                 self.hass.config_entries.async_update_entry(
                     self.reconfig_entry,
                     data=user_input,
-                    title="Kronoterm Heat Pump (Cloud)"
+                    title=title
                 )
                 
                 # Disable Modbus-only entities, re-enable Cloud entities
@@ -252,6 +318,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         cloud_schema = vol.Schema({
             vol.Required(CONF_USERNAME, default=default_username): str,
             vol.Required(CONF_PASSWORD, default=default_password): str,
+            vol.Optional("cloud_type", default=current_data.get("cloud_type", "auto")): vol.In(["auto", "cloud", "dhw"]),
         })
         
         return self.async_show_form(
@@ -334,14 +401,19 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             # Validate credentials, as they might have been changed
             # We no longer pass self.hass
-            error_code = await validate_credentials(user_input)
-            if not error_code:
+            error_code, system_type = await validate_credentials(user_input)
+            
+            if not error_code and system_type:
                 _LOGGER.debug("Options saved: %s", sanitize_user_input(user_input))
+                # Update system_type in case it changed (e.g. diff cloud endpoint)
+                user_input["system_type"] = system_type
                 # Save the validated input (including any new credentials)
                 return self.async_create_entry(title="", data=user_input)
-            else:
-                _LOGGER.warning("Failed to save options: credentials invalid")
+            elif error_code:
+                _LOGGER.warning("Failed to save options: credentials invalid (%s)", error_code)
                 errors["base"] = error_code
+            else:
+                errors["base"] = "unknown"
         
         # Get current values from options, falling back to data (for credentials)
         # or defaults (for other settings)
