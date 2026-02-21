@@ -374,11 +374,43 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
     async def async_set_temperature(self, page: int, new_temp: float) -> bool:
         # DHW Temp is usually on page 1 ("main")
         form_data = [
-            ("param_name", "boiler_setpoint"), # Correct parameter name for DHW
+            ("param_name", "boiler_setpoint"),
             ("param_value", str(round(new_temp, 1))),
-            ("page", "1")
+            ("page", "1"),
         ]
         return await self._send_set_request("main", form_data)
+
+    async def async_set_luxury_shower(self, enable: bool) -> bool:
+        return await self._send_shortcut("shrtct_luxury_shower", enable)
+
+    async def async_set_antilegionella(self, enable: bool) -> bool:
+        return await self._send_shortcut("shrtct_antilegionela", enable)
+
+    async def async_set_reserve_source(self, enable: bool) -> bool:
+        return await self._send_shortcut("shrtct_reserve_source", enable)
+
+    async def async_set_holiday(self, enable: bool) -> bool:
+        # Use current holiday_days if available
+        days = 0
+        try:
+            days = int(
+                self.data.get("shortcuts", {})
+                .get("ShortcutsData", {})
+                .get("holiday_days", 0)
+            )
+        except Exception:
+            days = 0
+        return await self._send_shortcut("shrtct_holiday", enable, additional_value=days)
+
+    async def _send_shortcut(self, param_name: str, enable: bool, additional_value: Optional[int] = None) -> bool:
+        form_data = [
+            ("param_name", param_name),
+            ("param_value", "1" if enable else "0"),
+            ("page", "2"),
+        ]
+        if additional_value is not None:
+            form_data.append(("additional_value", str(additional_value)))
+        return await self._send_set_request("shortcuts", form_data)
 
     async def _send_set_request(self, query_key, form_data):
         try:

@@ -100,44 +100,73 @@ async def async_setup_entry(
         _LOGGER.debug("Created %d Modbus switches", len(entities))
     else:
         # Cloud API switches read from ShortcutsData
-        switch_configs = [
-            SwitchConfig(
-                "heatpump_switch",
-                "heatpump_switch",
-                "heatpump_on",
-                "async_set_heatpump_state",
-            ),
-            SwitchConfig(
-                "dhw_circulation_switch",
-                "dhw_circulation_switch",
-                "circulation_on",
-                "async_set_dhw_circulation",
-            ),
-            SwitchConfig(
-                "fast_heating_switch",
-                "fast_heating_switch",
-                "fast_water_heating",
-                "async_set_fast_water_heating",
-            ),
-            SwitchConfig(
-                "antilegionella_switch",
-                "antilegionella_switch",
-                "antilegionella",
-                "async_set_antilegionella",
-            ),
-            SwitchConfig(
-                "reserve_source_switch",
-                "reserve_source_switch",
-                "reserve_source",
-                "async_set_reserve_source",
-            ),
-            SwitchConfig(
-                "additional_source_switch",
-                "additional_source_switch",
-                "additional_source",
-                "async_set_additional_source",
-            ),
-        ]
+        is_dhw = getattr(coordinator, "system_type", "cloud") == "dhw"
+        if is_dhw:
+            switch_configs = [
+                SwitchConfig(
+                    "dhw_luxury_shower",
+                    "dhw_luxury_shower",
+                    "luxury_shower_status",
+                    "async_set_luxury_shower",
+                ),
+                SwitchConfig(
+                    "dhw_antilegionella",
+                    "dhw_antilegionella",
+                    "antilegionela_status",
+                    "async_set_antilegionella",
+                ),
+                SwitchConfig(
+                    "dhw_reserve_source",
+                    "dhw_reserve_source",
+                    "reserve_source_status",
+                    "async_set_reserve_source",
+                ),
+                SwitchConfig(
+                    "dhw_holiday",
+                    "dhw_holiday",
+                    "holiday_status",
+                    "async_set_holiday",
+                ),
+            ]
+        else:
+            switch_configs = [
+                SwitchConfig(
+                    "heatpump_switch",
+                    "heatpump_switch",
+                    "heatpump_on",
+                    "async_set_heatpump_state",
+                ),
+                SwitchConfig(
+                    "dhw_circulation_switch",
+                    "dhw_circulation_switch",
+                    "circulation_on",
+                    "async_set_dhw_circulation",
+                ),
+                SwitchConfig(
+                    "fast_heating_switch",
+                    "fast_heating_switch",
+                    "fast_water_heating",
+                    "async_set_fast_water_heating",
+                ),
+                SwitchConfig(
+                    "antilegionella_switch",
+                    "antilegionella_switch",
+                    "antilegionella",
+                    "async_set_antilegionella",
+                ),
+                SwitchConfig(
+                    "reserve_source_switch",
+                    "reserve_source_switch",
+                    "reserve_source",
+                    "async_set_reserve_source",
+                ),
+                SwitchConfig(
+                    "additional_source_switch",
+                    "additional_source_switch",
+                    "additional_source",
+                    "async_set_additional_source",
+                ),
+            ]
         
         entities = [
             KronotermSwitch(entry, coordinator, config)

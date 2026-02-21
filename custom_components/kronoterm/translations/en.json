@@ -666,6 +666,18 @@
       "antilegionella_switch": {
         "name": "Antilegionella"
       },
+      "dhw_luxury_shower": {
+        "name": "Luxury Shower"
+      },
+      "dhw_antilegionella": {
+        "name": "Antilegionella"
+      },
+      "dhw_reserve_source": {
+        "name": "Reserve Source"
+      },
+      "dhw_holiday": {
+        "name": "Holiday Mode"
+      },
       "loop1_temp_source_switch": {
         "name": "Loop 1 Use JSON Temp Source"
       },
