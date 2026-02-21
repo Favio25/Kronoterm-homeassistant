@@ -288,7 +288,7 @@ async def async_setup_entry(
     device_info = coordinator.shared_device_info
 
     # Use instance checks instead of hasattr or string checks if possible, or robust checks
-    is_dhw = isinstance(coordinator, KronotermDHWCoordinator) or coordinator.system_type == "dhw"
+    is_dhw = isinstance(coordinator, KronotermDHWCoordinator) or getattr(coordinator, "system_type", None) == "dhw"
     
     # Check if this is a Modbus coordinator with register map
     use_register_map = hasattr(coordinator, "register_map") and coordinator.register_map is not None
