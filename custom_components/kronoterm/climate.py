@@ -267,6 +267,9 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
         self._operation_mode_address = operation_mode_address
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        self._attr_hvac_mode = HVACMode.HEAT
+        self._last_heat_mode = 1
 
     def _get_mode_from_modbus(self) -> Optional[int]:
         modbus_list = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
@@ -277,6 +280,29 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
                 except (TypeError, ValueError):
                     return None
         return None
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        val = self._get_mode_from_modbus()
+        if val is None or val == 0:
+            return HVACMode.OFF
+        if val in (1, 2):
+            self._last_heat_mode = val
+        return HVACMode.HEAT
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        if hvac_mode not in self._attr_hvac_modes:
+            _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
+            return
+        if hvac_mode == HVACMode.OFF:
+            value = 0
+        else:
+            value = self._last_heat_mode or 1
+        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        if not success:
+            _LOGGER.error("Failed to set HVAC mode=%s (page=%s)", hvac_mode, self._page)
+        else:
+            await self.coordinator.async_request_refresh()
 
     @property
     def preset_mode(self) -> str | None:
@@ -294,6 +320,8 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
         if not success:
             _LOGGER.error("Failed to set loop preset_mode=%s (page=%s)", preset_mode, self._page)
         else:
+            if value in (1, 2):
+                self._last_heat_mode = value
             await self.coordinator.async_request_refresh()
 
     @property
