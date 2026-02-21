@@ -249,6 +249,15 @@ class KronotermJsonClimate(KronotermBaseClimate):
         self._current_temp_json_key = current_temp_json_key
         self._target_temp_json_key = target_temp_json_key
 
+    def _get_modbus_value(self, address: int) -> Optional[float]:
+        if not self.coordinator.data:
+            return None
+        modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == address:
+                return reg.get("value")
+        return None
+
 
 class KronotermLoopJsonClimate(KronotermJsonClimate):
     """Loop climate with preset modes mapped from loop mode register."""
@@ -460,6 +469,29 @@ class KronotermDHWClimate(KronotermJsonClimate):
             page=9,
         )
 
+    @property
+    def current_temperature(self) -> float | None:
+        temp = super().current_temperature
+        if temp is not None:
+            return temp
+        # Fallback to ModbusReg address 2102 for cloud mode
+        raw = self._get_modbus_value(2102)
+        try:
+            return float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        temp = super().target_temperature
+        if temp is not None:
+            return temp
+        raw = self._get_modbus_value(2023)
+        try:
+            return float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
+
 
 # --- MODIFIED: START OF Loop 1 REPLACEMENT ---
 #
@@ -578,6 +610,28 @@ class KronotermReservoirClimate(KronotermJsonClimate):
             max_temp=90,
             page=4,
         )
+
+    @property
+    def current_temperature(self) -> float | None:
+        temp = super().current_temperature
+        if temp is not None:
+            return temp
+        raw = self._get_modbus_value(2101)
+        try:
+            return float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        temp = super().target_temperature
+        if temp is not None:
+            return temp
+        raw = self._get_modbus_value(2034)
+        try:
+            return float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
 
 
 # ===================================================================
