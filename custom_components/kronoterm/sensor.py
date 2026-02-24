@@ -532,9 +532,17 @@ async def _async_setup_cloud_entities(
                 continue
 
 
+        address = sensor_def.address
+        # Cloud API returns these two energy addresses swapped; fix mapping for cloud only.
+        if isinstance(coordinator, KronotermMainCoordinator):
+            if sensor_def.key == "electrical_energy_heating_dhw" and sensor_def.address == 2362:
+                address = 2364
+            elif sensor_def.key == "heating_energy_heating_dhw" and sensor_def.address == 2364:
+                address = 2362
+
         ent = KronotermModbusRegSensor(
             coordinator=coordinator,
-            address=sensor_def.address,
+            address=address,
             name=sensor_def.key,
             unit=sensor_def.unit,
             device_info=device_info,
