@@ -119,8 +119,8 @@ MAIN_MODE_OPTIONS = {
     2: "comfort",
 }
 
-# Static form data for consumption fetching
-CONSUMPTION_FORM_DATA_STATIC = [
+# Base form data for consumption fetching (date params added dynamically)
+CONSUMPTION_FORM_BASE = [
     ("d2", "0"),
     ("type", "day"),
     # aValues:

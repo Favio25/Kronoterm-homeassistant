@@ -19,7 +19,7 @@ from .const import (
     API_QUERIES_SET_DHW,
     PAGE_TO_SET_QUERY_KEY,
     API_PARAM_KEYS,
-    CONSUMPTION_FORM_DATA_STATIC,
+    CONSUMPTION_FORM_BASE,
     DEFAULT_SCAN_INTERVAL,
     REQUEST_TIMEOUT,
     MAX_RETRY_ATTEMPTS,
@@ -199,12 +199,22 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         _LOGGER.info("Initializing Kronoterm Main Coordinator")
 
     async def _fetch_consumption(self) -> Optional[Dict[str, Any]]:
-        """Fetch daily consumption using the legacy static form (pre-1.6.0)."""
+        """Fetch daily consumption using year + day-of-year params."""
+        today = datetime.now().date()
+        form = CONSUMPTION_FORM_BASE + [
+            ("year", str(today.year)),
+            ("d1", str(today.timetuple().tm_yday)),
+        ]
+        _LOGGER.warning(
+            "Consumption request params: year=%s d1=%s d2=0 type=day",
+            today.year,
+            today.timetuple().tm_yday,
+        )
         try:
             resp = await self._request_with_retries(
                 "POST",
                 self.api_queries_get["consumption"],
-                CONSUMPTION_FORM_DATA_STATIC,
+                form,
             )
         except Exception as err:
             _LOGGER.warning("Consumption request failed with %s", err)
