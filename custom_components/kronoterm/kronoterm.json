@@ -2832,7 +2832,7 @@
       "unit": "x 1 kWh",
       "note": "32 bit combined",
       "source": "Page 9, 20",
-      "name_en": "electrical_energy_heating_dhw",
+      "name_en": "heating_energy_heating_dhw",
       "register32_high": 2361,
       "register32_low": 2362
     },
@@ -2844,7 +2844,7 @@
       "unit": "x 1 kWh",
       "note": "32 bit combined",
       "source": "Page 9, 20",
-      "name_en": "heating_energy_heating_dhw",
+      "name_en": "electrical_energy_heating_dhw",
       "register32_high": 2363,
       "register32_low": 2364
     },
