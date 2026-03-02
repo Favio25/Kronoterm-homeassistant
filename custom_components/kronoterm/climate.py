@@ -313,7 +313,7 @@ class KronotermJsonClimate(KronotermBaseClimate):
 class KronotermLoopJsonClimate(KronotermJsonClimate):
     """Loop climate with preset modes mapped from loop mode register."""
 
-    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_MAP = {0: "OFF", 1: "ON", 2: "AUTO"}
     PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
 
     def __init__(
@@ -499,7 +499,7 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 class KronotermDHWClimate(KronotermJsonClimate):
     """Climate entity for domestic hot water (DHW)."""
 
-    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_MAP = {0: "OFF", 1: "ON", 2: "AUTO"}
     PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
@@ -663,7 +663,7 @@ class KronotermLoop4Climate(KronotermLoopJsonClimate):
 class KronotermReservoirClimate(KronotermJsonClimate):
     """Climate entity for reservoir temperature."""
 
-    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_MAP = {0: "OFF", 1: "ON", 2: "AUTO"}
     PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
 
     def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
@@ -731,7 +731,7 @@ class KronotermReservoirClimate(KronotermJsonClimate):
 class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
     """Base class for Modbus-based Kronoterm Climate Entities."""
 
-    PRESET_MAP = {0: "off", 1: "on", 2: "auto"}
+    PRESET_MAP = {0: "OFF", 1: "ON", 2: "AUTO"}
     PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
 
     def __init__(
