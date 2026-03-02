@@ -694,6 +694,15 @@
           "comfort": "Udobje",
           "eco": "ECO"
         }
+      },
+      "system_regime": {
+        "name": "Režim sistema",
+        "state": {
+          "heat": "Ogrevanje",
+          "cool": "Hlajenje",
+          "auto": "Samodejno",
+          "off": "Izklop"
+        }
       }
     },
     "number": {

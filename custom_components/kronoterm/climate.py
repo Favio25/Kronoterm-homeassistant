@@ -136,13 +136,13 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
 
         # Show a single target-temperature control in HA's UI
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-        # If hardware can do cooling, add COOL + OFF
+        # If hardware can do cooling, add COOL + AUTO + OFF
         self._supports_cooling = supports_cooling
         if supports_cooling:
-            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO, HVACMode.OFF]
             self._attr_hvac_mode = HVACMode.HEAT  # default
         else:
-            self._attr_hvac_modes = [HVACMode.HEAT]
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
             self._attr_hvac_mode = HVACMode.HEAT
 
         self._attr_min_temp = min_temp
@@ -161,10 +161,32 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
         """Return the temperature unit (°C or °F) set in Home Assistant."""
         return self.hass.config.units.temperature_unit
 
+    def _get_system_regime_value(self) -> int | None:
+        modbus_list = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == 2017:
+                try:
+                    return int(float(reg.get("value")))
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def _map_regime_to_hvac(self, regime: int | None) -> HVACMode:
+        if regime == 4:
+            return HVACMode.OFF
+        if regime == 3:
+            return HVACMode.AUTO if self._supports_cooling else HVACMode.HEAT
+        if regime == 1:
+            return HVACMode.COOL if self._supports_cooling else HVACMode.HEAT
+        if regime == 2:
+            return HVACMode.HEAT
+        return HVACMode.HEAT
+
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return the current HVAC operation mode (HEAT, COOL, OFF)."""
-        return self._attr_hvac_mode
+        """Return the current HVAC operation mode based on system regime (2017)."""
+        regime = self._get_system_regime_value()
+        return self._map_regime_to_hvac(regime)
 
     async def async_set_temperature(self, **kwargs) -> None:
         """
@@ -326,6 +348,27 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
                     return None
         return None
 
+    def _get_system_regime_value(self) -> int | None:
+        modbus_list = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == 2017:
+                try:
+                    return int(float(reg.get("value")))
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def _map_regime_to_hvac(self, regime: int | None) -> HVACMode:
+        if regime == 4:
+            return HVACMode.OFF
+        if regime == 3:
+            return HVACMode.AUTO if self._supports_cooling else HVACMode.HEAT
+        if regime == 1:
+            return HVACMode.COOL if self._supports_cooling else HVACMode.HEAT
+        if regime == 2:
+            return HVACMode.HEAT
+        return HVACMode.HEAT
+
     @property
     def hvac_mode(self) -> HVACMode:
         val = self._get_mode_from_modbus()
@@ -333,7 +376,8 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
             return HVACMode.OFF
         if val in (1, 2):
             self._last_heat_mode = val
-        return HVACMode.HEAT
+        regime = self._get_system_regime_value()
+        return self._map_regime_to_hvac(regime)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         if hvac_mode not in self._attr_hvac_modes:
@@ -721,7 +765,7 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         # All zones support OFF mode via operation_mode register
         self._supports_cooling = supports_cooling
         if supports_cooling:
-            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO, HVACMode.OFF]
         else:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 

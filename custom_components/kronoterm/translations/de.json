@@ -694,6 +694,15 @@
           "comfort": "Komfort",
           "eco": "ECO"
         }
+      },
+      "system_regime": {
+        "name": "Systemregime",
+        "state": {
+          "heat": "Heizen",
+          "cool": "Kühlen",
+          "auto": "Automatisch",
+          "off": "Aus"
+        }
       }
     },
     "number": {

@@ -85,7 +85,9 @@ async def async_setup_entry(
 
     # Add operational mode select (ECO/Auto/Comfort) - works for both Cloud and Modbus
     entities.append(KronotermOperationalModeSelect(entry, coordinator))
-    
+    # Add system regime select (Heat/Cool/Auto/Off) via register 2017
+    entities.append(KronotermRegimeSelect(entry, coordinator))
+
     async_add_entities(entities, update_before_add=False)
 
 
@@ -188,6 +190,51 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
         
         # Options are the string values from MAIN_MODE_OPTIONS
         self._attr_options = list(MAIN_MODE_OPTIONS.values())
+
+
+class KronotermRegimeSelect(CoordinatorEntity, SelectEntity):
+    """Select entity for Kronoterm system regime (Heat/Cool/Auto/Off).
+    Uses register 2017 for both Cloud (ModbusReg in payload) and Modbus TCP.
+    """
+
+    _attr_options = ["heat", "cool", "auto", "off"]
+    VALUE_TO_OPTION = {1: "cool", 2: "heat", 3: "auto", 4: "off"}
+    OPTION_TO_VALUE = {"cool": 1, "heat": 2, "auto": 3, "off": 4}
+
+    def __init__(self, entry: ConfigEntry, coordinator: Any) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "system_regime"
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_system_regime"
+        self._attr_device_info = coordinator.shared_device_info
+
+    @property
+    def current_option(self) -> Optional[str]:
+        modbus_list = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        for reg in modbus_list:
+            if reg.get("address") == 2017:
+                try:
+                    val = int(float(reg.get("value")))
+                except (TypeError, ValueError):
+                    return None
+                return self.VALUE_TO_OPTION.get(val)
+        return None
+
+    async def async_select_option(self, option: str) -> None:
+        new_value = self.OPTION_TO_VALUE.get(option)
+        if new_value is None:
+            _LOGGER.warning("Unknown system regime option: %s", option)
+            return
+
+        if hasattr(self.coordinator, 'write_register_by_address'):
+            success = await self.coordinator.write_register_by_address(2017, new_value)
+            if success:
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("Failed to write system regime to register 2017")
+        else:
+            _LOGGER.error("Coordinator cannot write system regime (no write method available)")
 
     @property
     def current_option(self) -> Optional[str]:
