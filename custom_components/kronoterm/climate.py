@@ -364,12 +364,14 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
 
     @property
     def hvac_mode(self) -> HVACMode:
+        regime = self._get_system_regime_value()
+        if regime == 4:
+            return HVACMode.OFF
         val = self._get_mode_from_modbus()
         if val is None or val == 0:
             return HVACMode.OFF
         if val in (1, 2):
             self._last_heat_mode = val
-        regime = self._get_system_regime_value()
         return self._map_regime_to_hvac(regime)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
