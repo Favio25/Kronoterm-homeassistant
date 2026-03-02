@@ -218,36 +218,29 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
             _LOGGER.error("%s: Failed to update temperature", self.name)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Called by HA to set a new HVAC mode, e.g. COOL. Only works if hardware supports it."""
-        if not self._supports_cooling:
-            _LOGGER.warning("%s: This unit does not support changing HVAC mode", self.name)
-            return
-
+        """Set HVAC mode by writing the global regime (register 2017)."""
         if hvac_mode not in self._attr_hvac_modes:
             _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
             return
 
-        # Map hvac_mode to some integer we'd send to your coordinator
-        mode_value = 0  # OFF
-        if hvac_mode == HVACMode.HEAT:
+        mode_value = 2  # HEAT
+        if hvac_mode == HVACMode.COOL:
             mode_value = 1
-        elif hvac_mode == HVACMode.COOL:
-            mode_value = 2
+        elif hvac_mode == HVACMode.AUTO:
+            mode_value = 3
+        elif hvac_mode == HVACMode.OFF:
+            mode_value = 4
 
-        _LOGGER.info("%s: Setting HVAC mode to %s (value=%d)",
-                     self.name, hvac_mode, mode_value)
+        _LOGGER.info("%s: Setting global regime to %s (value=%d)", self.name, hvac_mode, mode_value)
 
-        success = True
-        # If your coordinator has an async_set_hvac_mode method:
-        if hasattr(self.coordinator, "async_set_hvac_mode"):
-            success = await self.coordinator.async_set_hvac_mode(self._mode_address, mode_value)
-
-        if success:
-            self._attr_hvac_mode = hvac_mode
-            self.async_write_ha_state()
-            _LOGGER.info("%s: Successfully updated HVAC mode to %s", self.name, hvac_mode)
+        if hasattr(self.coordinator, 'write_register_by_address'):
+            success = await self.coordinator.write_register_by_address(2017, mode_value)
+            if success:
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("%s: Failed to set global regime to %s", self.name, hvac_mode)
         else:
-            _LOGGER.error("%s: Failed to update HVAC mode", self.name)
+            _LOGGER.error("%s: Coordinator cannot write global regime (register 2017)", self.name)
 
 
 # -------------------------------------------------------------------
@@ -380,18 +373,29 @@ class KronotermLoopJsonClimate(KronotermJsonClimate):
         return self._map_regime_to_hvac(regime)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set HVAC mode by writing the global regime (register 2017)."""
         if hvac_mode not in self._attr_hvac_modes:
             _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
             return
-        if hvac_mode == HVACMode.OFF:
-            value = 0
+
+        mode_value = 2  # HEAT
+        if hvac_mode == HVACMode.COOL:
+            mode_value = 1
+        elif hvac_mode == HVACMode.AUTO:
+            mode_value = 3
+        elif hvac_mode == HVACMode.OFF:
+            mode_value = 4
+
+        _LOGGER.info("%s: Setting global regime to %s (value=%d)", self.name, hvac_mode, mode_value)
+
+        if hasattr(self.coordinator, 'write_register_by_address'):
+            success = await self.coordinator.write_register_by_address(2017, mode_value)
+            if success:
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("%s: Failed to set global regime to %s", self.name, hvac_mode)
         else:
-            value = self._last_heat_mode or 1
-        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
-        if not success:
-            _LOGGER.error("Failed to set HVAC mode=%s (page=%s)", hvac_mode, self._page)
-        else:
-            await self.coordinator.async_request_refresh()
+            _LOGGER.error("%s: Coordinator cannot write global regime (register 2017)", self.name)
 
     @property
     def preset_mode(self) -> str | None:
@@ -910,51 +914,31 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
             _LOGGER.error("%s: Failed to update temperature", self.name)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new HVAC mode (OFF or HEAT) by writing to operation_mode register.
-        
-        When turning back to HEAT, restores the previous mode (Normal or Schedule).
-        
-        Operation mode values:
-        0 = Izklop (OFF)
-        1 = Normalni režim (Normal/HEAT)
-        2 = Delovanje po urniku (Schedule/HEAT)
-        """
+        """Set HVAC mode by writing the global regime (register 2017)."""
         if hvac_mode not in self._attr_hvac_modes:
             _LOGGER.warning("%s: Unsupported HVAC mode: %s", self.name, hvac_mode)
             return
 
-        # Map HVAC mode to operation mode value
-        if hvac_mode == HVACMode.OFF:
-            operation_mode_value = 0
-        elif hvac_mode == HVACMode.HEAT:
-            # Restore previous mode (Normal=1 or Schedule=2)
-            operation_mode_value = self._last_heat_mode
-            _LOGGER.debug("%s: Restoring previous HEAT mode: %d", self.name, operation_mode_value)
-        elif hvac_mode == HVACMode.COOL:
-            operation_mode_value = 1  # For future cooling support
-        else:
-            _LOGGER.error("%s: Unknown HVAC mode: %s", self.name, hvac_mode)
-            return
+        mode_value = 2  # HEAT
+        if hvac_mode == HVACMode.COOL:
+            mode_value = 1
+        elif hvac_mode == HVACMode.AUTO:
+            mode_value = 3
+        elif hvac_mode == HVACMode.OFF:
+            mode_value = 4
 
-        _LOGGER.info("%s: Setting HVAC mode to %s (writing %d to address %d)",
-                     self.name, hvac_mode, operation_mode_value, self._operation_mode_address)
+        _LOGGER.info("%s: Setting global regime to %s (value=%d)", self.name, hvac_mode, mode_value)
 
         if hasattr(self.coordinator, "async_write_register_raw"):
-            success = await self.coordinator.async_write_register_raw(
-                self._operation_mode_address, operation_mode_value
-            )
+            success = await self.coordinator.async_write_register_raw(2017, mode_value)
         else:
-            success = await self.coordinator.write_register_by_address(
-                self._operation_mode_address, int(operation_mode_value)
-            )
+            success = await self.coordinator.write_register_by_address(2017, int(mode_value))
 
         if success:
-            _LOGGER.info("%s: Successfully updated HVAC mode to %s",
-                         self.name, hvac_mode)
-            # Request immediate refresh
+            _LOGGER.info("%s: Successfully updated HVAC mode to %s", self.name, hvac_mode)
             await self.coordinator.async_request_refresh()
         else:
-            _LOGGER.error("%s: Failed to update HVAC mode", self.name)
+            _LOGGER.error("%s: Failed to set global regime", self.name)
 
     @property
     def preset_mode(self) -> str | None:
