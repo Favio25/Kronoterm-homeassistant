@@ -797,36 +797,48 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         """Return the temperature unit."""
         return self.hass.config.units.temperature_unit
 
+    def _get_system_regime_value(self) -> int | None:
+        modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", []) if self.coordinator.data else []
+        for reg in modbus_list:
+            if reg.get("address") == 2017:
+                try:
+                    return int(float(reg.get("value")))
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def _map_regime_to_hvac(self, regime: int | None) -> HVACMode:
+        if regime == 4:
+            return HVACMode.OFF
+        if regime == 3:
+            return HVACMode.AUTO if self._supports_cooling else HVACMode.HEAT
+        if regime == 1:
+            return HVACMode.COOL if self._supports_cooling else HVACMode.HEAT
+        if regime == 2:
+            return HVACMode.HEAT
+        return HVACMode.HEAT
+
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return the current HVAC operation mode based on operation_mode register.
+        """Return HVAC mode based on global regime + loop operation mode.
         
-        Also checks target temperature for dependency-based OFF states.
-        
-        Operation mode values:
-        0 = Izklop (OFF)
-        1 = Normalni režim (Normal/HEAT)
-        2 = Delovanje po urniku (Schedule/HEAT)
+        If global regime is OFF, all zones report OFF.
+        Otherwise, if a loop is OFF (operation_mode=0 or target>=500), report OFF.
         """
+        regime = self._get_system_regime_value()
+        if regime == 4:
+            return HVACMode.OFF
+
         operation_mode = self._get_register_value(self._operation_mode_address)
-        
-        if operation_mode is None:
+        if operation_mode is None or operation_mode == 0:
             return HVACMode.OFF
-        
-        # Check 1: Proper OFF state
-        if operation_mode == 0:
-            return HVACMode.OFF
-        
-        # Check 2: Dependency-based OFF (target temp shows 500)
-        # This catches cases like: Reservoir functionally OFF when Loop 1 is OFF
+
         target_temp = self._get_register_value(self._target_temp_address)
         if target_temp is not None and target_temp >= 500.0:
             return HVACMode.OFF
-        
-        # Zone is ON
-        # Remember the last non-OFF mode to restore it later
+
         self._last_heat_mode = operation_mode
-        return HVACMode.HEAT
+        return self._map_regime_to_hvac(regime)
 
     def _get_register_value(self, address: int) -> float | None:
         """Helper to get register value from coordinator data."""
