@@ -119,7 +119,7 @@ class KronotermBaseClimate(CoordinatorEntity, ClimateEntity):
         min_temp: float,
         max_temp: float,
         page: int,
-        supports_cooling: bool = False
+        supports_cooling: bool = True
     ) -> None:
         """Initialize the climate entity."""
         super().__init__(coordinator)
@@ -744,7 +744,7 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         target_temp_address: int,
         write_temp_address: int,
         operation_mode_address: int,
-        supports_cooling: bool = False,
+        supports_cooling: bool = True,
         enable_preset: bool = False,
     ) -> None:
         """Initialize the Modbus climate entity."""
