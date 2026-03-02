@@ -85,8 +85,11 @@ async def async_setup_entry(
 
     # Add operational mode select (ECO/Auto/Comfort) - works for both Cloud and Modbus
     entities.append(KronotermOperationalModeSelect(entry, coordinator))
-    # Add system regime select (Heat/Cool/Auto/Off) via register 2017
-    entities.append(KronotermRegimeSelect(entry, coordinator))
+    # Add system regime select (Heat/Cool/Auto/Off) only if register 2017 exists
+    if 2017 in available_addresses:
+        entities.append(KronotermRegimeSelect(entry, coordinator))
+    else:
+        _LOGGER.info("Skipping system regime select (address 2017 not available)")
 
     async_add_entities(entities, update_before_add=False)
 
