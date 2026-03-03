@@ -729,6 +729,7 @@ async def _async_setup_modbus_entities(
                 )
                 if reg_def.name_en in ("cop_value", "scop_value"):
                     entity._attr_state_class = SensorStateClass.MEASUREMENT
+                    entity._attr_native_unit_of_measurement = ""
                 
                 # Apply device and state classes based on unit/type
                 _apply_sensor_classes(entity, reg_def)
