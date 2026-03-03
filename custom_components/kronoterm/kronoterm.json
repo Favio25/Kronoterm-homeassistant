@@ -2853,7 +2853,7 @@
       "name": "COP",
       "type": "Value",
       "access": "Read",
-      "unit": "COP",
+      "unit": "x 0.01",
       "source": "Page 9, 20",
       "name_en": "cop_value",
       "scale": 0.01
@@ -2863,7 +2863,7 @@
       "name": "SCOP",
       "type": "Value",
       "access": "Read",
-      "unit": "SCOP",
+      "unit": "x 0.01",
       "source": "Page 9, 20",
       "name_en": "scop_value",
       "scale": 0.01
