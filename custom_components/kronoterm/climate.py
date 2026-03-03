@@ -1025,8 +1025,8 @@ class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
             max_temp=90,
             current_temp_address=2130,  # loop_1_temperature
             thermostat_temp_address=2160,  # loop_1_thermostat_temperature
-            target_temp_address=2191,  # loop_1_room_current_setpoint
-            write_temp_address=2187,  # loop_1_room_setpoint
+            target_temp_address=2187,  # loop_1_room_setpoint (RW)
+            write_temp_address=2187,  # loop_1_room_setpoint (RW)
             operation_mode_address=2042,  # loop_1_operation_mode
             enable_preset=True,
         )
@@ -1046,8 +1046,8 @@ class KronotermModbusLoop2Climate(KronotermModbusBaseClimate):
             max_temp=90,
             current_temp_address=2110,  # loop_2_temperature
             thermostat_temp_address=2161,  # loop_2_thermostat_temperature
-            target_temp_address=2051,  # loop_2_room_current_setpoint
-            write_temp_address=2049,  # loop_2_setpoint
+            target_temp_address=2049,  # loop_2_setpoint (RW)
+            write_temp_address=2049,  # loop_2_setpoint (RW)
             operation_mode_address=2052,  # loop_2_operation_mode
             enable_preset=True,
         )
@@ -1067,8 +1067,8 @@ class KronotermModbusLoop3Climate(KronotermModbusBaseClimate):
             max_temp=90,
             current_temp_address=2111,  # loop_3_temperature
             thermostat_temp_address=2162,  # loop_3_thermostat_temperature
-            target_temp_address=2061,  # loop_3_room_current_setpoint
-            write_temp_address=2059,  # loop_3_setpoint
+            target_temp_address=2059,  # loop_3_setpoint (RW)
+            write_temp_address=2059,  # loop_3_setpoint (RW)
             operation_mode_address=2062,  # loop_3_operation_mode
             enable_preset=True,
         )
@@ -1088,8 +1088,8 @@ class KronotermModbusLoop4Climate(KronotermModbusBaseClimate):
             max_temp=90,
             current_temp_address=2112,  # loop_4_temperature
             thermostat_temp_address=2163,  # loop_4_thermostat_temperature
-            target_temp_address=2071,  # loop_4_room_current_setpoint
-            write_temp_address=2069,  # loop_4_setpoint
+            target_temp_address=2069,  # loop_4_setpoint (RW)
+            write_temp_address=2069,  # loop_4_setpoint (RW)
             operation_mode_address=2072,  # loop_4_operation_mode
             enable_preset=True,
         )
