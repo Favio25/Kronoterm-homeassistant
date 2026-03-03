@@ -541,6 +541,8 @@ async def _async_setup_cloud_entities(
             scale=sensor_def.scaling,
             icon=sensor_def.icon,
         )
+        if sensor_def.key in ("cop_value", "scop_value"):
+            ent._attr_state_class = SensorStateClass.MEASUREMENT
 
         if sensor_def.diagnostic:
             ent._attr_entity_category = EntityCategory.DIAGNOSTIC
