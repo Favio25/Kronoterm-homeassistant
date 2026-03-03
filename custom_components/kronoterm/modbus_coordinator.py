@@ -302,6 +302,9 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                             value = round(raw_value * reg_def.scale, 2)
                         else:
                             value = raw_value
+                        # Ensure COP/SCOP scaling (defensive)
+                        if reg_def.name_en in ("cop_value", "scop_value") and (reg_def.scale in (None, 1.0)):
+                            value = round(raw_value * 0.01, 2)
                     
                     # Store in data dict using register address as key
                     data[reg_def.address] = {
