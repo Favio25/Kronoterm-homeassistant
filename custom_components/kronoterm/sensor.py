@@ -541,6 +541,9 @@ async def _async_setup_cloud_entities(
             scale=sensor_def.scaling,
             icon=sensor_def.icon,
         )
+        # Prefer clean display for setpoints
+        if sensor_def.key.endswith("_setpoint") or sensor_def.key.endswith("_current_setpoint"):
+            ent._attr_suggested_display_precision = 1
         if sensor_def.key in ("cop_value", "scop_value"):
             ent._attr_state_class = SensorStateClass.MEASUREMENT
 
