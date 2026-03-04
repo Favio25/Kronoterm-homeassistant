@@ -862,12 +862,12 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         # Try thermostat temperature first
         if self._thermostat_temp_address:
             thermostat_temp = self._get_register_value(self._thermostat_temp_address)
-            if thermostat_temp is not None and thermostat_temp != -60.0 and thermostat_temp != 0.0:
+            if thermostat_temp is not None and thermostat_temp != -60.0 and thermostat_temp != 0.0 and thermostat_temp < 500.0:
                 return thermostat_temp
 
         # Fall back to loop temperature
         loop_temp = self._get_register_value(self._current_temp_address)
-        if loop_temp is not None and loop_temp != -60.0:
+        if loop_temp is not None and loop_temp != -60.0 and loop_temp < 500.0:
             return loop_temp
 
         return None
