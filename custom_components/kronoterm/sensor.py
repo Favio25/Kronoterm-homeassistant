@@ -735,6 +735,9 @@ async def _async_setup_modbus_entities(
                     entity._attr_native_unit_of_measurement = ""
                 
                 # Apply device and state classes based on unit/type
+                # Explicit state_class for key sensors (avoid HA repairs)
+                if reg_def.name_en in ("temperature_compressor_inlet", "temperature_compressor_outlet", "temperature_outside", "heating_system_pressure", "hp_load", "current_heating_cooling_power", "electrical_energy_heating_dhw"):
+                    entity._attr_state_class = SensorStateClass.MEASUREMENT
                 _apply_sensor_classes(entity, reg_def)
             
             # Mark diagnostic sensors
