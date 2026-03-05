@@ -39,7 +39,7 @@ class KronotermDailyEnergySensor(CoordinatorEntity, SensorEntity):
 
         self._attr_native_unit_of_measurement = "kWh"
         self._attr_icon = "mdi:flash"
-        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_state_class = SensorStateClass.TOTAL
 
     @property
     def device_info(self) -> Dict[str, Any]:
