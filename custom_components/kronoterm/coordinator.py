@@ -114,10 +114,10 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                         _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
                         return True
                     _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
-                    return True
+                    return False
                 except Exception:
                     _LOGGER.warning("Handshake returned 200 but invalid JSON.")
-                    return True
+                    return False
 
         async def _web_login() -> bool:
             # Derive login URL from base_url
