@@ -370,7 +370,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 data["system_data"] = loop_results[7]
                 data["consumption"] = await self._fetch_consumption()
                 try:
-                    consumption = loop_results[8] or {}
+                    consumption = data.get("consumption") or {}
                     trend = consumption.get("trend_consumption", {})
                     _LOGGER.warning(
                         "Consumption fetched: keys=%s trend_keys=%s sample=%s desc=%s",
