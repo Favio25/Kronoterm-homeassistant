@@ -119,7 +119,6 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.client = AsyncModbusTcpClient(
             host=self.host,
             port=self.port,
-            strict=False,
         )
         
         # Try to connect
