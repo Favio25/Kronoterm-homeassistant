@@ -257,7 +257,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             ("year", str(today.year)),
             ("d1", str(today.timetuple().tm_yday)),
         ]
-        _LOGGER.warning(
+        _LOGGER.debug(
             "Consumption request params: year=%s d1=%s d2=0 type=day",
             today.year,
             today.timetuple().tm_yday,
@@ -373,18 +373,18 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                     consumption = data.get("consumption") or {}
                     if isinstance(consumption, dict):
                         trend = consumption.get("trend_consumption", {})
-                        _LOGGER.warning(
+                        _LOGGER.debug(
                             "Consumption fetched: keys=%s trend_keys=%s desc=%s",
                             list(consumption.keys()),
                             list(trend.keys()) if isinstance(trend, dict) else None,
                             consumption.get("desc"),
                         )
                         if "trend_consumption" not in consumption:
-                            _LOGGER.warning("Consumption raw payload: %s", consumption)
+                            _LOGGER.debug("Consumption raw payload: %s", consumption)
                     else:
-                        _LOGGER.warning("Consumption payload type=%s value=%s", type(consumption), consumption)
+                        _LOGGER.debug("Consumption payload type=%s value=%s", type(consumption), consumption)
                 except Exception as log_err:
-                    _LOGGER.warning("Failed to log consumption data: %s", log_err)
+                    _LOGGER.debug("Failed to log consumption data: %s", log_err)
             except Exception as e:
                 _LOGGER.error("Error fetching loops: %s", e)
             
