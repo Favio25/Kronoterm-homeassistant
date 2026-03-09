@@ -274,6 +274,16 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         return resp
 
     def _get_headers(self) -> Dict[str, str]:
+        if getattr(self, "_use_web_session", False):
+            return {
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": "https://cloud.kronoterm.com/?login=1",
+                "Origin": "https://cloud.kronoterm.com",
+                "Connection": "keep-alive",
+                "User-Agent": "Mozilla/5.0",
+            }
         return {
             "phonegap": "1.5.0",
             "Accept": "*/*", 
@@ -417,6 +427,16 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
         self.tap_water_installed = True 
 
     def _get_headers(self) -> Dict[str, str]:
+        if getattr(self, "_use_web_session", False):
+            return {
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": "https://cloud.kronoterm.com/dhws/?login=1",
+                "Origin": "https://cloud.kronoterm.com",
+                "Connection": "keep-alive",
+                "User-Agent": "Mozilla/5.0",
+            }
         return {
             "phonegap": "1.0.7",
             "Accept": "*/*", 
