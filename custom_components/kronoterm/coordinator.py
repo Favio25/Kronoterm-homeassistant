@@ -120,7 +120,7 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                         _LOGGER.warning("Handshake returned 200 but invalid JSON.")
                         return False
             except Exception as e:
-                _LOGGER.warning("Handshake error: %s", e)
+                _LOGGER.debug("Handshake error: %s", e)
                 return False
 
         async def _web_login() -> bool:
