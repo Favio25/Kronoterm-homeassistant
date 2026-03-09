@@ -98,26 +98,30 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
 
         async def _handshake(use_auth: bool) -> bool:
             query_params = self.api_queries_get["menu"]
-            async with self.session.get(
-                self.base_url,
-                auth=self.auth if use_auth else None,
-                params=query_params,
-                headers=self._get_headers(),
-                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-            ) as response:
-                if response.status != 200:
-                    _LOGGER.error("Handshake failed. Status: %s", response.status)
-                    return False
-                try:
-                    data = await response.json()
-                    if "hp_id" in data:
-                        _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
-                        return True
-                    _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
-                    return False
-                except Exception:
-                    _LOGGER.warning("Handshake returned 200 but invalid JSON.")
-                    return False
+            try:
+                async with self.session.get(
+                    self.base_url,
+                    auth=self.auth if use_auth else None,
+                    params=query_params,
+                    headers=self._get_headers(),
+                    timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+                ) as response:
+                    if response.status != 200:
+                        _LOGGER.error("Handshake failed. Status: %s", response.status)
+                        return False
+                    try:
+                        data = await response.json()
+                        if "hp_id" in data:
+                            _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
+                            return True
+                        _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
+                        return False
+                    except Exception:
+                        _LOGGER.warning("Handshake returned 200 but invalid JSON.")
+                        return False
+            except Exception as e:
+                _LOGGER.warning("Handshake error: %s", e)
+                return False
 
         async def _web_login() -> bool:
             # Derive login URL from base_url
