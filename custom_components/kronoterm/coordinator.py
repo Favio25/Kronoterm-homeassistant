@@ -371,16 +371,18 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 data["consumption"] = await self._fetch_consumption()
                 try:
                     consumption = data.get("consumption") or {}
-                    trend = consumption.get("trend_consumption", {})
-                    _LOGGER.warning(
-                        "Consumption fetched: keys=%s trend_keys=%s sample=%s desc=%s",
-                        list(consumption.keys()),
-                        list(trend.keys()) if isinstance(trend, dict) else None,
-                        {k: (trend.get(k) or [])[-1] if isinstance(trend.get(k), list) and trend.get(k) else None for k in ("CompHeating","CompTapWater","CPLoops","CPAddSource")},
-                        consumption.get("desc"),
-                    )
-                    if "trend_consumption" not in consumption:
-                        _LOGGER.warning("Consumption raw payload: %s", consumption)
+                    if isinstance(consumption, dict):
+                        trend = consumption.get("trend_consumption", {})
+                        _LOGGER.warning(
+                            "Consumption fetched: keys=%s trend_keys=%s desc=%s",
+                            list(consumption.keys()),
+                            list(trend.keys()) if isinstance(trend, dict) else None,
+                            consumption.get("desc"),
+                        )
+                        if "trend_consumption" not in consumption:
+                            _LOGGER.warning("Consumption raw payload: %s", consumption)
+                    else:
+                        _LOGGER.warning("Consumption payload type=%s value=%s", type(consumption), consumption)
                 except Exception as log_err:
                     _LOGGER.warning("Failed to log consumption data: %s", log_err)
             except Exception as e:
