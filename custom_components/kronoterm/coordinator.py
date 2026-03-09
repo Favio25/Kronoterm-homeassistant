@@ -137,15 +137,20 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                 "Referer": "https://cloud.kronoterm.com/",
                 "User-Agent": "Mozilla/5.0",
             }
-            async with self.session.post(
-                login_url,
-                data=form,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-            ) as response:
-                if response.status not in (200, 302):
-                    _LOGGER.error("Web login failed. Status: %s", response.status)
-                    return False
+            try:
+                async with self.session.post(
+                    login_url,
+                    data=form,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+                    allow_redirects=True,
+                ) as response:
+                    if response.status not in (200, 302):
+                        _LOGGER.error("Web login failed. Status: %s", response.status)
+                        return False
+            except Exception as e:
+                _LOGGER.error("Web login error: %s", e)
+                return False
             # Expect PHPSESSID cookie in jar
             cookies = self.session.cookie_jar.filter_cookies(login_url)
             if not any("PHPSESSID" in k for k in cookies.keys()):
@@ -159,7 +164,7 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                 self._session_valid = True
                 return
             # Fallback to web-session login
-            if await _web_login() and await _handshake(use_auth=False):
+            if await _web_login():
                 self._use_web_session = True
                 self._session_valid = True
                 return
