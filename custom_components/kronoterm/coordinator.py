@@ -51,6 +51,8 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         
         # Store Basic Auth object to send with EVERY request
         self.auth = aiohttp.BasicAuth(self.username, self.password)
+        # Login mode: legacy basic-auth (default) or web session cookie
+        self._use_web_session = False
 
         # Scan interval
         scan_interval_seconds = config_entry.options.get("scan_interval_seconds")
@@ -91,32 +93,73 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Kronoterm coordinator initialized successfully")
 
     async def _perform_login(self) -> None:
-        """Perform initial handshake (Menu=1)."""
+        """Perform initial handshake (Menu=1) with auto-detect login."""
         _LOGGER.debug("Performing initial handshake (Menu=1)...")
-        try:
+
+        async def _handshake(use_auth: bool) -> bool:
             query_params = self.api_queries_get["menu"]
             async with self.session.get(
-                self.base_url, 
-                auth=self.auth, 
+                self.base_url,
+                auth=self.auth if use_auth else None,
                 params=query_params,
                 headers=self._get_headers(),
-                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
             ) as response:
-                if response.status == 200:
-                    try:
-                        data = await response.json()
-                        if "hp_id" in data:
-                            _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
-                            self._session_valid = True
-                            return
-                        else:
-                            _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
-                    except Exception:
-                        _LOGGER.warning("Handshake returned 200 but invalid JSON.")
-                    self._session_valid = True 
-                else:
+                if response.status != 200:
                     _LOGGER.error("Handshake failed. Status: %s", response.status)
-                    self._session_valid = False
+                    return False
+                try:
+                    data = await response.json()
+                    if "hp_id" in data:
+                        _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
+                        return True
+                    _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
+                    return True
+                except Exception:
+                    _LOGGER.warning("Handshake returned 200 but invalid JSON.")
+                    return True
+
+        async def _web_login() -> bool:
+            # Derive login URL from base_url
+            if "/dhws/" in self.base_url:
+                login_url = "https://cloud.kronoterm.com/dhws/?login=1"
+            else:
+                login_url = "https://cloud.kronoterm.com/?login=1"
+            form = {"username": self.username, "password": self.password}
+            headers = {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://cloud.kronoterm.com",
+                "Referer": "https://cloud.kronoterm.com/",
+                "User-Agent": "Mozilla/5.0",
+            }
+            async with self.session.post(
+                login_url,
+                data=form,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            ) as response:
+                if response.status not in (200, 302):
+                    _LOGGER.error("Web login failed. Status: %s", response.status)
+                    return False
+            # Expect PHPSESSID cookie in jar
+            cookies = self.session.cookie_jar.filter_cookies(login_url)
+            if not any("PHPSESSID" in k for k in cookies.keys()):
+                _LOGGER.warning("Web login did not set PHPSESSID cookie")
+            return True
+
+        try:
+            # First try legacy basic-auth handshake
+            if await _handshake(use_auth=True):
+                self._use_web_session = False
+                self._session_valid = True
+                return
+            # Fallback to web-session login
+            if await _web_login() and await _handshake(use_auth=False):
+                self._use_web_session = True
+                self._session_valid = True
+                return
+            self._session_valid = False
         except Exception as e:
             _LOGGER.error("Error during handshake: %s", e)
             self._session_valid = False
@@ -138,13 +181,13 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                 
                 if method.upper() == "GET":
                     async with self.session.get(
-                        self.base_url, auth=self.auth, params=query_params, 
+                        self.base_url, auth=self.auth if not self._use_web_session else None, params=query_params,
                         headers=self._get_headers(), cookies=page_cookies, timeout=timeout
                     ) as response:
                         return await self._process_response(response, "GET", query_params)
                 else:
                     async with self.session.post(
-                        self.base_url, auth=self.auth, params=query_params, data=form_data,
+                        self.base_url, auth=self.auth if not self._use_web_session else None, params=query_params, data=form_data,
                         headers=self._get_headers(), cookies=page_cookies, timeout=timeout
                     ) as response:
                         return await self._process_response(response, "POST", query_params)
