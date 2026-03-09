@@ -552,15 +552,23 @@ async def _async_setup_cloud_entities(
             
 
         # Apply device/state classes
-        if sensor_def.address == 2362:
-            ent._attr_device_class = SensorDeviceClass.ENERGY
-            ent._attr_state_class = SensorStateClass.TOTAL
-        elif sensor_def.key.endswith("_temperature"):
+        if sensor_def.unit == "°C":
             ent._attr_device_class = SensorDeviceClass.TEMPERATURE
             ent._attr_state_class = SensorStateClass.MEASUREMENT
+        elif sensor_def.unit == "bar":
+            ent._attr_device_class = SensorDeviceClass.PRESSURE
+            ent._attr_state_class = SensorStateClass.MEASUREMENT
+        elif sensor_def.unit == "W":
+            ent._attr_device_class = SensorDeviceClass.POWER
+            ent._attr_state_class = SensorStateClass.MEASUREMENT
+        elif sensor_def.unit == "kWh":
+            ent._attr_device_class = SensorDeviceClass.ENERGY
+            ent._attr_state_class = SensorStateClass.TOTAL_INCREASING
         elif sensor_def.unit == "h":
             ent._attr_device_class = SensorDeviceClass.DURATION
             ent._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        elif sensor_def.unit == "%":
+            ent._attr_state_class = SensorStateClass.MEASUREMENT
 
         sensor_entities.append(ent)
 
@@ -924,7 +932,7 @@ def _apply_sensor_classes(entity: KronotermModbusRegSensor, reg_def: RegisterDef
     # Energy
     elif reg_def.unit == "kWh":
         entity._attr_device_class = SensorDeviceClass.ENERGY
-        entity._attr_state_class = SensorStateClass.TOTAL
+        entity._attr_state_class = SensorStateClass.TOTAL_INCREASING
     
     # Power
     elif reg_def.unit == "W":
