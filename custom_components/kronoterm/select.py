@@ -189,6 +189,70 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
         # Options are the string values from MAIN_MODE_OPTIONS
         self._attr_options = list(MAIN_MODE_OPTIONS.values())
 
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the current operational mode."""
+        if not self.coordinator.data:
+            return None
+
+        if self._is_modbus:
+            # Modbus: Prefer register 2013 (operation_program_select), fallback to 2008 (operation_program)
+            modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
+            for addr in (2013, 2008):
+                for reg in modbus_list:
+                    if reg.get("address") == addr:
+                        raw_value = reg.get("value")
+                        if raw_value is None:
+                            continue
+                        try:
+                            mode_int = int(float(raw_value))
+                            return MAIN_MODE_OPTIONS.get(mode_int)
+                        except (ValueError, TypeError):
+                            continue
+            return None
+
+        # Cloud API: Read from main_settings
+        main_settings = self.coordinator.data.get("main_settings", {})
+        advanced_settings = main_settings.get("AdvancedSettings", {})
+        mode_value = advanced_settings.get("main_mode")
+
+        # Fallback to TemperaturesAndConfig if not in AdvancedSettings
+        if mode_value is None:
+            temps_config = main_settings.get("TemperaturesAndConfig", {})
+            mode_value = temps_config.get("main_mode")
+
+        if mode_value is None:
+            return None
+
+        try:
+            mode_int = int(mode_value)
+            return MAIN_MODE_OPTIONS.get(mode_int)
+        except (ValueError, TypeError):
+            _LOGGER.debug("Could not parse main_mode value: %s", mode_value)
+            return None
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the operational mode."""
+        new_mode = self.OPTION_TO_VALUE.get(option)
+        if new_mode is None:
+            _LOGGER.warning("Unknown operational mode option: %s", option)
+            return
+
+        if self._is_modbus:
+            _LOGGER.info("Setting operational mode to %s (value %d) via Modbus register 2013", option, new_mode)
+            if hasattr(self.coordinator, 'write_register_by_address'):
+                success = await self.coordinator.write_register_by_address(2013, new_mode)
+                if success:
+                    await self.coordinator.async_request_refresh()
+                else:
+                    _LOGGER.error("Failed to write operational mode to register 2013")
+            else:
+                _LOGGER.error("Coordinator missing write_register_by_address method")
+        else:
+            success = await self.coordinator.async_set_main_mode(new_mode)
+            if not success:
+                _LOGGER.error("Failed to set operational mode to %s", option)
+
 
 
 class KronotermRegimeSelect(CoordinatorEntity, SelectEntity):
@@ -235,70 +299,4 @@ class KronotermRegimeSelect(CoordinatorEntity, SelectEntity):
         else:
             _LOGGER.error("Coordinator cannot write system regime (no write method available)")
 
-    @property
-    def current_option(self) -> Optional[str]:
-        """Return the current operational mode."""
-        if not self.coordinator.data:
-            return None
-        
-        if self._is_modbus:
-            # Modbus: Prefer register 2013 (operation_program_select), fallback to 2008 (operation_program)
-            modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
-            for addr in (2013, 2008):
-                for reg in modbus_list:
-                    if reg.get("address") == addr:
-                        raw_value = reg.get("value")
-                        if raw_value is None:
-                            continue
-                        try:
-                            mode_int = int(float(raw_value))
-                            return MAIN_MODE_OPTIONS.get(mode_int)
-                        except (ValueError, TypeError):
-                            continue
-            return None
-        else:
-            # Cloud API: Read from main_settings
-            main_settings = self.coordinator.data.get("main_settings", {})
-            advanced_settings = main_settings.get("AdvancedSettings", {})
-            mode_value = advanced_settings.get("main_mode")
-            
-            # Fallback to TemperaturesAndConfig if not in AdvancedSettings
-            if mode_value is None:
-                temps_config = main_settings.get("TemperaturesAndConfig", {})
-                mode_value = temps_config.get("main_mode")
-            
-            if mode_value is None:
-                return None
-            
-            try:
-                mode_int = int(mode_value)
-                # Convert integer to string: 0 → "auto", 1 → "comfort", 2 → "eco"
-                return MAIN_MODE_OPTIONS.get(mode_int)
-            except (ValueError, TypeError):
-                _LOGGER.debug("Could not parse main_mode value: %s", mode_value)
-                return None
 
-    async def async_select_option(self, option: str) -> None:
-        """Set the operational mode."""
-        # Convert string to integer: "auto" → 0, "comfort" → 1, "eco" → 2
-        new_mode = self.OPTION_TO_VALUE.get(option)
-        if new_mode is None:
-            _LOGGER.warning("Unknown operational mode option: %s", option)
-            return
-
-        if self._is_modbus:
-            # Modbus: Write to register 2013
-            _LOGGER.info("Setting operational mode to %s (value %d) via Modbus register 2013", option, new_mode)
-            if hasattr(self.coordinator, 'write_register_by_address'):
-                success = await self.coordinator.write_register_by_address(2013, new_mode)
-                if success:
-                    await self.coordinator.async_request_refresh()
-                else:
-                    _LOGGER.error("Failed to write operational mode to register 2013")
-            else:
-                _LOGGER.error("Coordinator missing write_register_by_address method")
-        else:
-            # Cloud API: Use async_set_main_mode
-            success = await self.coordinator.async_set_main_mode(new_mode)
-            if not success:
-                _LOGGER.error("Failed to set operational mode to %s", option)
