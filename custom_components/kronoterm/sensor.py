@@ -367,19 +367,6 @@ async def _async_setup_dhw_entities(
         KronotermJsonSensor(
             coordinator,
             device_info,
-            "dhw_external_source_temp",
-            "dhw_external_source_temperature",
-            ["main", "GlobalOverview", "ext_src_temp"],
-            unit="°C",
-            icon="mdi:thermometer",
-            device_class=SensorDeviceClass.TEMPERATURE,
-            state_class=SensorStateClass.MEASUREMENT,
-        )
-    )
-    entities.append(
-        KronotermJsonSensor(
-            coordinator,
-            device_info,
             "dhw_inlet_air_temp",
             "dhw_inlet_air_temperature",
             ["main", "GlobalOverview", "inlet_air_temp"],

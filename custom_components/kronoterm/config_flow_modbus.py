@@ -12,7 +12,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 
-from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient
 
 from .const import DOMAIN
 
@@ -21,6 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 # Connection types
 CONNECTION_TYPE_CLOUD = "cloud"
 CONNECTION_TYPE_MODBUS = "modbus"
+
+# Modbus transports
+MODBUS_TRANSPORT_TCP = "tcp"
+MODBUS_TRANSPORT_RTU = "rtu"
 
 # Model options for Modbus (required for energy calculation)
 MODEL_OPTIONS = {
@@ -33,42 +37,58 @@ MODEL_OPTIONS = {
 
 async def validate_modbus_connection(data: Dict[str, Any]) -> str | None:
     """
-    Validate Modbus connection using AsyncModbusTcpClient.
+    Validate Modbus connection using AsyncModbusTcpClient or AsyncModbusSerialClient.
     Returns an error code string on failure, or None on success.
     """
-    host = data[CONF_HOST]
-    port = data.get(CONF_PORT, 502)
+    transport = data.get("transport", MODBUS_TRANSPORT_TCP)
     unit_id = data.get("unit_id", 20)
-    
-    _LOGGER.debug("Validating Modbus connection to %s:%s, unit %s", host, port, unit_id)
-    
+
     try:
-        # Use async client (same as coordinator will use)
-        client = AsyncModbusTcpClient(host=host, port=port)
-        
-        # Try to connect
+        if transport == MODBUS_TRANSPORT_RTU:
+            port = data.get("serial_port")
+            baudrate = data.get("baudrate", 19200)
+            bytesize = data.get("bytesize", 8)
+            parity = data.get("parity", "N")
+            stopbits = data.get("stopbits", 1)
+            timeout = data.get("timeout", 1)
+
+            _LOGGER.debug(
+                "Validating Modbus RTU connection to %s (baud=%s, bytesize=%s, parity=%s, stopbits=%s, unit=%s)",
+                port, baudrate, bytesize, parity, stopbits, unit_id,
+            )
+            client = AsyncModbusSerialClient(
+                port=port,
+                method="rtu",
+                baudrate=baudrate,
+                bytesize=bytesize,
+                parity=parity,
+                stopbits=stopbits,
+                timeout=timeout,
+            )
+        else:
+            host = data[CONF_HOST]
+            port = data.get(CONF_PORT, 502)
+            _LOGGER.debug("Validating Modbus TCP connection to %s:%s, unit %s", host, port, unit_id)
+            client = AsyncModbusTcpClient(host=host, port=port)
+
         connected = await client.connect()
         if not connected:
-            _LOGGER.warning("Modbus connection failed to %s:%s", host, port)
+            _LOGGER.warning("Modbus connection failed (transport=%s)", transport)
             client.close()
             return "cannot_connect"
-        
+
         _LOGGER.debug("Connected successfully, testing read...")
-        
         # Try to read a known register (outdoor temp at 2102)
-        # Use POSITIONAL arguments for compatibility with all pymodbus versions
         result = await client.read_holding_registers(2102, count=1, device_id=unit_id)
-        
-        # Close connection
         client.close()
-        
+
         if result.isError():
             _LOGGER.warning("Modbus read test failed: %s", result)
             return "cannot_read"
-        
+
         _LOGGER.info("Modbus connection validated successfully. Read value: %s", result.registers[0])
-        return None  # Success
-        
+        return None
+
     except Exception as err:
         _LOGGER.error("Modbus validation error: %s", err)
         import traceback
@@ -81,19 +101,51 @@ def get_connection_type_schema() -> vol.Schema:
     return vol.Schema({
         vol.Required("connection_type", default=CONNECTION_TYPE_CLOUD): vol.In({
             CONNECTION_TYPE_CLOUD: "Cloud API (Internet required)",
-            CONNECTION_TYPE_MODBUS: "Modbus TCP (Local network)",
+            CONNECTION_TYPE_MODBUS: "Modbus (TCP/RTU)",
         }),
     })
 
 
-def get_modbus_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
+def get_modbus_transport_schema(default: str = MODBUS_TRANSPORT_TCP) -> vol.Schema:
+    """Select Modbus transport."""
+    return vol.Schema({
+        vol.Required("transport", default=default): vol.In({
+            MODBUS_TRANSPORT_TCP: "Modbus TCP",
+            MODBUS_TRANSPORT_RTU: "Modbus RTU (RS-485)",
+        }),
+    })
+
+
+def get_modbus_tcp_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
     """Get schema for Modbus TCP configuration."""
     defaults = defaults or {}
-    
+
     return vol.Schema({
         vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
         vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, 502)): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=65535)
+        ),
+        vol.Optional("unit_id", default=defaults.get("unit_id", 20)): vol.Coerce(int),
+        vol.Optional("timeout", default=defaults.get("timeout", 1)): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=30)
+        ),
+    })
+
+
+def get_modbus_rtu_schema(defaults: Dict[str, Any] = None) -> vol.Schema:
+    """Get schema for Modbus RTU configuration."""
+    defaults = defaults or {}
+
+    return vol.Schema({
+        vol.Required("serial_port", default=defaults.get("serial_port", "/dev/ttyUSB1")): str,
+        vol.Optional("baudrate", default=defaults.get("baudrate", 19200)): vol.All(
+            vol.Coerce(int), vol.Range(min=1200, max=115200)
+        ),
+        vol.Optional("bytesize", default=defaults.get("bytesize", 8)): vol.In([7, 8]),
+        vol.Optional("parity", default=defaults.get("parity", "N")): vol.In(["N", "E", "O"]),
+        vol.Optional("stopbits", default=defaults.get("stopbits", 1)): vol.In([1, 2]),
+        vol.Optional("timeout", default=defaults.get("timeout", 1)): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=30)
         ),
         vol.Optional("unit_id", default=defaults.get("unit_id", 20)): vol.Coerce(int),
     })
