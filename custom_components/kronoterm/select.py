@@ -241,21 +241,19 @@ class KronotermRegimeSelect(CoordinatorEntity, SelectEntity):
             return None
         
         if self._is_modbus:
-            # Modbus: Read from register 2013
+            # Modbus: Prefer register 2013 (operation_program_select), fallback to 2008 (operation_program)
             modbus_list = self.coordinator.data.get("main", {}).get("ModbusReg", [])
-            for reg in modbus_list:
-                if reg.get("address") == 2013:
-                    raw_value = reg.get("value")
-                    if raw_value is not None:
+            for addr in (2013, 2008):
+                for reg in modbus_list:
+                    if reg.get("address") == addr:
+                        raw_value = reg.get("value")
+                        if raw_value is None:
+                            continue
                         try:
                             mode_int = int(float(raw_value))
-                            # Register 2013: 0=Normal, 1=ECO, 2=Comfort
-                            # Map to: 0=auto, 1=eco, 2=comfort (swap eco/comfort from register)
-                            # Actually the register values are: 0=Normal/Auto, 1=ECO, 2=COM/Comfort
-                            # So direct mapping works!
                             return MAIN_MODE_OPTIONS.get(mode_int)
                         except (ValueError, TypeError):
-                            pass
+                            continue
             return None
         else:
             # Cloud API: Read from main_settings
