@@ -12,7 +12,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -45,8 +45,15 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.config_entry = config_entry
 
         # Extract Modbus connection details
+        self.transport = config_entry.data.get("transport", "tcp")
         self.host = config_entry.data.get(CONF_HOST)
         self.port = config_entry.data.get(CONF_PORT, 502)
+        self.serial_port = config_entry.data.get("serial_port")
+        self.baudrate = config_entry.data.get("baudrate", 19200)
+        self.bytesize = config_entry.data.get("bytesize", 8)
+        self.parity = config_entry.data.get("parity", "N")
+        self.stopbits = config_entry.data.get("stopbits", 1)
+        self.timeout = config_entry.data.get("timeout", 1)
         self.unit_id = config_entry.data.get("unit_id", DEFAULT_UNIT_ID)
         self.model = config_entry.data.get("model", "unknown")
 
@@ -112,14 +119,29 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 _LOGGER.error("Could not load register map: %s", e)
                 raise UpdateFailed(f"Failed to load register map: {e}")
         
-        _LOGGER.info("Initializing Modbus connection to %s:%s (unit_id=%s)", 
-                     self.host, self.port, self.unit_id)
-        
-        # Create Modbus client
-        self.client = AsyncModbusTcpClient(
-            host=self.host,
-            port=self.port,
-        )
+        if self.transport == "rtu":
+            _LOGGER.info(
+                "Initializing Modbus RTU connection to %s (unit_id=%s)",
+                self.serial_port,
+                self.unit_id,
+            )
+            self.client = AsyncModbusSerialClient(
+                port=self.serial_port,
+                method="rtu",
+                baudrate=self.baudrate,
+                bytesize=self.bytesize,
+                parity=self.parity,
+                stopbits=self.stopbits,
+                timeout=self.timeout,
+            )
+        else:
+            _LOGGER.info("Initializing Modbus TCP connection to %s:%s (unit_id=%s)", 
+                         self.host, self.port, self.unit_id)
+            # Create Modbus client
+            self.client = AsyncModbusTcpClient(
+                host=self.host,
+                port=self.port,
+            )
         
         # Try to connect
         try:

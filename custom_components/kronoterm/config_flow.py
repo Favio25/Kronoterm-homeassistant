@@ -21,9 +21,13 @@ from .const import (
 from .config_flow_modbus import (
     CONNECTION_TYPE_CLOUD,
     CONNECTION_TYPE_MODBUS,
+    MODBUS_TRANSPORT_TCP,
+    MODBUS_TRANSPORT_RTU,
     validate_modbus_connection,
     get_connection_type_schema,
-    get_modbus_schema,
+    get_modbus_transport_schema,
+    get_modbus_tcp_schema,
+    get_modbus_rtu_schema,
 )
 
 from .entity_cleanup import (
@@ -131,6 +135,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self.connection_type = None
+        self.modbus_transport = MODBUS_TRANSPORT_TCP
         self.reconfig_entry = None
 
     async def async_step_user(self, user_input: dict | None = None):
@@ -143,7 +148,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Connection type selected: %s", self.connection_type)
             
             if self.connection_type == CONNECTION_TYPE_MODBUS:
-                return await self.async_step_modbus()
+                return await self.async_step_modbus_transport()
             else:
                 return await self.async_step_cloud()
         
@@ -200,31 +205,66 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors
         )
 
-    async def async_step_modbus(self, user_input: dict | None = None):
+    async def async_step_modbus_transport(self, user_input: dict | None = None):
+        """Choose Modbus transport (TCP/RTU)."""
+        if user_input is not None:
+            self.modbus_transport = user_input.get("transport", MODBUS_TRANSPORT_TCP)
+            if self.modbus_transport == MODBUS_TRANSPORT_RTU:
+                return await self.async_step_modbus_rtu()
+            return await self.async_step_modbus_tcp()
+
+        return self.async_show_form(
+            step_id="modbus_transport",
+            data_schema=get_modbus_transport_schema(),
+        )
+
+    async def async_step_modbus_tcp(self, user_input: dict | None = None):
         """Handle Modbus TCP configuration."""
         _LOGGER.debug("Starting Modbus TCP configuration step")
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            _LOGGER.debug("Modbus config received: %s", user_input)
-            
+            _LOGGER.debug("Modbus TCP config received: %s", user_input)
+            user_input["transport"] = MODBUS_TRANSPORT_TCP
+
             # Validate Modbus connection
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
-                # Connection success, add connection type and create entry
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
                 return self.async_create_entry(
                     title="Kronoterm Heat Pump (Modbus)",
-                    data=user_input
+                    data=user_input,
                 )
-            else:
-                # Connection failed, set error and show form again
-                errors["base"] = error_code
+            errors["base"] = error_code
 
         return self.async_show_form(
-            step_id="modbus",
-            data_schema=get_modbus_schema(),
-            errors=errors
+            step_id="modbus_tcp",
+            data_schema=get_modbus_tcp_schema(),
+            errors=errors,
+        )
+
+    async def async_step_modbus_rtu(self, user_input: dict | None = None):
+        """Handle Modbus RTU configuration."""
+        _LOGGER.debug("Starting Modbus RTU configuration step")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            _LOGGER.debug("Modbus RTU config received: %s", user_input)
+            user_input["transport"] = MODBUS_TRANSPORT_RTU
+
+            error_code = await validate_modbus_connection(user_input)
+            if not error_code:
+                user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                return self.async_create_entry(
+                    title="Kronoterm Heat Pump (Modbus)",
+                    data=user_input,
+                )
+            errors["base"] = error_code
+
+        return self.async_show_form(
+            step_id="modbus_rtu",
+            data_schema=get_modbus_rtu_schema(),
+            errors=errors,
         )
 
     async def async_step_reconfigure(self, user_input: dict | None = None):
@@ -246,7 +286,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Reconfigure: New connection type selected: %s", self.connection_type)
             
             if self.connection_type == CONNECTION_TYPE_MODBUS:
-                return await self.async_step_reconfigure_modbus()
+                return await self.async_step_reconfigure_modbus_transport()
             else:
                 return await self.async_step_reconfigure_cloud()
         
@@ -325,26 +365,39 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors
         )
 
-    async def async_step_reconfigure_modbus(self, user_input: dict | None = None):
+    async def async_step_reconfigure_modbus_transport(self, user_input: dict | None = None):
+        """Select Modbus transport during reconfiguration."""
+        current_data = self.reconfig_entry.data
+        current_transport = current_data.get("transport", MODBUS_TRANSPORT_TCP)
+
+        if user_input is not None:
+            self.modbus_transport = user_input.get("transport", MODBUS_TRANSPORT_TCP)
+            if self.modbus_transport == MODBUS_TRANSPORT_RTU:
+                return await self.async_step_reconfigure_modbus_rtu()
+            return await self.async_step_reconfigure_modbus_tcp()
+
+        return self.async_show_form(
+            step_id="reconfigure_modbus_transport",
+            data_schema=get_modbus_transport_schema(current_transport),
+        )
+
+    async def async_step_reconfigure_modbus_tcp(self, user_input: dict | None = None):
         """Handle Modbus TCP reconfiguration."""
         _LOGGER.debug("Reconfiguring to Modbus TCP")
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            _LOGGER.debug("Reconfigure modbus input: %s", user_input)
-            
-            # Validate Modbus connection
+            _LOGGER.debug("Reconfigure modbus TCP input: %s", user_input)
+            user_input["transport"] = MODBUS_TRANSPORT_TCP
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
-                # Connection success, update the entry
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
                 self.hass.config_entries.async_update_entry(
                     self.reconfig_entry,
                     data=user_input,
                     title="Kronoterm Heat Pump (Modbus)"
                 )
-                
-                # Disable Cloud-only entities, re-enable Modbus entities
+
                 await disable_mode_specific_entities(
                     self.hass,
                     self.reconfig_entry.entry_id,
@@ -355,25 +408,55 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self.reconfig_entry.entry_id,
                     "modbus"
                 )
-                
-                # Reload the entry to apply changes
+
                 await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
                 return self.async_abort(reason="reconfigure_successful")
-            else:
-                errors["base"] = error_code
+            errors["base"] = error_code
 
-        # Pre-fill current Modbus settings if available
         current_data = self.reconfig_entry.data
-        schema_dict = {
-            vol.Required(CONF_HOST, default=current_data.get(CONF_HOST, "")): str,
-            vol.Required(CONF_PORT, default=current_data.get(CONF_PORT, 502)): int,
-            vol.Required("unit_id", default=current_data.get("unit_id", 20)): int,
-        }
-
         return self.async_show_form(
-            step_id="reconfigure_modbus",
-            data_schema=vol.Schema(schema_dict),
-            errors=errors
+            step_id="reconfigure_modbus_tcp",
+            data_schema=get_modbus_tcp_schema(current_data),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure_modbus_rtu(self, user_input: dict | None = None):
+        """Handle Modbus RTU reconfiguration."""
+        _LOGGER.debug("Reconfiguring to Modbus RTU")
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            _LOGGER.debug("Reconfigure modbus RTU input: %s", user_input)
+            user_input["transport"] = MODBUS_TRANSPORT_RTU
+            error_code = await validate_modbus_connection(user_input)
+            if not error_code:
+                user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                self.hass.config_entries.async_update_entry(
+                    self.reconfig_entry,
+                    data=user_input,
+                    title="Kronoterm Heat Pump (Modbus)"
+                )
+
+                await disable_mode_specific_entities(
+                    self.hass,
+                    self.reconfig_entry.entry_id,
+                    "modbus"
+                )
+                await enable_mode_specific_entities(
+                    self.hass,
+                    self.reconfig_entry.entry_id,
+                    "modbus"
+                )
+
+                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+            errors["base"] = error_code
+
+        current_data = self.reconfig_entry.data
+        return self.async_show_form(
+            step_id="reconfigure_modbus_rtu",
+            data_schema=get_modbus_rtu_schema(current_data),
+            errors=errors,
         )
 
     @staticmethod
