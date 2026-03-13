@@ -423,6 +423,15 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
         return await self._async_set_page_parameter(page, API_PARAM_KEYS["MODE"], str(new_mode))
 
+    async def async_set_main_mode(self, new_mode: int) -> bool:
+        """Set operational mode (auto/comfort/eco) via main_settings."""
+        form_data = [
+            ("param_name", API_PARAM_KEYS["MAIN_MODE"]),
+            ("param_value", str(new_mode)),
+            ("page", "11"),
+        ]
+        return await self._send_set_request("main_settings", form_data)
+
 
 class KronotermDHWCoordinator(KronotermBaseCoordinator):
     """Coordinator for DHW Heat Pumps (Water Cloud)."""
