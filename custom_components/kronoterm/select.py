@@ -190,6 +190,7 @@ class KronotermOperationalModeSelect(CoordinatorEntity, SelectEntity):
         self._attr_options = list(MAIN_MODE_OPTIONS.values())
 
 
+
 class KronotermRegimeSelect(CoordinatorEntity, SelectEntity):
     """Select entity for Kronoterm system regime (Heat/Cool/Auto/Off).
     Uses register 2017 for both Cloud (ModbusReg in payload) and Modbus TCP.
