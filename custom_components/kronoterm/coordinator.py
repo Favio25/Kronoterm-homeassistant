@@ -432,6 +432,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         ]
         return await self._send_set_request("main_settings", form_data)
 
+    async def async_set_heatpump_state(self, turn_on: bool) -> bool:
+        """Turn heat pump on/off via shortcuts."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["HEAT_PUMP"], turn_on)
+
 
 class KronotermDHWCoordinator(KronotermBaseCoordinator):
     """Coordinator for DHW Heat Pumps (Water Cloud)."""
