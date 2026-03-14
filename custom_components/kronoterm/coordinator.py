@@ -457,7 +457,6 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             _LOGGER.debug("No consumption data for previous day; skipping stats sync")
             return
 
-        await self._ensure_energy_statistics_metadata()
         await self._import_energy_statistics_for_date(today - timedelta(days=1), consumption)
         self._last_stats_sync_date = today
         _LOGGER.info("Re-imported previous day energy statistics")
@@ -607,8 +606,6 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         if not entity_ids:
             _LOGGER.warning("No energy statistic entities found for reimport")
             return
-
-        await self._ensure_energy_statistics_metadata()
 
         current = dt_util.now().date() - timedelta(days=1)
         max_days = 3650
