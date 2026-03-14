@@ -665,7 +665,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             max_days -= 1
 
         running_totals = {k: 0.0 for k in entity_ids.values()}
+        today = dt_util.now().date()
         for day in sorted(day_values.keys()):
+            if day >= today:
+                continue
             for entity_id, value in day_values[day].items():
                 running_totals[entity_id] += value
                 start_local = datetime.combine(
@@ -688,7 +691,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                     "start": start,
                     "state": running_totals[entity_id],
                     "sum": running_totals[entity_id],
-                    "last_reset": None,
+                    "last_reset": start,
                 }]
                 async_import_statistics(self.hass, metadata, stats)
 
