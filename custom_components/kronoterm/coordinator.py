@@ -8,6 +8,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from aiohttp.client_exceptions import ClientError, ClientResponseError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.core import HomeAssistant
+from homeassistant.components.recorder.statistics import async_import_statistics, statistics_during_period
+from homeassistant.components.recorder.models import StatisticMeanType
+from homeassistant.components.recorder import get_instance
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -249,18 +254,21 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     def __init__(self, hass, session, config_entry):
         super().__init__(hass, session, config_entry, BASE_URL, API_QUERIES_GET, API_QUERIES_SET)
         _LOGGER.info("Initializing Kronoterm Main Coordinator")
+        self._last_stats_sync_date = None
+        self._energy_statistic_ids = None
+        self._stats_metadata_reset = False
 
-    async def _fetch_consumption(self) -> Optional[Dict[str, Any]]:
+    async def _fetch_consumption(self, day_offset: int = 0) -> Optional[Dict[str, Any]]:
         """Fetch daily consumption using year + day-of-year params."""
-        today = datetime.now().date()
+        target = datetime.now().date() + timedelta(days=day_offset)
         form = CONSUMPTION_FORM_BASE + [
-            ("year", str(today.year)),
-            ("d1", str(today.timetuple().tm_yday)),
+            ("year", str(target.year)),
+            ("d1", str(target.timetuple().tm_yday)),
         ]
         _LOGGER.debug(
             "Consumption request params: year=%s d1=%s d2=0 type=day",
-            today.year,
-            today.timetuple().tm_yday,
+            target.year,
+            target.timetuple().tm_yday,
         )
         try:
             resp = await self._request_with_retries(
@@ -391,6 +399,8 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             if self.data and "info" in self.data:
                 data["info"] = self.data["info"]
                 
+            # Sync previous day's finalized energy statistics once per day
+            await self._sync_previous_day_statistics()
             return data
         except Exception as err:
             raise UpdateFailed(f"Main update failed: {err}") from err
@@ -435,6 +445,255 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
         """Turn heat pump on/off via shortcuts."""
         return await self._async_set_shortcut(API_PARAM_KEYS["HEAT_PUMP"], turn_on)
+
+    async def _sync_previous_day_statistics(self) -> None:
+        """Re-import finalized daily energy statistics for yesterday after midnight."""
+        today = dt_util.now().date()
+        if self._last_stats_sync_date == today:
+            return
+
+        consumption = await self._fetch_consumption(day_offset=-1)
+        if not consumption or "trend_consumption" not in consumption:
+            _LOGGER.debug("No consumption data for previous day; skipping stats sync")
+            return
+
+        await self._ensure_energy_statistics_metadata()
+        await self._import_energy_statistics_for_date(today - timedelta(days=1), consumption)
+        self._last_stats_sync_date = today
+        _LOGGER.info("Re-imported previous day energy statistics")
+
+    async def _fetch_consumption_for_date(self, target_date: datetime.date) -> Optional[Dict[str, Any]]:
+        """Fetch consumption for a specific date."""
+        form = CONSUMPTION_FORM_BASE + [
+            ("year", str(target_date.year)),
+            ("d1", str(target_date.timetuple().tm_yday)),
+        ]
+        try:
+            return await self._request_with_retries(
+                "POST",
+                self.api_queries_get["consumption"],
+                form,
+            )
+        except Exception as err:
+            _LOGGER.debug("Consumption request failed for %s: %s", target_date, err)
+            return None
+
+    async def _import_energy_statistics_for_date(self, target_date: datetime.date, consumption: Dict[str, Any]) -> None:
+        if isinstance(target_date, (int, float)):
+            target_date = dt_util.as_local(dt_util.utc_from_timestamp(target_date)).date()
+        elif isinstance(target_date, datetime):
+            target_date = target_date.date()
+
+        trend = consumption.get("trend_consumption", {})
+        keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+        series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
+        length = max((len(v) for v in series_map.values()), default=0)
+        if length == 0:
+            return
+
+        window_start = target_date - timedelta(days=length - 1)
+        index = (target_date - window_start).days
+
+        entity_ids = await self._get_energy_statistic_entity_ids()
+        if not entity_ids:
+            return
+
+        for key, entity_id in entity_ids.items():
+            if key != "combined" and key not in series_map:
+                continue
+
+            if key == "combined":
+                value = 0.0
+                for k in keys:
+                    values = series_map.get(k, [])
+                    if index < len(values):
+                        value += values[index]
+            else:
+                values = series_map.get(key, [])
+                if index >= len(values):
+                    continue
+                value = values[index]
+
+            last_sum = await self._get_last_statistics_sum(entity_id)
+            running_sum = last_sum + value
+
+            start_local = datetime.combine(
+                target_date,
+                datetime.min.time(),
+                tzinfo=dt_util.DEFAULT_TIME_ZONE,
+            )
+            start = dt_util.as_utc(start_local)
+            stats = [{
+                "start": start,
+                "state": running_sum,
+                "sum": running_sum,
+                "last_reset": None,
+            }]
+
+            metadata = {
+                "statistic_id": entity_id,
+                "source": "recorder",
+                "name": entity_id,
+                "unit_of_measurement": "kWh",
+                "unit_class": "energy",
+                "has_sum": True,
+                "has_mean": False,
+                "mean_type": StatisticMeanType.NONE,
+            }
+
+            async_import_statistics(self.hass, metadata, stats)
+
+    async def _get_energy_statistic_entity_ids(self) -> Optional[Dict[str, str]]:
+        if self._energy_statistic_ids is not None:
+            return self._energy_statistic_ids
+
+        keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+        key_to_unique = {
+            "CompHeating": f"{DOMAIN}_daily_CompHeating",
+            "CompTapWater": f"{DOMAIN}_daily_CompTapWater",
+            "CPLoops": f"{DOMAIN}_daily_CPLoops",
+            "CPAddSource": f"{DOMAIN}_daily_CPAddSource",
+        }
+        combined_unique = f"{DOMAIN}_daily_combined_{'_'.join(keys)}"
+
+        registry = er.async_get(self.hass)
+        result = {}
+        for key, unique_id in key_to_unique.items():
+            entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+            if entity_id:
+                result[key] = entity_id
+        combined_id = registry.async_get_entity_id("sensor", DOMAIN, combined_unique)
+        if combined_id:
+            result["combined"] = combined_id
+
+        self._energy_statistic_ids = result
+        return result
+
+    async def _ensure_energy_statistics_metadata(self) -> None:
+        if self._stats_metadata_reset:
+            return
+
+        entity_ids = await self._get_energy_statistic_entity_ids()
+        if not entity_ids:
+            return
+
+        recorder = get_instance(self.hass)
+        recorder.async_clear_statistics(list(entity_ids.values()))
+        self._stats_metadata_reset = True
+
+    async def _get_last_statistics_sum(self, entity_id: str) -> float:
+        start_window = dt_util.utcnow() - timedelta(days=14)
+
+        def _fetch():
+            return statistics_during_period(
+                self.hass,
+                start_window,
+                None,
+                {entity_id},
+                "day",
+                None,
+                {"sum"},
+            )
+
+        stats = await self.hass.async_add_executor_job(_fetch)
+        rows = stats.get(entity_id, [])
+        if not rows:
+            return 0.0
+        return float(rows[-1].get("sum") or 0.0)
+
+    async def reimport_all_energy_statistics(self) -> None:
+        """Re-import all available energy statistics by walking backwards until no data."""
+        entity_ids = await self._get_energy_statistic_entity_ids()
+        if not entity_ids:
+            _LOGGER.warning("No energy statistic entities found for reimport")
+            return
+
+        await self._ensure_energy_statistics_metadata()
+
+        current = dt_util.now().date() - timedelta(days=1)
+        max_days = 3650
+        empty_days = 0
+        last_imported = None
+        day_values: dict[datetime.date, dict[str, float]] = {}
+
+        while max_days > 0:
+            consumption = await self._fetch_consumption_for_date(current)
+            trend = consumption.get("trend_consumption") if consumption else None
+            if trend:
+                keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+                series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
+                length = max((len(v) for v in series_map.values()), default=0)
+                if length == 0:
+                    empty_days += 1
+                else:
+                    window_start = current - timedelta(days=length - 1)
+                    for offset in range(length):
+                        day = window_start + timedelta(days=offset)
+                        if day in day_values:
+                            continue
+
+                        day_values[day] = {}
+                        for key, entity_id in entity_ids.items():
+                            if key == "combined":
+                                value = sum(
+                                    series_map.get(k, [0.0] * length)[offset]
+                                    if offset < len(series_map.get(k, [])) else 0.0
+                                    for k in keys
+                                )
+                            else:
+                                values = series_map.get(key, [])
+                                if offset >= len(values):
+                                    continue
+                                value = values[offset]
+
+                            day_values[day][entity_id] = value
+
+                    last_imported = current
+                    empty_days = 0
+                    current = window_start - timedelta(days=1)
+                    max_days -= length
+                    continue
+            else:
+                _LOGGER.debug("No consumption data for %s (empty streak %s)", current, empty_days + 1)
+                empty_days += 1
+
+            if empty_days >= 7:
+                _LOGGER.info("Stopping backward scan after %s consecutive empty days. Last imported: %s", empty_days, last_imported)
+                break
+
+            current -= timedelta(days=1)
+            max_days -= 1
+
+        running_totals = {k: 0.0 for k in entity_ids.values()}
+        for day in sorted(day_values.keys()):
+            for entity_id, value in day_values[day].items():
+                running_totals[entity_id] += value
+                start_local = datetime.combine(
+                    day,
+                    datetime.min.time(),
+                    tzinfo=dt_util.DEFAULT_TIME_ZONE,
+                )
+                start = dt_util.as_utc(start_local)
+                metadata = {
+                    "statistic_id": entity_id,
+                    "source": "recorder",
+                    "name": entity_id,
+                    "unit_of_measurement": "kWh",
+                    "unit_class": "energy",
+                    "has_sum": True,
+                    "has_mean": False,
+                    "mean_type": StatisticMeanType.NONE,
+                }
+                stats = [{
+                    "start": start,
+                    "state": running_totals[entity_id],
+                    "sum": running_totals[entity_id],
+                    "last_reset": None,
+                }]
+                async_import_statistics(self.hass, metadata, stats)
+
+        self._last_stats_sync_date = dt_util.now().date()
+        _LOGGER.info("Re-imported energy statistics for all available history (backward scan)")
 
 
 class KronotermDHWCoordinator(KronotermBaseCoordinator):

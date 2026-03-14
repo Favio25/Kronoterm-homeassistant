@@ -774,6 +774,11 @@
       "reservoir_temperature": {
         "name": "Speichertemperatur"
       }
+    },
+    "button": {
+      "reimport_energy_statistics": {
+        "name": "Reimport Energy Statistics"
+      }
     }
   }
 }

@@ -852,6 +852,11 @@
       "reservoir_temperature": {
         "name": "Reservoir Temperature"
       }
+    },
+    "button": {
+      "reimport_energy_statistics": {
+        "name": "Reimport Energy Statistics"
+      }
     }
   }
 }

@@ -10,7 +10,7 @@ from .config_flow_modbus import CONNECTION_TYPE_MODBUS
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number"]
+PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number", "button"]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
