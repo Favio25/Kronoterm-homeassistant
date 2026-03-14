@@ -94,36 +94,40 @@
 ## 2025-11-24 — v1.2.0
 
 ### Added
-- Updated dashboards/images and documentation assets
+- Dashboard refresh and updated imagery
+- Quick‑start guide and progress summary docs
+- Comprehensive README expansion (usage and setup)
+- Session summary/reference notes
 
 ## 2025-11-24 — v1.1.9
 
 ### Added
-- Additional properties in HACS metadata
+- Additional properties in `hacs.json`
 
 ## 2025-10-21 — v1.1.8
 
-### Added
-- Minor metadata updates and content refresh
+### Changed
+- Metadata refresh and content cleanup
 
 ## 2025-04-19 — v1.1.7
 
-### Added
+### Changed
 - Manifest updates
 
 ## 2025-04-08 — v1.1.6
 
 ### Added
-- HACS/Hassfest CI workflows and metadata alignment
+- HACS + hassfest CI workflows (`validate_hacs`, `hassfest`)
+- `hacs.json` metadata alignment
 
 ## 2025-03-30 — v1.1.5
 
-### Added
+### Changed
 - Packaging refresh / uploads
 
 ## 2025-03-30 — v1.1.4
 
-### Added
+### Changed
 - Manifest update
 
 ## 2025-03-29
@@ -133,17 +137,17 @@
 
 ## 2025-03-07 — v1.1.3
 
-### Added
+### Changed
 - Manifest update
 
 ## 2025-02-14 — v1.1.2
 
-### Added
+### Changed
 - Packaging refresh / uploads
 
 ## 2025-02-05 — v1.1.1
 
-### Added
+### Changed
 - Packaging refresh / uploads
 
 ## 2025-02-04 — v1.1.0
@@ -154,7 +158,7 @@
 ## 2025-01-14 — v1.0.3 / v1.0.2 / v1.0.1
 
 ### Fixed
-- Early bug fixes and sensor updates (sensor.py)
+- Early bug fixes and sensor updates (`sensor.py`)
 - Packaging/cleanup adjustments
 
 ## 2025-01-13 — v1.0.0
