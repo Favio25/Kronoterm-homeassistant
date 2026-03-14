@@ -513,6 +513,9 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                     continue
                 value = values[index]
 
+            last_sum = await self._get_last_statistics_sum(entity_id)
+            running_sum = last_sum + value
+
             start_local = datetime.combine(
                 target_date,
                 datetime.min.time(),
@@ -521,9 +524,9 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             start = dt_util.as_utc(start_local)
             stats = [{
                 "start": start,
-                "state": value,
-                "sum": value,
-                "last_reset": start,
+                "state": running_sum,
+                "sum": running_sum,
+                "last_reset": None,
             }]
 
             metadata = {
@@ -658,11 +661,13 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             current -= timedelta(days=1)
             max_days -= 1
 
+        running_totals = {k: 0.0 for k in entity_ids.values()}
         today = dt_util.now().date()
         for day in sorted(day_values.keys()):
             if day >= today:
                 continue
             for entity_id, value in day_values[day].items():
+                running_totals[entity_id] += value
                 start_local = datetime.combine(
                     day,
                     datetime.min.time(),
@@ -681,8 +686,8 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 }
                 stats = [{
                     "start": start,
-                    "state": value,
-                    "sum": value,
+                    "state": running_totals[entity_id],
+                    "sum": running_totals[entity_id],
                     "last_reset": start,
                 }]
                 async_import_statistics(self.hass, metadata, stats)
