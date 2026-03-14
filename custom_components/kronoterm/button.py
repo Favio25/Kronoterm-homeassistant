@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.components.persistent_notification import async_create
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
@@ -47,7 +48,19 @@ class KronotermReimportEnergyButton(CoordinatorEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         _LOGGER.info("Manual re-import of energy statistics triggered")
+        async_create(
+            self.hass,
+            "Reimport of Kronoterm energy statistics started. This may take a while.",
+            title="Kronoterm",
+            notification_id="kronoterm_reimport_energy",
+        )
         if hasattr(self.coordinator, "reimport_all_energy_statistics"):
             await self.coordinator.reimport_all_energy_statistics()
+            async_create(
+                self.hass,
+                "Reimport of Kronoterm energy statistics finished.",
+                title="Kronoterm",
+                notification_id="kronoterm_reimport_energy",
+            )
         else:
             _LOGGER.error("Coordinator missing reimport_all_energy_statistics method")
