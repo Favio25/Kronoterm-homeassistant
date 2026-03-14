@@ -56,6 +56,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.timeout = config_entry.data.get("timeout", 1)
         self.unit_id = config_entry.data.get("unit_id", DEFAULT_UNIT_ID)
         self.model = config_entry.data.get("model", "unknown")
+        self.system_type = "modbus"
 
         # Modbus client
         self.client: Optional[AsyncModbusTcpClient] = None
