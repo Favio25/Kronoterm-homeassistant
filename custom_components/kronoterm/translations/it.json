@@ -774,6 +774,11 @@
       "reservoir_temperature": {
         "name": "Temperatura del Serbatoio"
       }
+    },
+    "button": {
+      "reimport_energy_statistics": {
+        "name": "Reimport Energy Statistics"
+      }
     }
   }
 }
