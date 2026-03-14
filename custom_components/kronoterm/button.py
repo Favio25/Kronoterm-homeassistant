@@ -24,7 +24,8 @@ async def async_setup_entry(
         return
 
     # Only add for main cloud coordinator (energy consumption comes from cloud)
-    if getattr(coordinator, "system_type", "cloud") == "dhw":
+    system_type = getattr(coordinator, "system_type", "cloud")
+    if system_type in ("dhw", "modbus"):
         return
 
     _LOGGER.info("Adding Reimport Energy Statistics button for entry %s", entry.entry_id)
