@@ -4,8 +4,8 @@
 
 ### Added
 - Regression test script `tools/regression_test.py` to compare cloud payloads, HA states, and Modbus registers
-- Calculated Current Power sensor (derived from daily combined energy delta)
-- Calculated Current Power (Capacity/COP) sensor for cloud
+- Calculated Current Power sensor (derived from daily combined energy delta) [removed]
+- Calculated Current Power (Capacity/COP) sensor for cloud [removed]
 
 ### Changed
 - Cloud + JSON DHW climate now read current temperature from DHW page `tap_water_temp` (fallbacks retained)

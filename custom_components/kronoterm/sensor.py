@@ -16,7 +16,6 @@ from homeassistant.components.sensor import (
 from .energy import (
     KronotermDailyEnergySensor,
     KronotermDailyEnergyCombinedSensor,
-    KronotermCalculatedCurrentPowerSensor,
 )
 from .const import (
     DOMAIN,
@@ -623,11 +622,6 @@ async def _async_setup_cloud_entities(
             
         enum_entities.append(ent)
 
-    # Calculated cloud power from capacity/COP
-    sensor_entities.append(
-        KronotermCalculatedPowerFromCapacitySensor(coordinator, device_info)
-    )
-
     # JSON loop sensors (loop temperature readings)
     json_entities = []
     for i in range(1, 5):
@@ -684,12 +678,6 @@ async def _async_setup_cloud_entities(
         KronotermDailyEnergyCombinedSensor(
             coordinator,
             "energy_combined",
-            device_info,
-            ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"],
-        ),
-        KronotermCalculatedCurrentPowerSensor(
-            coordinator,
-            "calculated_current_power",
             device_info,
             ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"],
         ),
