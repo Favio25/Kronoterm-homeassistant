@@ -198,6 +198,7 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2325, "heating_system_pressure", "bar", "mdi:gauge", 1.0),  # Cloud API: no scaling
     SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),
     SensorDefinition(2129, "current_heating_cooling_power", "W", "mdi:lightning-bolt", 1.0),
+    SensorDefinition(2329, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),
     SensorDefinition(2362, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 1.0),
     SensorDefinition(2364, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1.0),
 
