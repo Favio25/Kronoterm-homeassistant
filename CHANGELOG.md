@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-03-15
+
+### Added
+- Regression test script `tools/regression_test.py` to compare cloud payloads, HA states, and Modbus registers
+
+### Changed
+- Cloud + JSON DHW climate now read current temperature from DHW page `tap_water_temp` (fallbacks retained)
+- Energy reimport skips **yesterday** (imports up to day before yesterday)
+- Reimport warning attribute + "Energy Reimport Info" text entity
+
 ## 2026-03-14
 
 ### Added
