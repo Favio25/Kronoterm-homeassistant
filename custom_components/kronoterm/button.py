@@ -41,6 +41,12 @@ class KronotermReimportEnergyButton(CoordinatorEntity, ButtonEntity):
     _attr_name = "Reimport Energy Statistics"
     _attr_entity_category = EntityCategory.CONFIG
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "warning": "Reimport clears statistics. Short-term (hourly) stats may disappear until HA rebuilds them.",
+        }
+
     def __init__(self, coordinator: Any, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_reimport_energy_statistics"
