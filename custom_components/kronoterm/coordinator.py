@@ -645,6 +645,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
                             day_values[day][entity_id] = value
 
+                    _LOGGER.info("Consumption window: %s → %s (len=%s)", window_start, window_start + timedelta(days=length - 1), length)
                     last_imported = current
                     empty_days = 0
                     current = window_start - timedelta(days=1)
@@ -663,6 +664,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
         running_totals = {k: 0.0 for k in entity_ids.values()}
         today = dt_util.now().date()
+        _LOGGER.info("Importing up to yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
         for day in sorted(day_values.keys()):
             if day >= today:
                 continue
