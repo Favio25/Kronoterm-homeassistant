@@ -13,7 +13,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 
-from .energy import KronotermDailyEnergySensor, KronotermDailyEnergyCombinedSensor
+from .energy import (
+    KronotermDailyEnergySensor,
+    KronotermDailyEnergyCombinedSensor,
+    KronotermCalculatedCurrentPowerSensor,
+)
 from .const import (
     DOMAIN,
     SENSOR_DEFINITIONS,
@@ -631,6 +635,12 @@ async def _async_setup_cloud_entities(
         KronotermDailyEnergyCombinedSensor(
             coordinator,
             "energy_combined",
+            device_info,
+            ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"],
+        ),
+        KronotermCalculatedCurrentPowerSensor(
+            coordinator,
+            "calculated_current_power",
             device_info,
             ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"],
         ),

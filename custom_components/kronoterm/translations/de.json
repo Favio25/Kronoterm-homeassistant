@@ -188,6 +188,9 @@
       "energy_combined": {
         "name": "Kombinierte Energie (Täglich)"
       },
+      "calculated_current_power": {
+        "name": "Berechnete aktuelle Leistung"
+      },
       "operating_hours_compressor_heating": {
         "name": "Betriebsstunden Verdichter Heizung"
       },

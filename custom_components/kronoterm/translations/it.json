@@ -188,6 +188,9 @@
       "energy_combined": {
         "name": "Energia Combinata (Giornaliero)"
       },
+      "calculated_current_power": {
+        "name": "Potenza Attuale Calcolata"
+      },
       "operating_hours_compressor_heating": {
         "name": "Ore di Funzionamento Compressore - Riscaldamento"
       },

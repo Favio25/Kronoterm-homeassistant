@@ -188,6 +188,9 @@
       "energy_combined": {
         "name": "Skupna poraba (dnevno)"
       },
+      "calculated_current_power": {
+        "name": "Izračunana trenutna moč"
+      },
       "operating_hours_compressor_heating": {
         "name": "Delovne ure kompresorja pri ogrevanju"
       },

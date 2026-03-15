@@ -254,6 +254,9 @@
       "energy_combined": {
         "name": "Energy Combined (Daily)"
       },
+      "calculated_current_power": {
+        "name": "Calculated Current Power"
+      },
       "operating_hours_compressor_heating": {
         "name": "Operating Hours Compressor Heating"
       },
