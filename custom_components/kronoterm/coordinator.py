@@ -664,9 +664,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
         running_totals = {k: 0.0 for k in entity_ids.values()}
         today = dt_util.now().date()
-        _LOGGER.info("Importing up to yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
+        cutoff = today - timedelta(days=1)
+        _LOGGER.info("Importing up to day before yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
         for day in sorted(day_values.keys()):
-            if day >= today:
+            if day >= cutoff:
                 continue
             for entity_id, value in day_values[day].items():
                 running_totals[entity_id] += value
