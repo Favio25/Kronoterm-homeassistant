@@ -191,6 +191,9 @@
       "calculated_current_power": {
         "name": "Izračunana trenutna moč"
       },
+      "calculated_power_capacity_cop": {
+        "name": "Izračunana trenutna moč (moč/COP)"
+      },
       "operating_hours_compressor_heating": {
         "name": "Delovne ure kompresorja pri ogrevanju"
       },

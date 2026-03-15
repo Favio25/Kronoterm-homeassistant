@@ -191,6 +191,9 @@
       "calculated_current_power": {
         "name": "Berechnete aktuelle Leistung"
       },
+      "calculated_power_capacity_cop": {
+        "name": "Berechnete aktuelle Leistung (Leistung/COP)"
+      },
       "operating_hours_compressor_heating": {
         "name": "Betriebsstunden Verdichter Heizung"
       },

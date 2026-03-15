@@ -191,6 +191,9 @@
       "calculated_current_power": {
         "name": "Potenza Attuale Calcolata"
       },
+      "calculated_power_capacity_cop": {
+        "name": "Potenza Attuale Calcolata (Capacità/COP)"
+      },
       "operating_hours_compressor_heating": {
         "name": "Ore di Funzionamento Compressore - Riscaldamento"
       },
