@@ -462,7 +462,9 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
     @property
     def current_temperature(self) -> float | None:
         dhw = (self.coordinator.data or {}).get("dhw", {})
-        raw = dhw.get("HeatingCircleData", {}).get("circle_calc_temp")
+        raw = dhw.get("TemperaturesAndConfig", {}).get("tap_water_temp")
+        if raw is None:
+            raw = dhw.get("HeatingCircleData", {}).get("circle_calc_temp")
         if raw is None:
             raw = dhw.get("HeatingCircleData", {}).get("circle_temp")
         if raw is None:
