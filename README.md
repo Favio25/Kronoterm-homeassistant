@@ -100,6 +100,8 @@ Once connected, configure the integration:
 ### Energy Monitoring
 ![Energy](images/energy.png)
 
+**Reimport warning:** Reimporting energy statistics clears existing statistics. Short‑term (hourly) bars may disappear until Home Assistant rebuilds them from recorder history.
+
 [Example Dashboard YAML](dashboard.yaml)
 
 ## Key Differences: Cloud API vs Modbus
