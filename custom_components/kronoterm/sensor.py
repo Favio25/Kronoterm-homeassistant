@@ -93,6 +93,18 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             val *= self._scale
         return round(val, 2)
 
+    def _get_modbus_value_for(self, address: int) -> Optional[float]:
+        for reg in self.modbus_data:
+            if reg.get("address") == address:
+                raw = reg.get("value")
+                if raw is None or raw == "":
+                    return None
+                try:
+                    return float(raw)
+                except (TypeError, ValueError):
+                    return None
+        return None
+
     @property
     def native_value(self) -> Optional[float]:
         """Return sensor value, checking operation mode for setpoint sensors.
@@ -129,6 +141,16 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             
             return value
         
+        # Current heating/cooling power: derive from capacity/COP if available
+        if self._address == 2129:
+            capacity = self._get_modbus_value_for(2329)
+            cop_raw = self._get_modbus_value_for(2371)
+            if capacity is not None and cop_raw is not None:
+                cop = cop_raw * 0.01
+                if cop <= 0:
+                    return 0.0
+                return round(max(0.0, capacity / cop), 1)
+
         # Normal processing for non-setpoint sensors (no value filter!)
         return self._compute_value()
 
