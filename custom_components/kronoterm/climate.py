@@ -461,12 +461,17 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("GlobalOverview", {}).get("boiler_temp")
+        dhw = (self.coordinator.data or {}).get("dhw", {})
+        raw = dhw.get("HeatingCircleData", {}).get("circle_calc_temp")
         if raw is None:
-            raw = data.get("BasicData", {}).get("boiler_calc_temp")
+            raw = dhw.get("HeatingCircleData", {}).get("circle_temp")
         if raw is None:
-            raw = data.get("BasicData", {}).get("boiler_temp")
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("GlobalOverview", {}).get("boiler_temp")
+            if raw is None:
+                raw = data.get("BasicData", {}).get("boiler_calc_temp")
+            if raw is None:
+                raw = data.get("BasicData", {}).get("boiler_temp")
         try:
             return float(raw)
         except (TypeError, ValueError):
@@ -474,8 +479,11 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def target_temperature(self) -> float | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("BasicData", {}).get("boiler_setpoint")
+        dhw = (self.coordinator.data or {}).get("dhw", {})
+        raw = dhw.get("HeatingCircleData", {}).get("circle_temp")
+        if raw is None:
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("BasicData", {}).get("boiler_setpoint")
         try:
             return float(raw)
         except (TypeError, ValueError):
@@ -483,8 +491,11 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def preset_mode(self) -> str | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("BasicData", {}).get("default_mode")
+        dhw = (self.coordinator.data or {}).get("dhw", {})
+        raw = dhw.get("HeatingCircleData", {}).get("circle_mode")
+        if raw is None:
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("BasicData", {}).get("default_mode")
         try:
             return self.PRESET_MAP.get(int(raw))
         except (TypeError, ValueError):
