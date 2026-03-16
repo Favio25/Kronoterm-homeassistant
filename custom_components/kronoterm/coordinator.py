@@ -482,9 +482,9 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         """Set system temperature correction via main_settings."""
         _LOGGER.info("Setting main temperature offset to %.1f via cloud API", value)
         form_data = [
-            ("param_name", "system_temperature_correction"),
+            ("param_name", "main_temp"),
             ("param_value", str(int(value))),
-            ("page", "11"),
+            ("page", "-1"),
         ]
         result = await self._send_set_request("main_settings", form_data)
         _LOGGER.info("Main temperature offset change %s", "succeeded" if result else "failed")
