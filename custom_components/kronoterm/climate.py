@@ -452,10 +452,9 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
             min_temp=10,
             max_temp=90,
             page=1,
+            supports_cooling=False,  # DHW only heats, doesn't cool
         )
-        # DHW: force heat-only HVAC modes (but allow OFF via preset)
-        self._supports_cooling = False
-        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        # DHW: add preset mode support
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
 
