@@ -406,7 +406,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                     # Debug logging for critical sensors
                     if reg_def.address in [2014, 2371, 2372, 2327, 2103, 2001, 2007, 2023, 2187, 2191, 546, 553, 
                                           2130, 2160, 2110, 2161, 2102, 2024, 2051, 2188, 2189, 2190,
-                                          2101, 2034, 2305]:  # system_temperature_correction, return_temp, reservoir_current_setpoint, solar_reservoir_setpoint
+                                          2101, 2034, 2305, 2129, 2329]:  # system_temperature_correction, return_temp, reservoir_current_setpoint, solar_reservoir_setpoint, power sensors
                         _LOGGER.debug("Register %d (%s): raw=%d, scaled=%s, scale=%s", 
                                       reg_def.address, reg_def.name_en, raw_value, value, reg_def.scale)
             

@@ -1,35 +1,31 @@
 # Changelog
 
-## 2026-03-15
+## Unreleased (since v1.6.3)
 
 ### Added
-- Auto-detect Modbus register set (extended vs TT3000) and load matching JSON map
+- **TT3000 support**: Auto-detect Modbus register set (extended vs TT3000) and load matching JSON map
 - TT3000 register map file (`kronoterm_tt3000.json`)
 - TT3000 loop temperature mapping (buffer tank + loop temps, no thermostat)
-- Regression test script `tools/regression_test.py` to compare cloud payloads, HA states, and Modbus registers
+- TT3000: passive cooling temperature register (2108)
+- TT3000: missing registers from PDF (status/commands/ops/temps)
+- BasicAuth handshake retry logic: 3 retry attempts with exponential backoff (1.5s, 3s) for transient connection failures
+- Missing coordinator method: `async_set_additional_source()` for additional_source switch
+- Modbus switch optimistic updates: instant UI feedback after write (updates both `value` and `raw` in coordinator data)
 
 ### Fixed
+- **Modbus power sensor calculation**: Register 2129 (`current_heating_cooling_power`) now reads directly from Modbus register; calculation from capacity/COP only applies to cloud integration
 - TT3000: loop 4 operation mode uses register 2074
-- TT3000: hide switches for registers not present (antilegionella, DHW circulation)
+- TT3000: hide switches for registers not present (antilegionella 2301, DHW circulation 2328)
 - TT3000: reservoir write uses register 2032
-
-### Added
-- TT3000: missing registers added from PDF (status/commands/ops/temps)
-- TT3000: passive cooling temperature (2108)
+- NoneType errors in entity setup: double guards in `binary_sensor.py` and `number.py`
+- Cloud main temperature offset: use correct `param_name="main_temp"` and `page=-1`
+- DHW climate HVAC modes: all three DHW climate classes now correctly show only `[HEAT, OFF]` modes
 
 ### Changed
-- Cloud + JSON DHW climate now read current temperature from DHW page `tap_water_temp` (fallbacks retained)
-- Energy reimport skips **yesterday** (imports up to day before yesterday)
-- Reimport warning attribute + "Energy Reimport Info" text entity
-- Current heating/cooling power now derived from capacity/COP when available
-- DHW-only cloud climate restored to use main page data (fix unavailable entity)
-- DHW coordinator now sets system_type="dhw" (ensures correct climate class)
+- Merged upstream PR #47: added new `working_function` states (`6: "start"`, `8: "protection"`)
+- BasicAuth retry logs at DEBUG level (reduced noise)
 
-### Removed
-- Calculated Current Power sensor (derived from daily combined energy delta)
-- Calculated Current Power (Capacity/COP) sensor for cloud
-
-## 2026-03-14
+## 2026-03-14 — v1.6.3
 
 ### Added
 - Energy statistics maintenance:

@@ -143,8 +143,8 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             
             return value
         
-        # Current heating/cooling power: derive from capacity/COP if available
-        if self._address == 2129:
+        # Current heating/cooling power: derive from capacity/COP for CLOUD only
+        if self._address == 2129 and getattr(self.coordinator, 'system_type', None) == 'cloud':
             capacity = self._get_modbus_value_for(2329)
             cop_raw = self._get_modbus_value_for(2371)
             if capacity is not None and cop_raw is not None:
