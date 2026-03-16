@@ -1,0 +1,1550 @@
+{
+  "meta_info": {
+    "document_id": "17-20-28-4022-04",
+    "title": "Navodila za priklop in uporabo CNS SISTEM",
+    "controller": "KSM V3.14-1",
+    "compatible_systems": [
+      "ADAPT",
+      "VERSI",
+      "WPLV",
+      "ETERA",
+      "ADAPT MAX"
+    ],
+    "communication": {
+      "interface": "RS 485",
+      "terminals": "TEX",
+      "protocol": "Modbus RTU",
+      "default_baud_rate": 115200,
+      "default_address": 20,
+      "supported_commands": [
+        "03 Read Holding Register",
+        "06 Write Holding Register"
+      ]
+    }
+  },
+  "registers": [
+    {
+      "address": 2000,
+      "name": "Delovanje sistema",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Vklop"
+      },
+      "source": "Page 6, 10",
+      "name_en": "system_operation"
+    },
+    {
+      "address": 2001,
+      "name": "Funkcija delovanja",
+      "type": "Enum",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Ogrevanje",
+        "1": "Sanitarna voda",
+        "2": "Hlajenje",
+        "3": "Ogrevanje bazena",
+        "4": "Pregrevanje sanitarne vode",
+        "5": "Mirovanje",
+        "7": "Daljinski izklop"
+      },
+      "source": "Page 6, 10",
+      "name_en": "working_function"
+    },
+    {
+      "address": 2002,
+      "name": "Dodatni vklopi",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "0": {
+          "val": 1,
+          "desc": "Vklop dodatnega vira"
+        },
+        "1": {
+          "val": 2,
+          "desc": "Aktiven je dodatni vir 2"
+        },
+        "2": {
+          "val": 4,
+          "desc": "Aktiven je PZ (protizmrzovalni) program"
+        },
+        "3": {
+          "val": 8,
+          "desc": "Aktiven je PV signal"
+        },
+        "4": {
+          "val": 16,
+          "desc": "Aktiven je dodatni vir 1"
+        },
+        "5": {
+          "val": 32,
+          "desc": "Aktiven je dodatni vir 1 in 2"
+        },
+        "11": {
+          "val": 2048,
+          "desc": "Silent način delovanja naprave"
+        },
+        "12": {
+          "val": 4096,
+          "desc": "Boost način delovanja naprave"
+        },
+        "13": {
+          "val": 8192,
+          "desc": "Aktivno je varovanje kompresorja"
+        },
+        "14": {
+          "val": 16384,
+          "desc": "Poteka zagon kompresorja"
+        }
+      },
+      "source": "Page 6, 10",
+      "name_en": "additional_activations"
+    },
+    {
+      "address": 2003,
+      "name": "Rezervni vir",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Vklop"
+      },
+      "source": "Page 6, 10",
+      "name_en": "reserve_source"
+    },
+    {
+      "address": 2004,
+      "name": "Alternativni vir",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Vklop"
+      },
+      "source": "Page 6, 10",
+      "name_en": "alternative_source"
+    },
+    {
+      "address": 2005,
+      "name": "Pasivno hlajenje",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "passive_cooling"
+    },
+    {
+      "address": 2006,
+      "name": "Status napake",
+      "type": "Enum",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Ni napake",
+        "1": "Opozorilo",
+        "2": "Alarm",
+        "3": "Obvestilo"
+      },
+      "source": "Page 6, 10",
+      "name_en": "error_warning"
+    },
+    {
+      "address": 2007,
+      "name": "Režim delovanja",
+      "type": "Enum",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Hlajenje",
+        "1": "Ogrevanje",
+        "2": "Ogrevanje in hlajenje off"
+      },
+      "source": "Page 6, 11",
+      "name_en": "operation_regime"
+    },
+    {
+      "address": 2008,
+      "name": "Program delovanja",
+      "type": "Enum",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Normalno delovanje",
+        "1": "Generalno delovanje v ECO režimu",
+        "2": "Generalno delovanje v COM režimu",
+        "4": "Program sušenja estrihov je aktiven"
+      },
+      "source": "Page 6, 11",
+      "name_en": "operation_program",
+      "disabled": true,
+      "comment": "Disabled - use operation_program_select (2013) instead"
+    },
+    {
+      "address": 2009,
+      "name": "Servisni režim",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "service_mode"
+    },
+    {
+      "address": 2010,
+      "name": "Hitro segrevanje sanitarne vode",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljeno",
+        "1": "Vklopljeno"
+      },
+      "source": "Page 6, 11",
+      "name_en": "dhw_quick_heating",
+      "disabled": true
+    },
+    {
+      "address": 2011,
+      "name": "Odtaljevanje",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Ni odtaljevanja",
+        "1": "Izvaja se odtaljevanje"
+      },
+      "source": "Page 6, 11",
+      "name_en": "defrost_status"
+    },
+    {
+      "address": 2012,
+      "name": "Vklop sistema",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Sistem je izklopljen",
+        "1": "Sistem je vklopljen"
+      },
+      "source": "Page 6, 11",
+      "name_en": "system_on"
+    },
+    {
+      "address": 2013,
+      "name": "Izbira programa delovanja",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Normalni način",
+        "1": "ECO režim",
+        "2": "COM režim"
+      },
+      "source": "Page 6, 11",
+      "name_en": "operation_program_select"
+    },
+    {
+      "address": 2014,
+      "name": "Korekcija temperature sistema",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 1°C",
+      "range": "+/- 4°C",
+      "source": "Page 6, 11",
+      "name_en": "system_temperature_correction"
+    },
+    {
+      "address": 2015,
+      "name": "Vklop hitrega segrevanja sanitarne vode",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "source": "Page 6, 11",
+      "name_en": "dhw_quick_heating_enable"
+    },
+    {
+      "address": 2016,
+      "name": "Vklop dodatnega vira",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Vklop"
+      },
+      "source": "Page 6, 11",
+      "name_en": "additional_source_enable"
+    },
+    {
+      "address": 2017,
+      "name": "Preklop režima",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "1": "Hlajenje",
+        "2": "Ogrevanje",
+        "3": "Auto režim",
+        "4": "Off režim"
+      },
+      "bit_definitions": {
+        "8": {
+          "val": 256,
+          "desc": "Vklop/izklop funkcije avtomatski preklop režima"
+        }
+      },
+      "source": "Page 6, 11",
+      "name_en": "mode_switch"
+    },
+    {
+      "address": 2018,
+      "name": "Vklop rezervnega vira",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Vklop"
+      },
+      "source": "Page 6, 11",
+      "name_en": "reserve_source_enable"
+    },
+    {
+      "address": 2019,
+      "name": "Vklop odtaljevanja",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "defrost_enable"
+    },
+    {
+      "address": 2020,
+      "name": "Vklop bazena",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "pool_enable"
+    },
+    {
+      "address": 2023,
+      "name": "Želena temperatura sanitarne vode",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 12",
+      "name_en": "dhw_setpoint"
+    },
+    {
+      "address": 2024,
+      "name": "Trenutna želena temperatura sanitarne vode",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "note": "5000 = OFF",
+      "source": "Page 6, 12",
+      "name_en": "dhw_current_setpoint"
+    },
+    {
+      "address": 2026,
+      "name": "Izbira delovanja sanitarna voda",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 6, 12",
+      "name_en": "dhw_operation_mode"
+    },
+    {
+      "address": 2027,
+      "name": "Status delovanja sanitarne vode po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 6, 12",
+      "name_en": "dhw_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2028,
+      "name": "Status cirkulacijskih črpalk",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "0": {
+          "val": 1,
+          "desc": "Status cirkulacijske črpalke"
+        },
+        "1": {
+          "val": 2,
+          "desc": "Status obtočne črpalke za sanitarno vodo"
+        }
+      },
+      "source": "Page 6, 12",
+      "name_en": "circulation_pump_status"
+    },
+    {
+      "address": 2030,
+      "name": "Odmik v eco načinu sanitarna voda",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 12",
+      "name_en": "dhw_eco_offset"
+    },
+    {
+      "address": 2031,
+      "name": "Odmik v comfortnem načinu sanitarna voda",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 12",
+      "name_en": "dhw_comfort_offset"
+    },
+    {
+      "address": 2032,
+      "name": "Želena temperatura zalogovnika",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "reservoir_setpoint"
+    },
+    {
+      "address": 2033,
+      "name": "Status regulacije zalogovnika",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "reservoir_regulation_status"
+    },
+    {
+      "address": 2034,
+      "name": "Trenutna želena temperatura zalogovnika/sistema",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 13",
+      "name_en": "reservoir_current_setpoint"
+    },
+    {
+      "address": 2035,
+      "name": "Izbira delovanja zalogovnika",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 6, 13",
+      "name_en": "reservoir_operation_mode"
+    },
+    {
+      "address": 2037,
+      "name": "Status delovanja zalogovnika po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 6, 13",
+      "name_en": "reservoir_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2038,
+      "name": "Status glavne obtočne črpalke",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 6, 13",
+      "name_en": "main_pump_status"
+    },
+    {
+      "address": 2039,
+      "name": "Status daljinskega vklopa",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Ni aktiven",
+        "1": "Aktiven"
+      },
+      "source": "Page 6, 13",
+      "name_en": "remote_control_status",
+      "disabled": true
+    },
+    {
+      "address": 2040,
+      "name": "Odmik v eco načinu toplotne črpalke",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 13",
+      "name_en": "hp_eco_offset"
+    },
+    {
+      "address": 2041,
+      "name": "Odmik v comfortnem načinu toplotne črpalke",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 13",
+      "name_en": "hp_comfort_offset"
+    },
+    {
+      "address": 2042,
+      "name": "Izbira delovanja krog 1",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 6, 14",
+      "name_en": "loop_1_operation_mode"
+    },
+    {
+      "address": 2044,
+      "name": "Status delovanja kroga 1 po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 6, 14",
+      "name_en": "loop_1_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2045,
+      "name": "Status obtočne črpalke krog 1",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 6, 14",
+      "name_en": "loop_1_pump_status"
+    },
+    {
+      "address": 2046,
+      "name": "Status termostata krog 1 in status regulacije",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "0": {
+          "val": 1,
+          "desc": "Status termostata (0=izklop, 1=vklop)"
+        },
+        "8": {
+          "val": 256,
+          "desc": "Status regulacije (0=konstantno, 1=vremensko)"
+        }
+      },
+      "source": "Page 6, 14",
+      "name_en": "loop_1_thermostat_regulation_status"
+    },
+    {
+      "address": 2047,
+      "name": "Odmik v eco načinu ogrevalni krog 1",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 14",
+      "name_en": "loop_1_eco_offset"
+    },
+    {
+      "address": 2048,
+      "name": "Odmik v comfortnem načinu ogrevalni krog 1",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 14",
+      "name_en": "loop_1_comfort_offset"
+    },
+    {
+      "address": 2049,
+      "name": "Želena temperatura ogrevalnega kroga 2 / Prostor 2",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 15",
+      "name_en": "loop_2_setpoint"
+    },
+    {
+      "address": 2050,
+      "name": "Status regulacije 2. kroga",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "loop_2_regulation_status"
+    },
+    {
+      "address": 2051,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 2 / temperatura prostor 2",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 15",
+      "name_en": "loop_2_room_current_setpoint"
+    },
+    {
+      "address": 2052,
+      "name": "Izbira delovanja ogrevalni krog 2",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 6, 15",
+      "name_en": "loop_2_operation_mode"
+    },
+    {
+      "address": 2054,
+      "name": "Status delovanja kroga 2 po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 6, 15",
+      "name_en": "loop_2_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2055,
+      "name": "Status obtočne črpalke krog 2",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 6, 15",
+      "name_en": "loop_2_pump_status"
+    },
+    {
+      "address": 2056,
+      "name": "Status termostata krog 2",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljen",
+        "1": "Vklopljen"
+      },
+      "source": "Page 6, 15",
+      "name_en": "loop_2_thermostat_status",
+      "disabled": true,
+      "comment": "Redundant - removed by runtime check if thermostat temp = 0"
+    },
+    {
+      "address": 2057,
+      "name": "Odmik v eco načinu ogrevalni krog 2",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 15",
+      "name_en": "loop_2_eco_offset"
+    },
+    {
+      "address": 2058,
+      "name": "Odmik v comfortnem načinu ogrevalni krog 2",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 15",
+      "name_en": "loop_2_comfort_offset"
+    },
+    {
+      "address": 2059,
+      "name": "Želena temperatura ogrevalnega kroga 3 / Prostor 3",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 6, 16",
+      "name_en": "loop_3_setpoint"
+    },
+    {
+      "address": 2060,
+      "name": "Status regulacije 3. kroga",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "loop_3_regulation_status"
+    },
+    {
+      "address": 2061,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 3 / temperatura prostor 3",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 16",
+      "name_en": "loop_3_room_current_setpoint"
+    },
+    {
+      "address": 2062,
+      "name": "Izbira delovanja ogrevalni krog 3",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 7, 16",
+      "name_en": "loop_3_operation_mode"
+    },
+    {
+      "address": 2064,
+      "name": "Status delovanja kroga 3 po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 7, 16",
+      "name_en": "loop_3_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2065,
+      "name": "Status obtočne črpalke krog 3",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 7, 16",
+      "name_en": "loop_3_pump_status"
+    },
+    {
+      "address": 2066,
+      "name": "Status termostata krog 3",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljen",
+        "1": "Vklopljen"
+      },
+      "source": "Page 7, 16",
+      "name_en": "loop_3_thermostat_status",
+      "disabled": true,
+      "comment": "Redundant - removed by runtime check if thermostat temp = 0"
+    },
+    {
+      "address": 2067,
+      "name": "Odmik v eco načinu ogrevalni krog 3",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 16",
+      "name_en": "loop_3_eco_offset"
+    },
+    {
+      "address": 2068,
+      "name": "Odmik v comfortnem načinu ogrevalni krog 3",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 16",
+      "name_en": "loop_3_comfort_offset"
+    },
+    {
+      "address": 2069,
+      "name": "Želena temperatura ogrevalnega kroga 4 / Prostor 4",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 17",
+      "name_en": "loop_4_setpoint"
+    },
+    {
+      "address": 2070,
+      "name": "Status regulacije 4. kroga",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "loop_4_regulation_status"
+    },
+    {
+      "address": 2071,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 4 / temperatura prostor 4",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 17",
+      "name_en": "loop_4_room_current_setpoint"
+    },
+    {
+      "address": 2074,
+      "name": "Status delovanja kroga 4 po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 7, 17",
+      "name_en": "loop_4_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2075,
+      "name": "Status obtočne črpalke krog 4",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 7, 17",
+      "name_en": "loop_4_pump_status"
+    },
+    {
+      "address": 2076,
+      "name": "Status termostata krog 4",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljen",
+        "1": "Vklopljen"
+      },
+      "source": "Page 7, 17",
+      "name_en": "loop_4_thermostat_status",
+      "disabled": true,
+      "comment": "Redundant - removed by runtime check if thermostat temp = 0"
+    },
+    {
+      "address": 2077,
+      "name": "Odmik v eco načinu ogrevalni krog 4",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 17",
+      "name_en": "loop_4_eco_offset"
+    },
+    {
+      "address": 2078,
+      "name": "Odmik v comfortnem načinu ogrevalni krog 4",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 17",
+      "name_en": "loop_4_comfort_offset"
+    },
+    {
+      "address": 2079,
+      "name": "Želena temperatura bazen",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "range": "19.9 - 35.0 °C",
+      "source": "Page 7, 18",
+      "name_en": "pool_setpoint"
+    },
+    {
+      "address": 2080,
+      "name": "Trenutna želena temperatura bazen",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 18",
+      "name_en": "pool_current_setpoint"
+    },
+    {
+      "address": 2081,
+      "name": "Izbira delovanja bazen",
+      "type": "Control",
+      "access": "Read/Write",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normalni režim",
+        "2": "Delovanje po urniku"
+      },
+      "source": "Page 7, 18",
+      "name_en": "pool_operation_mode"
+    },
+    {
+      "address": 2083,
+      "name": "Status delovanja bazena po urniku",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklop",
+        "1": "Normal",
+        "2": "ECO",
+        "3": "COM"
+      },
+      "source": "Page 7, 18",
+      "name_en": "pool_schedule_status",
+      "disabled": true
+    },
+    {
+      "address": 2084,
+      "name": "Status obtočne črpalke bazena",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljena",
+        "1": "Vklopljena"
+      },
+      "source": "Page 7, 18",
+      "name_en": "pool_pump_status"
+    },
+    {
+      "address": 2085,
+      "name": "Status termostata bazena",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "values": {
+        "0": "Izklopljen",
+        "1": "Vklopljen"
+      },
+      "source": "Page 7, 18",
+      "name_en": "pool_thermostat_status",
+      "disabled": true,
+      "comment": "Redundant - removed by runtime check if thermostat temp = 0"
+    },
+    {
+      "address": 2086,
+      "name": "Odmik v eco načinu bazen",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 18",
+      "name_en": "pool_eco_offset"
+    },
+    {
+      "address": 2087,
+      "name": "Odmik v comfortnem načinu bazen",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 18",
+      "name_en": "pool_comfort_offset"
+    },
+    {
+      "address": 2089,
+      "name": "Obratovalne ure kompresor v režimu hlajenja",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_cooling"
+    },
+    {
+      "address": 2090,
+      "name": "Obratovalne ure kompresor v režimu ogrevanja",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_compressor_heating"
+    },
+    {
+      "address": 2091,
+      "name": "Obratovalne ure kompresor v režimu segrevanja sanitarne vode",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_compressor_dhw"
+    },
+    {
+      "address": 2092,
+      "name": "Obratovalne minute kompresorja dnevno",
+      "type": "Value",
+      "access": "Read",
+      "unit": "min",
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "operating_minutes_compressor_daily"
+    },
+    {
+      "address": 2093,
+      "name": "Obratovalne ure glavna obtočne črpalke",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_main_pump"
+    },
+    {
+      "address": 2094,
+      "name": "Obratovalne ure sanitarna obtočna črpalka",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_dhw_pump"
+    },
+    {
+      "address": 2095,
+      "name": "Obratovalne ure dodatnega grela 1",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_additional_source_1"
+    },
+    {
+      "address": 2096,
+      "name": "Obratovalne ure dodatnega grela 2",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_heater_2"
+    },
+    {
+      "address": 2097,
+      "name": "Obratovalne ure alternativni vir",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_alternative_source"
+    },
+    {
+      "address": 2098,
+      "name": "Obratovalne ure toplotni vir",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_heat_source"
+    },
+    {
+      "address": 2099,
+      "name": "Obratovalne ure pasiva",
+      "type": "Value",
+      "access": "Read",
+      "unit": "ure",
+      "source": "Page 7, 19",
+      "name_en": "operating_hours_passive"
+    },
+    {
+      "address": 2101,
+      "name": "Temperatura povratnega voda",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "hp_inlet_temperature"
+    },
+    {
+      "address": 2102,
+      "name": "Temperatura sanitarne vode",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "dhw_temperature"
+    },
+    {
+      "address": 2103,
+      "name": "Zunanja temperatura",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "temperature_outside"
+    },
+    {
+      "address": 2104,
+      "name": "Temperatura dvižnega voda",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "hp_outlet_temperature"
+    },
+    {
+      "address": 2105,
+      "name": "Temperatura uparjanja",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "temperature_compressor_inlet"
+    },
+    {
+      "address": 2106,
+      "name": "Temperatura kompresorja",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "temperature_compressor_outlet"
+    },
+    {
+      "address": 2107,
+      "name": "Temperatura alternativnega vira",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "alternative_source_temperature"
+    },
+    {
+      "address": 2108,
+      "name": "Temperatura pasive",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "passive_cooling_temperature"
+    },
+    {
+      "address": 2109,
+      "name": "Temperatura bazena",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "pool_temperature"
+    },
+    {
+      "address": 2110,
+      "name": "Temperatura 2. kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "loop_2_temp"
+    },
+    {
+      "address": 2111,
+      "name": "Temperatura 3. kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "loop_3_temp"
+    },
+    {
+      "address": 2112,
+      "name": "Temperatura 4. kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 7, 19",
+      "name_en": "loop_4_temp"
+    },
+    {
+      "address": 2114,
+      "name": "Napake 1",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "3": {
+          "val": 8,
+          "desc": "Visok tlak"
+        },
+        "7": {
+          "val": 128,
+          "desc": "Nizek tlak"
+        },
+        "8": {
+          "val": 256,
+          "desc": "TZ kontrola faz"
+        },
+        "9": {
+          "val": 512,
+          "desc": "Ni pretoka"
+        },
+        "11": {
+          "val": 2048,
+          "desc": "Sanitarna voda"
+        }
+      },
+      "source": "Page 7, 21",
+      "name_en": "napake_1"
+    },
+    {
+      "address": 2115,
+      "name": "Napake 2",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "0": {
+          "val": 1,
+          "desc": "Izpad modul 1"
+        },
+        "1": {
+          "val": 2,
+          "desc": "Izpad modul 2"
+        },
+        "5": {
+          "val": 32,
+          "desc": "Izpad komunikacije - zunanja enota"
+        },
+        "8": {
+          "val": 256,
+          "desc": "Max. št. odtaljevanj"
+        },
+        "10": {
+          "val": 1024,
+          "desc": "Temperatura vira izven območja"
+        },
+        "12": {
+          "val": 4096,
+          "desc": "Reset modula 1"
+        },
+        "13": {
+          "val": 8192,
+          "desc": "Reset modula 2"
+        },
+        "14": {
+          "val": 16384,
+          "desc": "Reset modula 3"
+        },
+        "15": {
+          "val": 32768,
+          "desc": "Reset modula 4"
+        }
+      },
+      "source": "Page 7, 21",
+      "name_en": "napake_2"
+    },
+    {
+      "address": 2116,
+      "name": "Napaka (Tipal)",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "2": {
+          "val": 4,
+          "desc": "Odpoved temp. tipala T28-kondenzator vstop (Th3)"
+        },
+        "3": {
+          "val": 8,
+          "desc": "Odpoved temp. tipala T27-kondenzator izstop (Th2)"
+        }
+      },
+      "source": "Page 22",
+      "name_en": "napaka_tipal"
+    },
+    {
+      "address": 2117,
+      "name": "Opozorila 1",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "0": {
+          "val": 1,
+          "desc": "Visoki tlak - ogrevanja"
+        },
+        "1": {
+          "val": 2,
+          "desc": "Visoki tlak - sanitarna voda"
+        },
+        "2": {
+          "val": 4,
+          "desc": "Visoki tlak hlajenje"
+        },
+        "3": {
+          "val": 8,
+          "desc": "Visoki tlak - odtaljevanje"
+        },
+        "4": {
+          "val": 16,
+          "desc": "Nizki tlak - ogrevanje"
+        },
+        "5": {
+          "val": 32,
+          "desc": "Nizki tlak - sanitarna voda"
+        },
+        "6": {
+          "val": 64,
+          "desc": "Nizki tlak - hlajenje"
+        },
+        "7": {
+          "val": 128,
+          "desc": "Nizki tlak odtaljevanje"
+        },
+        "8": {
+          "val": 256,
+          "desc": "Ni pretoka"
+        },
+        "10": {
+          "val": 1024,
+          "desc": "Minimalna temperatura dvižnega voda"
+        },
+        "12": {
+          "val": 4096,
+          "desc": "Izstopna temperatura vira izven območja"
+        },
+        "13": {
+          "val": 8192,
+          "desc": "Daljinski izklop"
+        },
+        "15": {
+          "val": 32768,
+          "desc": "Vstopna temperatura vira izven območja"
+        }
+      },
+      "source": "Page 7, 22",
+      "name_en": "opozorila_1"
+    },
+    {
+      "address": 2122,
+      "name": "Napake",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "error_2122"
+    },
+    {
+      "address": 2123,
+      "name": "Napake",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "error_2123"
+    },
+    {
+      "address": 2124,
+      "name": "Opozorila 3 (Kaskada)",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "7": {
+          "val": 128,
+          "desc": "Ni odziva kaskadnih enot"
+        },
+        "8": {
+          "val": 256,
+          "desc": "Preveri kaskadno enoto 1"
+        },
+        "9": {
+          "val": 512,
+          "desc": "Preveri kaskadno enoto 2"
+        },
+        "10": {
+          "val": 1024,
+          "desc": "Preveri kaskadno enoto 3"
+        },
+        "11": {
+          "val": 2048,
+          "desc": "Preveri kaskadno enoto 4"
+        }
+      },
+      "source": "Page 8, 25",
+      "name_en": "opozorila_3_kaskada"
+    },
+    {
+      "address": 2125,
+      "name": "Napake",
+      "type": "Status",
+      "access": "Read",
+      "unit": null,
+      "source": "TT3000 22-16-17-4021-05",
+      "name_en": "error_2125"
+    },
+    {
+      "address": 2126,
+      "name": "Napake 5 kaskada",
+      "type": "Bitmask",
+      "access": "Read",
+      "unit": null,
+      "bit_definitions": {
+        "1": {
+          "val": 2,
+          "desc": "Izpad komunikacije s kaskadno enoto 2"
+        },
+        "2": {
+          "val": 4,
+          "desc": "Izpad komunikacije s kaskadno enoto 3"
+        },
+        "3": {
+          "val": 8,
+          "desc": "Izpad komunikacije s kaskadno enoto 4"
+        },
+        "8": {
+          "val": 256,
+          "desc": "Alarm na kaskadni enoti 1"
+        },
+        "9": {
+          "val": 512,
+          "desc": "Alarm na kaskadni enoti 2"
+        },
+        "10": {
+          "val": 1024,
+          "desc": "Alarm na kaskadni enoti 3"
+        },
+        "11": {
+          "val": 2048,
+          "desc": "Alarm na kaskadni enoti 4"
+        }
+      },
+      "source": "Page 8, 25",
+      "name_en": "napake_5_kaskada"
+    },
+    {
+      "address": 2128,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 1",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 14",
+      "name_en": "loop_1_inlet_temp"
+    },
+    {
+      "address": 2160,
+      "name": "Temperatura termostata 1. ogrevalnega kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 19",
+      "name_en": "loop_1_thermostat_temperature"
+    },
+    {
+      "address": 2161,
+      "name": "Temperatura termostata 2. ogrevalnega kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 19",
+      "name_en": "loop_2_thermostat_temperature"
+    },
+    {
+      "address": 2162,
+      "name": "Temperatura termostata 3. ogrevalnega kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 19",
+      "name_en": "loop_3_thermostat_temperature"
+    },
+    {
+      "address": 2163,
+      "name": "Temperatura termostata 4. ogrevalnega kroga",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 19",
+      "name_en": "loop_4_thermostat_temperature"
+    },
+    {
+      "address": 2187,
+      "name": "Želena temperatura prostor 1",
+      "type": "Value",
+      "access": "Read/Write",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 14",
+      "name_en": "loop_1_room_setpoint"
+    },
+    {
+      "address": 2188,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 2",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 15",
+      "name_en": "loop_2_inlet_temp"
+    },
+    {
+      "address": 2189,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 3",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 16",
+      "name_en": "loop_3_inlet_temp"
+    },
+    {
+      "address": 2190,
+      "name": "Trenutna želena temperatura ogrevalnega kroga 4",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.1°C",
+      "source": "Page 8, 17",
+      "name_en": "loop_4_inlet_temp"
+    },
+    {
+      "address": 2191,
+      "name": "Trenutna želena temperatura prostor 1",
+      "type": "Value",
+      "access": "Read",
+      "unit": "x 0.01°C",
+      "source": "Page 8, 14",
+      "name_en": "loop_1_room_current_setpoint",
+      "note": "Heat pump returns 5000 for 50.0°C (scale 0.01 not 0.1)"
+    }
+  ]
+}

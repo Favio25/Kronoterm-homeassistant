@@ -164,6 +164,9 @@
       "alternative_source_temperature": {
         "name": "Temperatura alternativnega vira"
       },
+      "passive_cooling_temperature": {
+        "name": "Temperatura pasivnega hlajenja"
+      },
       "compressor_activations_cooling": {
         "name": "Aktivacije kompresorja - hlajenje"
       },
@@ -187,6 +190,12 @@
       },
       "energy_combined": {
         "name": "Skupna poraba (dnevno)"
+      },
+      "calculated_current_power": {
+        "name": "Izračunana trenutna moč"
+      },
+      "calculated_power_capacity_cop": {
+        "name": "Izračunana trenutna moč (moč/COP)"
       },
       "operating_hours_compressor_heating": {
         "name": "Delovne ure kompresorja pri ogrevanju"

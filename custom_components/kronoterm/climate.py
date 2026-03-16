@@ -461,12 +461,19 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("GlobalOverview", {}).get("boiler_temp")
+        dhw = (self.coordinator.data or {}).get("dhw") or {}
+        raw = dhw.get("TemperaturesAndConfig", {}).get("tap_water_temp")
         if raw is None:
-            raw = data.get("BasicData", {}).get("boiler_calc_temp")
+            raw = dhw.get("HeatingCircleData", {}).get("circle_calc_temp")
         if raw is None:
-            raw = data.get("BasicData", {}).get("boiler_temp")
+            raw = dhw.get("HeatingCircleData", {}).get("circle_temp")
+        if raw is None:
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("GlobalOverview", {}).get("boiler_temp")
+            if raw is None:
+                raw = data.get("BasicData", {}).get("boiler_calc_temp")
+            if raw is None:
+                raw = data.get("BasicData", {}).get("boiler_temp")
         try:
             return float(raw)
         except (TypeError, ValueError):
@@ -474,8 +481,11 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def target_temperature(self) -> float | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("BasicData", {}).get("boiler_setpoint")
+        dhw = (self.coordinator.data or {}).get("dhw") or {}
+        raw = dhw.get("HeatingCircleData", {}).get("circle_temp")
+        if raw is None:
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("BasicData", {}).get("boiler_setpoint")
         try:
             return float(raw)
         except (TypeError, ValueError):
@@ -483,8 +493,11 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
 
     @property
     def preset_mode(self) -> str | None:
-        data = (self.coordinator.data or {}).get("main", {})
-        raw = data.get("BasicData", {}).get("default_mode")
+        dhw = (self.coordinator.data or {}).get("dhw") or {}
+        raw = dhw.get("HeatingCircleData", {}).get("circle_mode")
+        if raw is None:
+            data = (self.coordinator.data or {}).get("main", {})
+            raw = data.get("BasicData", {}).get("default_mode")
         try:
             return self.PRESET_MAP.get(int(raw))
         except (TypeError, ValueError):
@@ -512,9 +525,9 @@ class KronotermDHWClimate(KronotermJsonClimate):
             entry=entry,
             coordinator=coordinator,
             data_key="dhw",
-            current_temp_json_key="circle_calc_temp",
+            current_temp_json_key="tap_water_temp",
             target_temp_json_key="circle_temp",
-            current_temp_section="HeatingCircleData",
+            current_temp_section="TemperaturesAndConfig",
             fallback_name="DHW Temperature",
             translation_key="dhw_temperature",
             unique_id_suffix="dhw_climate",
@@ -1023,8 +1036,8 @@ class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
             unique_id_suffix="loop1_climate",
             min_temp=10,
             max_temp=90,
-            current_temp_address=2130,  # loop_1_temperature
-            thermostat_temp_address=2160,  # loop_1_thermostat_temperature
+            current_temp_address=getattr(coordinator, "loop1_current_temp_address", 2130),
+            thermostat_temp_address=getattr(coordinator, "loop1_thermostat_address", 2160),
             target_temp_address=2187,  # loop_1_room_setpoint (RW)
             write_temp_address=2187,  # loop_1_room_setpoint (RW)
             operation_mode_address=2042,  # loop_1_operation_mode
@@ -1044,8 +1057,8 @@ class KronotermModbusLoop2Climate(KronotermModbusBaseClimate):
             unique_id_suffix="loop2_climate",
             min_temp=10,
             max_temp=90,
-            current_temp_address=2110,  # loop_2_temperature
-            thermostat_temp_address=2161,  # loop_2_thermostat_temperature
+            current_temp_address=getattr(coordinator, "loop2_current_temp_address", 2110),
+            thermostat_temp_address=getattr(coordinator, "loop2_thermostat_address", 2161),
             target_temp_address=2049,  # loop_2_setpoint (RW)
             write_temp_address=2049,  # loop_2_setpoint (RW)
             operation_mode_address=2052,  # loop_2_operation_mode
@@ -1065,8 +1078,8 @@ class KronotermModbusLoop3Climate(KronotermModbusBaseClimate):
             unique_id_suffix="loop3_climate",
             min_temp=10,
             max_temp=90,
-            current_temp_address=2111,  # loop_3_temperature
-            thermostat_temp_address=2162,  # loop_3_thermostat_temperature
+            current_temp_address=getattr(coordinator, "loop3_current_temp_address", 2111),
+            thermostat_temp_address=getattr(coordinator, "loop3_thermostat_address", 2162),
             target_temp_address=2059,  # loop_3_setpoint (RW)
             write_temp_address=2059,  # loop_3_setpoint (RW)
             operation_mode_address=2062,  # loop_3_operation_mode
@@ -1086,11 +1099,11 @@ class KronotermModbusLoop4Climate(KronotermModbusBaseClimate):
             unique_id_suffix="loop4_climate",
             min_temp=10,
             max_temp=90,
-            current_temp_address=2112,  # loop_4_temperature
-            thermostat_temp_address=2163,  # loop_4_thermostat_temperature
+            current_temp_address=getattr(coordinator, "loop4_current_temp_address", 2112),
+            thermostat_temp_address=getattr(coordinator, "loop4_thermostat_address", 2163),
             target_temp_address=2069,  # loop_4_setpoint (RW)
             write_temp_address=2069,  # loop_4_setpoint (RW)
-            operation_mode_address=2072,  # loop_4_operation_mode
+            operation_mode_address=getattr(coordinator, "loop4_operation_mode_address", 2072),
             enable_preset=True,
         )
 
@@ -1110,7 +1123,7 @@ class KronotermModbusReservoirClimate(KronotermModbusBaseClimate):
             current_temp_address=2101,  # return_temperature (used as reservoir temp)
             thermostat_temp_address=None,  # No thermostat for reservoir
             target_temp_address=2034,  # reservoir_current_setpoint
-            write_temp_address=2305,  # solar_reservoir_setpoint
+            write_temp_address=getattr(coordinator, "reservoir_write_temp_address", 2305),
             operation_mode_address=2035,  # reservoir_operation_mode
             enable_preset=True,
         )

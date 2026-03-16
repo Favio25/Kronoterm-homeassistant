@@ -430,6 +430,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_temperature(self, page: int, new_temp: float) -> bool:
         return await self._async_set_page_parameter(page, API_PARAM_KEYS["TEMP"], str(round(new_temp, 1)))
 
+    async def async_set_offset(self, page: int, param_name: str, new_value: float) -> bool:
+        """Set eco/comfort offsets for cloud loops/DHW."""
+        return await self._async_set_page_parameter(page, param_name, str(round(new_value, 1)))
+
     async def async_set_loop_mode_by_page(self, page: int, new_mode: int) -> bool:
         return await self._async_set_page_parameter(page, API_PARAM_KEYS["MODE"], str(new_mode))
 
@@ -445,6 +449,14 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
         """Turn heat pump on/off via shortcuts."""
         return await self._async_set_shortcut(API_PARAM_KEYS["HEAT_PUMP"], turn_on)
+
+    async def async_set_fast_water_heating(self, enable: bool) -> bool:
+        """Enable/disable fast DHW heating via shortcuts."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["FAST_HEATING"], enable)
+
+    async def async_set_dhw_circulation(self, enable: bool) -> bool:
+        """Enable/disable DHW circulation via shortcuts (if supported)."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["CIRCULATION"], enable)
 
     async def _sync_previous_day_statistics(self) -> None:
         """Re-import finalized daily energy statistics for yesterday after midnight."""
@@ -594,7 +606,8 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 {"sum"},
             )
 
-        stats = await self.hass.async_add_executor_job(_fetch)
+        recorder = get_instance(self.hass)
+        stats = await recorder.async_add_executor_job(_fetch)
         rows = stats.get(entity_id, [])
         if not rows:
             return 0.0
@@ -664,9 +677,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
         running_totals = {k: 0.0 for k in entity_ids.values()}
         today = dt_util.now().date()
-        _LOGGER.info("Importing up to yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
+        cutoff = today - timedelta(days=1)
+        _LOGGER.info("Importing up to day before yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
         for day in sorted(day_values.keys()):
-            if day >= today:
+            if day >= cutoff:
                 continue
             for entity_id, value in day_values[day].items():
                 running_totals[entity_id] += value
@@ -704,6 +718,7 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
     def __init__(self, hass, session, config_entry):
         super().__init__(hass, session, config_entry, BASE_URL_DHW, API_QUERIES_GET_DHW, API_QUERIES_SET_DHW)
         _LOGGER.info("Initializing Kronoterm DHW Coordinator")
+        self.system_type = "dhw"
         # Ensure we don't accidentally check flags that don't exist
         self.tap_water_installed = True 
 

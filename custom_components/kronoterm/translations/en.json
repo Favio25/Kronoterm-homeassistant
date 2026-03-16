@@ -230,6 +230,9 @@
       "alternative_source_temperature": {
         "name": "Alternative Source Temperature"
       },
+      "passive_cooling_temperature": {
+        "name": "Passive Cooling Temperature"
+      },
       "compressor_activations_cooling": {
         "name": "Compressor Activations - Cooling"
       },
@@ -253,6 +256,12 @@
       },
       "energy_combined": {
         "name": "Energy Combined (Daily)"
+      },
+      "calculated_current_power": {
+        "name": "Calculated Current Power"
+      },
+      "calculated_power_capacity_cop": {
+        "name": "Calculated Current Power (Capacity/COP)"
       },
       "operating_hours_compressor_heating": {
         "name": "Operating Hours Compressor Heating"

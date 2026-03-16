@@ -164,6 +164,9 @@
       "alternative_source_temperature": {
         "name": "Temperatur der alternativen Quelle"
       },
+      "passive_cooling_temperature": {
+        "name": "Temperatur der passiven Kühlung"
+      },
       "compressor_activations_cooling": {
         "name": "Verdichteraktivierungen – Kühlung"
       },
@@ -187,6 +190,12 @@
       },
       "energy_combined": {
         "name": "Kombinierte Energie (Täglich)"
+      },
+      "calculated_current_power": {
+        "name": "Berechnete aktuelle Leistung"
+      },
+      "calculated_power_capacity_cop": {
+        "name": "Berechnete aktuelle Leistung (Leistung/COP)"
       },
       "operating_hours_compressor_heating": {
         "name": "Betriebsstunden Verdichter Heizung"

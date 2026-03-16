@@ -64,6 +64,9 @@ async def async_setup_entry(
     if is_modbus:
         # Modbus switches read from binary registers (official documentation)
         from .entities import KronotermModbusBase
+
+        modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        available_addresses = {reg.get("address") for reg in modbus_list}
         
         # System On/Off - register 2012 (CORRECTED from 2002)
         entities.append(KronotermModbusSwitch(
@@ -89,17 +92,19 @@ async def async_setup_entry(
             "async_set_reserve_source"
         ))
         
-        # Anti-Legionella - register 2301
-        entities.append(KronotermModbusSwitch(
-            entry, coordinator, 2301, "antilegionella_switch",
-            "async_set_antilegionella"
-        ))
+        # Anti-Legionella - register 2301 (extended only)
+        if 2301 in available_addresses:
+            entities.append(KronotermModbusSwitch(
+                entry, coordinator, 2301, "antilegionella_switch",
+                "async_set_antilegionella"
+            ))
         
-        # DHW Circulation - register 2328
-        entities.append(KronotermModbusSwitch(
-            entry, coordinator, 2328, "dhw_circulation_switch",
-            "async_set_dhw_circulation"
-        ))
+        # DHW Circulation - register 2328 (extended only)
+        if 2328 in available_addresses:
+            entities.append(KronotermModbusSwitch(
+                entry, coordinator, 2328, "dhw_circulation_switch",
+                "async_set_dhw_circulation"
+            ))
         
         _LOGGER.debug("Created %d Modbus switches", len(entities))
     else:

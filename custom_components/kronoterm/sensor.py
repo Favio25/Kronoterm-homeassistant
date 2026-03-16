@@ -13,7 +13,10 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 
-from .energy import KronotermDailyEnergySensor, KronotermDailyEnergyCombinedSensor
+from .energy import (
+    KronotermDailyEnergySensor,
+    KronotermDailyEnergyCombinedSensor,
+)
 from .const import (
     DOMAIN,
     SENSOR_DEFINITIONS,
@@ -90,6 +93,20 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             val *= self._scale
         return round(val, 2)
 
+    def _get_modbus_value_for(self, address: int) -> Optional[float]:
+        for reg in self.modbus_data:
+            if reg.get("address") == address:
+                raw = reg.get("value")
+                if raw is None or raw == "":
+                    return None
+                if isinstance(raw, str):
+                    raw = re.sub(r"[^\d\.\-]", "", raw)
+                try:
+                    return float(raw)
+                except (TypeError, ValueError):
+                    return None
+        return None
+
     @property
     def native_value(self) -> Optional[float]:
         """Return sensor value, checking operation mode for setpoint sensors.
@@ -126,6 +143,16 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             
             return value
         
+        # Current heating/cooling power: derive from capacity/COP if available
+        if self._address == 2129:
+            capacity = self._get_modbus_value_for(2329)
+            cop_raw = self._get_modbus_value_for(2371)
+            if capacity is not None and cop_raw is not None:
+                cop = cop_raw * 0.01
+                if cop <= 0:
+                    return 0.0
+                return round(max(0.0, capacity / cop), 1)
+
         # Normal processing for non-setpoint sensors (no value filter!)
         return self._compute_value()
 
@@ -269,6 +296,50 @@ class KronotermJsonEnumSensor(CoordinatorEntity, SensorEntity):
             return self._options.get(int_val)
         except (KeyError, IndexError, TypeError, ValueError):
             return None
+
+
+class KronotermCalculatedPowerFromCapacitySensor(CoordinatorEntity, SensorEntity):
+    """Calculate electrical power from thermal capacity and COP (cloud)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "calculated_power_capacity_cop"
+    _attr_native_unit_of_measurement = "W"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:flash"
+
+    def __init__(self, coordinator: DataUpdateCoordinator, device_info: Dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._device_info = device_info
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_calculated_power_capacity_cop"
+
+    @property
+    def device_info(self) -> Dict[str, Any]:
+        return self._device_info
+
+    def _get_modbus_value(self, address: int) -> Optional[float]:
+        modbus = (self.coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+        for item in modbus:
+            if item.get("address") == address:
+                raw = item.get("value")
+                if raw is None or raw == "":
+                    return None
+                try:
+                    return float(raw)
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    @property
+    def native_value(self) -> Optional[float]:
+        capacity = self._get_modbus_value(2329)
+        cop_raw = self._get_modbus_value(2371)
+        if capacity is None or cop_raw is None:
+            return None
+        cop = cop_raw * 0.01
+        if cop <= 0:
+            return 0.0
+        return round(max(0.0, capacity / cop), 1)
 
 
 # -----------------------------------------------------------------------------

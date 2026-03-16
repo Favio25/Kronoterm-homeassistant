@@ -164,6 +164,9 @@
       "alternative_source_temperature": {
         "name": "Temperatura della Sorgente Alternativa"
       },
+      "passive_cooling_temperature": {
+        "name": "Temperatura raffrescamento passivo"
+      },
       "compressor_activations_cooling": {
         "name": "Attivazioni del Compressore - Raffreddamento"
       },
@@ -187,6 +190,12 @@
       },
       "energy_combined": {
         "name": "Energia Combinata (Giornaliero)"
+      },
+      "calculated_current_power": {
+        "name": "Potenza Attuale Calcolata"
+      },
+      "calculated_power_capacity_cop": {
+        "name": "Potenza Attuale Calcolata (Capacità/COP)"
       },
       "operating_hours_compressor_heating": {
         "name": "Ore di Funzionamento Compressore - Riscaldamento"

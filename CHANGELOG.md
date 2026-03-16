@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-03-15
+
+### Added
+- Auto-detect Modbus register set (extended vs TT3000) and load matching JSON map
+- TT3000 register map file (`kronoterm_tt3000.json`)
+- TT3000 loop temperature mapping (buffer tank + loop temps, no thermostat)
+- Regression test script `tools/regression_test.py` to compare cloud payloads, HA states, and Modbus registers
+
+### Fixed
+- TT3000: loop 4 operation mode uses register 2074
+- TT3000: hide switches for registers not present (antilegionella, DHW circulation)
+- TT3000: reservoir write uses register 2032
+
+### Added
+- TT3000: missing registers added from PDF (status/commands/ops/temps)
+- TT3000: passive cooling temperature (2108)
+
+### Changed
+- Cloud + JSON DHW climate now read current temperature from DHW page `tap_water_temp` (fallbacks retained)
+- Energy reimport skips **yesterday** (imports up to day before yesterday)
+- Reimport warning attribute + "Energy Reimport Info" text entity
+- Current heating/cooling power now derived from capacity/COP when available
+- DHW-only cloud climate restored to use main page data (fix unavailable entity)
+- DHW coordinator now sets system_type="dhw" (ensures correct climate class)
+
+### Removed
+- Calculated Current Power sensor (derived from daily combined energy delta)
+- Calculated Current Power (Capacity/COP) sensor for cloud
+
 ## 2026-03-14
 
 ### Added

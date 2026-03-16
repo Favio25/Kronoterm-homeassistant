@@ -62,9 +62,10 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.client: Optional[AsyncModbusTcpClient] = None
         self._connected = False
 
-        # Register map will be loaded async in async_connect()
+        # Register map will be loaded after auto-detect
         self.register_map: Optional[RegisterMap] = None
         self._json_path = Path(__file__).parent / "kronoterm.json"
+        self.register_set = "extended"
 
         # Shared device info
         self.shared_device_info: Dict[str, Any] = {}
@@ -105,21 +106,6 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
 
     async def async_initialize(self) -> None:
         """Initialize Modbus connection and fetch device info."""
-        # Load register map from JSON file asynchronously
-        if not self.register_map:
-            try:
-                # Read JSON file in executor to avoid blocking event loop
-                def _read_json():
-                    with open(self._json_path, "r", encoding="utf-8") as f:
-                        return json.load(f)
-                
-                data = await self.hass.async_add_executor_job(_read_json)
-                self.register_map = RegisterMap(data)
-                _LOGGER.debug("Loaded register map with %d registers from JSON", len(self.register_map.get_all()))
-            except Exception as e:
-                _LOGGER.error("Could not load register map: %s", e)
-                raise UpdateFailed(f"Failed to load register map: {e}")
-        
         if self.transport == "rtu":
             _LOGGER.info(
                 "Initializing Modbus RTU connection to %s (unit_id=%s)",
@@ -152,19 +138,95 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             
             self._connected = True
             _LOGGER.info("Successfully connected to Modbus device")
-            
+
+            # Auto-detect register set before loading map
+            await self._detect_register_set()
+            self._json_path = Path(__file__).parent / (
+                "kronoterm_tt3000.json" if self.register_set == "tt3000" else "kronoterm.json"
+            )
+
+            # Load register map from JSON file asynchronously
+            if not self.register_map:
+                try:
+                    def _read_json():
+                        with open(self._json_path, "r", encoding="utf-8") as f:
+                            return json.load(f)
+
+                    data = await self.hass.async_add_executor_job(_read_json)
+                    self.register_map = RegisterMap(data)
+                    _LOGGER.debug(
+                        "Loaded %s register map with %d registers",
+                        self.register_set,
+                        len(self.register_map.get_all()),
+                    )
+                except Exception as e:
+                    _LOGGER.error("Could not load register map: %s", e)
+                    raise UpdateFailed(f"Failed to load register map: {e}")
+
             # Fetch device info
             await self._fetch_device_info()
-            
+
             # Do initial data fetch using proper coordinator method
             # This will populate self.data properly
             await self.async_config_entry_first_refresh()
             _LOGGER.info("Initialization complete! Data has %d entries", len(self.data) if self.data else 0)
-            
+
         except Exception as err:
             _LOGGER.error("Error during Modbus initialization: %s", err)
             self._connected = False
             raise UpdateFailed(f"Modbus initialization failed: {err}")
+
+    async def _detect_register_set(self) -> None:
+        """Detect TT3000 vs extended register set."""
+        try:
+            if not self.client:
+                return
+
+            def _to_signed(val: int) -> int:
+                return val - 65536 if val > 32767 else val
+
+            async def _read(address: int) -> Optional[int]:
+                try:
+                    result = await self.client.read_holding_registers(address - 1, count=1, device_id=self.unit_id)
+                    if result.isError():
+                        return None
+                    return _to_signed(result.registers[0])
+                except Exception:
+                    return None
+
+            thermostat_vals = [await _read(addr) for addr in (2160, 2161, 2162, 2163)]
+            if all(v in (-400, 0, None) for v in thermostat_vals):
+                self.register_set = "tt3000"
+            else:
+                self.register_set = "extended"
+
+            if self.register_set == "tt3000":
+                self.loop1_current_temp_address = 2104
+                self.loop1_thermostat_address = None
+                self.loop2_current_temp_address = 2110
+                self.loop2_thermostat_address = None
+                self.loop3_current_temp_address = 2111
+                self.loop3_thermostat_address = None
+                self.loop4_current_temp_address = 2112
+                self.loop4_thermostat_address = None
+                self.loop4_operation_mode_address = 2074
+                self.reservoir_write_temp_address = 2032
+            else:
+                self.loop1_current_temp_address = 2130
+                self.loop1_thermostat_address = 2160
+                self.loop2_current_temp_address = 2110
+                self.loop2_thermostat_address = 2161
+                self.loop3_current_temp_address = 2120
+                self.loop3_thermostat_address = 2162
+                self.loop4_current_temp_address = 2121
+                self.loop4_thermostat_address = 2163
+                self.loop4_operation_mode_address = 2072
+                self.reservoir_write_temp_address = 2305
+
+            _LOGGER.info("Detected Modbus register set: %s (thermostat=%s)", self.register_set, thermostat_vals)
+        except Exception as err:
+            _LOGGER.warning("Failed to auto-detect register set, defaulting to extended: %s", err)
+            self.register_set = "extended"
 
     async def _fetch_device_info(self) -> None:
         """Fetch device identification from Modbus."""
