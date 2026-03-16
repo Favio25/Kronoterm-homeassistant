@@ -443,9 +443,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
     async def _send_set_request(self, query_key, form_data):
         try:
-            _LOGGER.debug("Sending SET request: query_key=%s, form_data=%s", query_key, form_data)
+            _LOGGER.info("Sending SET request: query_key=%s, form_data=%s, URL params=%s", 
+                         query_key, dict(form_data), self.api_queries_set[query_key])
             result = await self._request_with_retries("POST", self.api_queries_set[query_key], form_data)
-            _LOGGER.debug("SET request response: %s", result)
+            _LOGGER.info("SET request response: %s", result)
             if result and result.get("result") == "success":
                 await self.async_request_refresh()
                 return True

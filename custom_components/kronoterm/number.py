@@ -258,7 +258,9 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
                 _LOGGER.error("Coordinator missing write_register_by_address method")
         else:
             # Cloud API: Use async_set_main_temp_offset
-            await self.coordinator.async_set_main_temp_offset(value)
+            success = await self.coordinator.async_set_main_temp_offset(value)
+            if not success:
+                _LOGGER.error("Failed to set main temperature offset via cloud API")
 
 
 # ---------------------------------------
