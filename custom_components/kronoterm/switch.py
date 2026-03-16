@@ -33,8 +33,13 @@ def _get_shortcuts_value(data: Optional[Dict[str, Any]], key: str) -> bool:
 
     shortcuts = data.get("shortcuts", {})
     shortcuts_data = shortcuts.get("ShortcutsData", {})
+    temp_config = shortcuts.get("TemperaturesAndConfig", {})
 
-    raw = shortcuts_data.get(key, 0)
+    raw = shortcuts_data.get(key)
+    if raw is None:
+        raw = temp_config.get(key)
+    if raw is None:
+        raw = (data.get("main", {}) or {}).get("TemperaturesAndConfig", {}).get(key, 0)
     # Normalize strings like "0"/"1"
     try:
         return int(raw) == 1
