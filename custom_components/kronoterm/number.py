@@ -396,7 +396,7 @@ async def async_setup_entry(
     entities = []
 
     # Get the list of all addresses reported by the heat pump
-    modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+    modbus_list = ((coordinator.data or {}).get("main") or {}).get("ModbusReg", [])
     available_addresses = {reg.get("address") for reg in modbus_list}
     
     _LOGGER.debug("Coordinator data keys: %s", list((coordinator.data or {}).keys()))

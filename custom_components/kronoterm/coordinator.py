@@ -101,32 +101,47 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         """Perform initial handshake (Menu=1) with auto-detect login."""
         _LOGGER.debug("Performing initial handshake (Menu=1)...")
 
-        async def _handshake(use_auth: bool) -> bool:
+        async def _handshake(use_auth: bool, max_retries: int = 3) -> bool:
             query_params = self.api_queries_get["menu"]
-            try:
-                async with self.session.get(
-                    self.base_url,
-                    auth=self.auth if use_auth else None,
-                    params=query_params,
-                    headers=self._get_headers(),
-                    timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-                ) as response:
-                    if response.status != 200:
-                        _LOGGER.error("Handshake failed. Status: %s", response.status)
-                        return False
-                    try:
-                        data = await response.json()
-                        if "hp_id" in data:
-                            _LOGGER.info("Handshake successful. Session primed for HP ID: %s", data.get("hp_id"))
-                            return True
-                        _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
-                        return False
-                    except Exception:
-                        _LOGGER.warning("Handshake returned 200 but invalid JSON.")
-                        return False
-            except Exception as e:
-                _LOGGER.debug("Handshake error: %s", e)
-                return False
+            for attempt in range(max_retries):
+                try:
+                    if attempt > 0:
+                        delay = 1.5 * attempt  # 1.5s, 3s
+                        _LOGGER.debug("Handshake retry %d/%d after %.1fs delay", attempt + 1, max_retries, delay)
+                        await asyncio.sleep(delay)
+                    
+                    _LOGGER.debug("Handshake attempt %d/%d: use_auth=%s, base_url=%s, username=%s", 
+                                  attempt + 1, max_retries, use_auth, self.base_url, self.username)
+                    async with self.session.get(
+                        self.base_url,
+                        auth=self.auth if use_auth else None,
+                        params=query_params,
+                        headers=self._get_headers(),
+                        timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+                    ) as response:
+                        _LOGGER.debug("Handshake response: status=%s", response.status)
+                        if response.status != 200:
+                            _LOGGER.error("Handshake failed. Status: %s", response.status)
+                            continue  # Retry
+                        try:
+                            data = await response.json()
+                            if "hp_id" in data:
+                                _LOGGER.info("Handshake successful (BasicAuth). Session primed for HP ID: %s", data.get("hp_id"))
+                                return True
+                            _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
+                            continue  # Retry
+                        except Exception as json_err:
+                            _LOGGER.warning("Handshake returned 200 but invalid JSON: %s", json_err)
+                            continue  # Retry
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        _LOGGER.debug("Handshake error (use_auth=%s, attempt %d/%d): %s (%s) - will retry", 
+                                      use_auth, attempt + 1, max_retries, type(e).__name__, e)
+                        continue  # Retry
+                    else:
+                        _LOGGER.debug("Handshake error (use_auth=%s, attempt %d/%d): %s (%s) - all retries exhausted", 
+                                      use_auth, attempt + 1, max_retries, type(e).__name__, e)
+            return False
 
         async def _web_login() -> bool:
             # Derive login URL from base_url
@@ -164,16 +179,25 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
 
         try:
             # First try legacy basic-auth handshake
+            _LOGGER.debug("Attempting BasicAuth handshake...")
             if await _handshake(use_auth=True):
                 self._use_web_session = False
                 self._session_valid = True
+                _LOGGER.info("Using BasicAuth mode (phonegap headers)")
                 return
             # Fallback to web-session login
+            _LOGGER.debug("BasicAuth failed, attempting web-session login...")
             if await _web_login():
                 self._use_web_session = True
                 self._session_valid = True
+                _LOGGER.info("Using web-session mode (PHPSESSID cookie)")
+                # Try handshake without auth to confirm session
+                if await _handshake(use_auth=False):
+                    return
+                _LOGGER.warning("Web session created but handshake still failed")
                 return
             self._session_valid = False
+            _LOGGER.error("Both BasicAuth and web-session login failed")
         except Exception as e:
             _LOGGER.error("Error during handshake: %s", e)
             self._session_valid = False
@@ -193,8 +217,6 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                 timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
                 page_cookies = self._get_page_cookies(query_params)
                 headers = self._get_headers()
-                if self._use_web_session and query_params == self.api_queries_get.get("shortcuts"):
-                    headers = {}
 
                 if method.upper() == "GET":
                     async with self.session.get(
@@ -421,12 +443,16 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
     async def _send_set_request(self, query_key, form_data):
         try:
+            _LOGGER.debug("Sending SET request: query_key=%s, form_data=%s", query_key, form_data)
             result = await self._request_with_retries("POST", self.api_queries_set[query_key], form_data)
+            _LOGGER.debug("SET request response: %s", result)
             if result and result.get("result") == "success":
                 await self.async_request_refresh()
                 return True
+            _LOGGER.warning("SET request failed or returned non-success result: %s", result)
             return False
-        except UpdateFailed:
+        except UpdateFailed as e:
+            _LOGGER.error("SET request raised UpdateFailed: %s", e)
             return False
 
     # (Add other specific setters here if needed, keeping it minimal for now)
@@ -442,12 +468,27 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
     async def async_set_main_mode(self, new_mode: int) -> bool:
         """Set operational mode (auto/comfort/eco) via main_settings."""
+        _LOGGER.info("Setting operational mode to %d via cloud API", new_mode)
         form_data = [
             ("param_name", API_PARAM_KEYS["MAIN_MODE"]),
             ("param_value", str(new_mode)),
             ("page", "11"),
         ]
-        return await self._send_set_request("main_settings", form_data)
+        result = await self._send_set_request("main_settings", form_data)
+        _LOGGER.info("Operational mode change %s", "succeeded" if result else "failed")
+        return result
+
+    async def async_set_main_temp_offset(self, value: float) -> bool:
+        """Set system temperature correction via main_settings."""
+        _LOGGER.info("Setting main temperature offset to %.1f via cloud API", value)
+        form_data = [
+            ("param_name", "system_temperature_correction"),
+            ("param_value", str(int(value))),
+            ("page", "11"),
+        ]
+        result = await self._send_set_request("main_settings", form_data)
+        _LOGGER.info("Main temperature offset change %s", "succeeded" if result else "failed")
+        return result
 
     async def async_set_heatpump_state(self, turn_on: bool) -> bool:
         """Turn heat pump on/off via shortcuts."""
@@ -460,6 +501,18 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
     async def async_set_dhw_circulation(self, enable: bool) -> bool:
         """Enable/disable DHW circulation via shortcuts (if supported)."""
         return await self._async_set_shortcut(API_PARAM_KEYS["CIRCULATION"], enable)
+
+    async def async_set_antilegionella(self, enable: bool) -> bool:
+        """Enable/disable antilegionella via shortcuts."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["ANTILEGIONELLA"], enable)
+
+    async def async_set_reserve_source(self, enable: bool) -> bool:
+        """Enable/disable reserve source via shortcuts."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["RESERVE_SOURCE"], enable)
+
+    async def async_set_additional_source(self, enable: bool) -> bool:
+        """Enable/disable additional source via shortcuts."""
+        return await self._async_set_shortcut(API_PARAM_KEYS["ADDITIONAL_SOURCE"], enable)
 
     async def _sync_previous_day_statistics(self) -> None:
         """Re-import finalized daily energy statistics for yesterday after midnight."""
@@ -800,6 +853,9 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
 
     async def async_set_reserve_source(self, enable: bool) -> bool:
         return await self._send_shortcut("shrtct_reserve_source", enable)
+
+    async def async_set_additional_source(self, enable: bool) -> bool:
+        return await self._send_shortcut("shrtct_add_source", enable)
 
     async def async_set_holiday(self, enable: bool) -> bool:
         # Use current holiday_days if available

@@ -70,7 +70,7 @@ async def async_setup_entry(
     shared_device_info = coordinator.shared_device_info
 
     # Get the list of all addresses reported by the heat pump
-    modbus_list = (coordinator.data or {}).get("main", {}).get("ModbusReg", [])
+    modbus_list = ((coordinator.data or {}).get("main") or {}).get("ModbusReg", [])
     available_addresses = {reg.get("address") for reg in modbus_list}
 
     binary_sensors = []
