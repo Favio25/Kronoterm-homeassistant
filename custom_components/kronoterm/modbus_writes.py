@@ -20,7 +20,37 @@ class ModbusWriteMixin:
     - self.unit_id (int)
     - self._connected (bool)
     - self.write_register_by_address(address, value) method
+    - self.data (dict) - coordinator data
+    - self.async_set_updated_data(data) method
     """
+
+    def _optimistic_update_register(self, address: int, value: int) -> None:
+        """Optimistically update coordinator data after a successful write.
+        
+        This updates the UI immediately without waiting for the next poll.
+        
+        Args:
+            address: Register address that was written
+            value: New value that was written
+        """
+        if not self.data or "main" not in self.data:
+            return
+        
+        modbus_reg_list = self.data.get("main", {}).get("ModbusReg", [])
+        for reg in modbus_reg_list:
+            if reg.get("address") == address:
+                # Update BOTH value and raw (switches read from raw!)
+                old_value = reg.get("value")
+                old_raw = reg.get("raw")
+                reg["value"] = value
+                reg["raw"] = value  # Switches read from raw!
+                _LOGGER.debug(
+                    "Optimistically updated register %d: value %s -> %s, raw %s -> %s",
+                    address, old_value, value, old_raw, value
+                )
+                # Trigger coordinator update event to refresh entity states
+                self.async_set_updated_data(self.data)
+                return
 
     async def async_write_register(self, address: int, temperature: float) -> bool:
         """Write a temperature value to a Modbus register.

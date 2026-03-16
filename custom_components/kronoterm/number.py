@@ -213,6 +213,7 @@ class KronotermMainOffsetNumber(CoordinatorEntity, NumberEntity):
             for reg in modbus_list:
                 if reg.get("address") == 2014:
                     raw_value = reg.get("value")
+                    _LOGGER.debug("Number entity reading register 2014: value=%s, full reg=%s", raw_value, reg)
                     if raw_value is not None:
                         try:
                             # Register 2014: scale x 1°C (already scaled by coordinator)

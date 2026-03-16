@@ -172,6 +172,11 @@ class ModbusReadMixin:
                 return False
             
             _LOGGER.info("Successfully wrote value %d to register %d", value, address)
+            
+            # Optimistically update coordinator data for instant UI feedback
+            if hasattr(self, '_optimistic_update_register'):
+                self._optimistic_update_register(address, value)
+            
             return True
             
         except Exception as err:
