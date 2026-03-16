@@ -1017,11 +1017,9 @@ class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
             target_temp_address=2024,  # dhw_current_setpoint
             write_temp_address=2023,  # dhw_setpoint
             operation_mode_address=2026,  # dhw_operation_mode
+            supports_cooling=False,  # DHW only heats, doesn't cool
             enable_preset=True,
         )
-        # DHW: force heat-only HVAC modes (but allow OFF via preset)
-        self._supports_cooling = False
-        # Don't override hvac_modes - base class already set [HEAT, OFF] correctly
 
 
 class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
