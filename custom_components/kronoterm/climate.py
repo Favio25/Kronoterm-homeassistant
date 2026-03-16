@@ -453,9 +453,9 @@ class KronotermDHWCloudClimate(KronotermBaseClimate):
             max_temp=90,
             page=1,
         )
-        # DHW: force heat-only HVAC modes
+        # DHW: force heat-only HVAC modes (but allow OFF via preset)
         self._supports_cooling = False
-        self._attr_hvac_modes = [HVACMode.HEAT]
+        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
 
@@ -1019,9 +1019,9 @@ class KronotermModbusDHWClimate(KronotermModbusBaseClimate):
             operation_mode_address=2026,  # dhw_operation_mode
             enable_preset=True,
         )
-        # DHW: force heat-only HVAC modes
+        # DHW: force heat-only HVAC modes (but allow OFF via preset)
         self._supports_cooling = False
-        self._attr_hvac_modes = [HVACMode.HEAT]
+        # Don't override hvac_modes - base class already set [HEAT, OFF] correctly
 
 
 class KronotermModbusLoop1Climate(KronotermModbusBaseClimate):
