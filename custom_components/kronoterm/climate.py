@@ -533,6 +533,7 @@ class KronotermDHWClimate(KronotermJsonClimate):
             min_temp=10,
             max_temp=90,
             page=9,
+            supports_cooling=False,  # DHW only heats, doesn't cool
         )
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
