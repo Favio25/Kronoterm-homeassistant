@@ -192,17 +192,20 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
             try:
                 timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
                 page_cookies = self._get_page_cookies(query_params)
-                
+                headers = self._get_headers()
+                if self._use_web_session and query_params == self.api_queries_get.get("shortcuts"):
+                    headers = {}
+
                 if method.upper() == "GET":
                     async with self.session.get(
                         self.base_url, auth=self.auth if not self._use_web_session else None, params=query_params,
-                        headers=self._get_headers(), cookies=page_cookies, timeout=timeout
+                        headers=headers, cookies=page_cookies, timeout=timeout
                     ) as response:
                         return await self._process_response(response, "GET", query_params)
                 else:
                     async with self.session.post(
                         self.base_url, auth=self.auth if not self._use_web_session else None, params=query_params, data=form_data,
-                        headers=self._get_headers(), cookies=page_cookies, timeout=timeout
+                        headers=headers, cookies=page_cookies, timeout=timeout
                     ) as response:
                         return await self._process_response(response, "POST", query_params)
                         
