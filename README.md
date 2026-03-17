@@ -21,17 +21,25 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 ### 📊 Comprehensive Monitoring
 - **100+ Sensors**: Temperatures, pressures, energy consumption, operational hours
 - **Binary Sensors**: Status indicators for pumps, compressor, heating/cooling modes
-- **Switches**: Control system operation, reserve source, additional source
+- **Switches**: Control system operation, reserve source, additional source with **instant UI feedback**
 - **Number Entities**: Adjust temperature offsets and setpoints
 - **Select Entities**: Change operation modes and working functions
 
 ### ⚡ Performance & Features
 - **Fast Polling**: Configurable update interval (5-600 seconds)
+- **Optimistic Updates**: Switches update instantly when toggled (Modbus mode)
 - **Energy Dashboard**: Full integration with Home Assistant energy tracking
+- **Automatic Controller Detection**: TT3000/TT4000 detected and mapped automatically
+- **Connection Resilience**: Automatic retry with exponential backoff for cloud authentication
 
 ## Compatibility
 
-Tested with:
+### Supported Controllers
+- **TT4000** (extended register set) - Auto-detected
+- **TT3000** (compact register set) - Auto-detected
+- Automatic controller detection and register map selection
+
+### Tested Heat Pumps
 - **Hydro S** + Adapt 0416-K3 HT / HK 3F
 - Other Kronoterm heat pumps with Modbus TCP support
 
@@ -116,6 +124,26 @@ Once connected, configure the integration:
 | **Offline Operation** | ❌ No | ✅ Yes |
 
 ## Advanced Features
+
+### TT3000 Controller Support
+The integration automatically detects your controller type (TT3000 or TT4000) and loads the appropriate register map:
+- **TT3000**: Compact register set with 100+ sensors
+- **TT4000**: Extended register set with 120+ sensors
+- **Auto-detection**: No configuration required - works out of the box
+
+**Note**: TT3000 controllers may have different register availability (e.g., no antilegionella or DHW circulation switches).
+
+### Optimistic Switch Updates (Modbus)
+When toggling switches in Modbus mode, the UI updates **instantly** without waiting for the next poll cycle:
+- Immediate visual feedback
+- Coordinator data updated after successful write
+- Eliminates lag between action and UI response
+
+### Cloud Connection Resilience
+Automatic retry logic handles transient connection issues:
+- 3 retry attempts with exponential backoff (1.5s, 3s)
+- Graceful handling of temporary network failures
+- Seamless fallback between authentication methods
 
 ### Reconfigure Flow
 Switch between Cloud API and Modbus modes without losing entity history:
