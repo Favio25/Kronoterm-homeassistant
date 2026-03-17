@@ -14,7 +14,7 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 - **Seamless switching**: Reconfigure between modes without losing entity history
 
 ### 🌡️ Climate Entities (Modbus Mode)
-- **4 Climate Controls**: DHW, Heating Loop 1-2, Reservoir
+- **6 Climate Controls**: DHW, Heating Loop 1-4, Reservoir
 - **Smart Temperature Sensors**: Automatically prefers thermostat temperature over loop temperature
 - **Direct Control**: Set target temperatures with instant feedback
 - Example: Loop 2 displays room temperature (23.2°C) from thermostat instead of loop outlet temperature (27.8°C)
@@ -42,7 +42,6 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 
 ### Tested Heat Pumps
 - **Hydro S** + Adapt 0416-K3 HT / HK 3F
-- Other Kronoterm heat pumps with Modbus TCP support
 
 ## Installation
 
