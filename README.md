@@ -224,13 +224,6 @@ Modbus mode supports direct register writes:
 - **Modbus**: Check network connection and unit ID
 - Use reconfigure flow to refresh
 
-## Energy Dashboard Integration
-
-1. Settings → Dashboards → Energy
-2. Add electricity consumption: `sensor.electrical_energy_heating_dhw`
-3. Add heat production: `sensor.heating_energy_heating_dhw`
-4. View COP/SCOP in real-time
-
 ## Contributing
 
 Contributions welcome! Please:
