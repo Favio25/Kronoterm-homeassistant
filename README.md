@@ -7,9 +7,10 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 
 ## Features
 
-### 🌐 Dual Connection Modes
+### 🌐 Multiple Connection Modes
 - **Cloud API**: Internet-based connection using Kronoterm mobile app credentials
-- **Modbus TCP**: Local network connection for faster polling and offline operation
+- **Modbus TCP**: Local network connection via RS485-to-Ethernet adapter
+- **Modbus RTU**: Direct serial connection via RS485 (USB or GPIO)
 - **Seamless switching**: Reconfigure between modes without losing entity history
 
 ### 🌡️ Climate Entities (Modbus Mode)
@@ -69,10 +70,14 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 2. Enter your Kronoterm mobile app username and password
 3. Configure update interval (default: 60 seconds)
 
-### Modbus TCP Setup
+### Modbus Setup
+
+The integration supports both **Modbus TCP** (network) and **Modbus RTU** (serial) connections.
+
+#### Option 1: Modbus TCP (via RS485-to-Ethernet Adapter)
 
 **⚠️ Hardware Requirement:**  
-Kronoterm heat pumps use **Modbus RTU** (RS-485) by default and do not have built-in Modbus TCP support. You need a **Modbus RTU to TCP adapter** to use local Modbus mode.
+Kronoterm heat pumps use **Modbus RTU** (RS-485) by default and do not have built-in Modbus TCP support. You need a **Modbus RTU to TCP adapter** to use network-based Modbus.
 
 **Recommended adapters:**
 - [USR-TCP232-410S](https://www.aliexpress.com/item/1005008374731458.html) (Ethernet)
@@ -89,7 +94,7 @@ Kronoterm heat pumps use **Modbus RTU** (RS-485) by default and do not have buil
 
 Once connected, configure the integration:
 
-1. Select **Modbus TCP** as connection type
+1. Select **Modbus TCP** as transport type
 2. Enter your adapter's IP address
 3. Port: `502` (default)
 4. Unit ID: `20` (default)
@@ -98,6 +103,34 @@ Once connected, configure the integration:
 **Finding your adapter's IP address:**
 - Check adapter documentation (web interface or LED display)
 - Or find it in your router's DHCP list
+
+#### Option 2: Modbus RTU (Direct Serial Connection)
+
+**Hardware Requirement:**  
+Direct RS-485 connection from your Home Assistant host to the heat pump.
+
+**Required hardware:**
+- USB-to-RS485 adapter (e.g., Waveshare USB to RS485)
+- Or GPIO-based RS485 HAT for Raspberry Pi
+
+**Configuration:**
+
+1. Select **Modbus RTU** as transport type
+2. Serial port: `/dev/ttyUSB0` (or your device path)
+3. Baud rate: `19200` (default)
+4. Data bits: `8`
+5. Parity: `None`
+6. Stop bits: `1`
+7. Unit ID: `20` (default)
+8. Update interval: `5-600` seconds
+
+**Finding your serial device:**
+```bash
+ls /dev/tty* | grep -E "USB|AMA"
+# Common paths: /dev/ttyUSB0, /dev/ttyAMA0, /dev/ttyS0
+```
+
+**Note:** Ensure Home Assistant has permission to access the serial port (may require host mode or device mapping in Docker/VM setups).
 
 ## Screenshots
 
@@ -114,14 +147,15 @@ Once connected, configure the integration:
 
 ## Key Differences: Cloud API vs Modbus
 
-| Feature | Cloud API | Modbus TCP |
-|---------|-----------|------------|
-| **Connection** | Internet required | Local network only |
-| **Speed** | ~60s refresh | 5-600s configurable |
-| **Reliability** | Depends on cloud | Direct connection |
-| **Climate Entities** | Limited | Full support (4 entities) |
-| **Sensors** | ~80 entities | ~120 entities |
-| **Offline Operation** | ❌ No | ✅ Yes |
+| Feature | Cloud API | Modbus TCP | Modbus RTU |
+|---------|-----------|------------|------------|
+| **Connection** | Internet required | Local network (adapter) | Direct serial (RS485) |
+| **Speed** | ~60s refresh | 5-600s configurable | 5-600s configurable |
+| **Reliability** | Depends on cloud | Direct connection | Direct connection |
+| **Hardware** | None | RS485-to-Ethernet | USB/GPIO RS485 adapter |
+| **Climate Entities** | Limited | Full support (4 entities) | Full support (4 entities) |
+| **Sensors** | ~80 entities | ~120 entities | ~120 entities |
+| **Offline Operation** | ❌ No | ✅ Yes | ✅ Yes |
 
 ## Advanced Features
 
