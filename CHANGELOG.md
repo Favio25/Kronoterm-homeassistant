@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (since v1.6.3)
+## 2026-03-17 — v1.6.4
 
 ### Added
 - **TT3000 support**: Auto-detect Modbus register set (extended vs TT3000) and load matching JSON map
