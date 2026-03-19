@@ -177,7 +177,14 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             raise UpdateFailed(f"Modbus initialization failed: {err}")
 
     async def _detect_register_set(self) -> None:
-        """Detect TT3000 vs extended register set."""
+        """Detect TT3000 vs TT4000 by probing TT4000-specific registers.
+        
+        Strategy: TT4000 has additional registers (COP, SCOP, loop 1 temp at 2130, etc.)
+        that don't exist in TT3000. If we can read ANY of these successfully, it's TT4000.
+        
+        This is more reliable than checking thermostat values, which can be 0/-400/None
+        even on TT4000 if thermostats are disabled or unplugged.
+        """
         try:
             if not self.client:
                 return
@@ -194,12 +201,39 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 except Exception:
                     return None
 
+            # Probe TT4000-specific registers (don't exist in TT3000)
+            cop_val = await _read(2371)        # COP value
+            scop_val = await _read(2372)       # SCOP value
+            loop1_temp = await _read(2130)     # Loop 1 temperature (TT4000 uses 2130, TT3000 uses 2104)
+            hp_load = await _read(2327)        # Heat pump load %
+            
+            # Check if ANY TT4000-specific register returns plausible data
+            # Valid ranges: COP/SCOP: 0-100 (stored as 0-1000), Temp: -50 to 100°C (stored as -500 to 1000)
+            tt4000_indicators = [
+                cop_val is not None and -100 < cop_val < 10000,      # COP: 0-100 typical, stored *10
+                scop_val is not None and -100 < scop_val < 10000,    # SCOP: 0-100 typical, stored *10
+                loop1_temp is not None and -600 < loop1_temp < 1500, # Temp: -60°C to 150°C
+                hp_load is not None and 0 <= hp_load <= 100,         # Load: 0-100%
+            ]
+            
+            # Read thermostats for logging
             thermostat_vals = [await _read(addr) for addr in (2160, 2161, 2162, 2163)]
-            if all(v in (-400, 0, None) for v in thermostat_vals):
-                self.register_set = "tt3000"
-            else:
+            
+            # Decide: If ANY TT4000 indicator is valid, assume TT4000
+            if any(tt4000_indicators):
                 self.register_set = "extended"
+                _LOGGER.info(
+                    "Detected TT4000/extended register set (cop=%s, scop=%s, loop1_temp=%s, hp_load=%s, thermostats=%s)",
+                    cop_val, scop_val, loop1_temp, hp_load, thermostat_vals
+                )
+            else:
+                self.register_set = "tt3000"
+                _LOGGER.info(
+                    "Detected TT3000/compact register set (no TT4000 registers found, thermostats=%s)",
+                    thermostat_vals
+                )
 
+            # Set address mappings based on detected controller
             if self.register_set == "tt3000":
                 self.loop1_current_temp_address = 2104
                 self.loop1_thermostat_address = None
@@ -223,7 +257,6 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 self.loop4_operation_mode_address = 2072
                 self.reservoir_write_temp_address = 2305
 
-            _LOGGER.info("Detected Modbus register set: %s (thermostat=%s)", self.register_set, thermostat_vals)
         except Exception as err:
             _LOGGER.warning("Failed to auto-detect register set, defaulting to extended: %s", err)
             self.register_set = "extended"
