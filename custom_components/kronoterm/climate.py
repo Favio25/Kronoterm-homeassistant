@@ -875,7 +875,9 @@ class KronotermModbusBaseClimate(CoordinatorEntity, ClimateEntity):
         # Try thermostat temperature first
         if self._thermostat_temp_address:
             thermostat_temp = self._get_register_value(self._thermostat_temp_address)
-            if thermostat_temp is not None and thermostat_temp != -60.0 and thermostat_temp != 0.0:
+            # Filter invalid thermostat values (-60°C, -40°C, 0°C)
+            # TT3000 systems return -40°C for unavailable thermostats
+            if thermostat_temp is not None and thermostat_temp not in (-60.0, -40.0, 0.0):
                 return thermostat_temp
 
         # Fall back to loop temperature

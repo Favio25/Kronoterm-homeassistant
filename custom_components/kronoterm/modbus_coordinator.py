@@ -128,6 +128,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             self.client = AsyncModbusTcpClient(
                 host=self.host,
                 port=self.port,
+                timeout=self.timeout,
             )
         
         # Try to connect
@@ -236,13 +237,13 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             # Set address mappings based on detected controller
             if self.register_set == "tt3000":
                 self.loop1_current_temp_address = 2104
-                self.loop1_thermostat_address = None
+                self.loop1_thermostat_address = 2160
                 self.loop2_current_temp_address = 2110
-                self.loop2_thermostat_address = None
+                self.loop2_thermostat_address = 2161
                 self.loop3_current_temp_address = 2111
-                self.loop3_thermostat_address = None
+                self.loop3_thermostat_address = 2162
                 self.loop4_current_temp_address = 2112
-                self.loop4_thermostat_address = None
+                self.loop4_thermostat_address = 2163
                 self.loop4_operation_mode_address = 2074
                 self.reservoir_write_temp_address = 2032
             else:
@@ -250,9 +251,9 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 self.loop1_thermostat_address = 2160
                 self.loop2_current_temp_address = 2110
                 self.loop2_thermostat_address = 2161
-                self.loop3_current_temp_address = 2120
+                self.loop3_current_temp_address = 2111
                 self.loop3_thermostat_address = 2162
-                self.loop4_current_temp_address = 2121
+                self.loop4_current_temp_address = 2112
                 self.loop4_thermostat_address = 2163
                 self.loop4_operation_mode_address = 2072
                 self.reservoir_write_temp_address = 2305
