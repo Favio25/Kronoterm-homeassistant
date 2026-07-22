@@ -2,6 +2,8 @@ import logging
 import asyncio
 import aiohttp
 import json
+import random
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -18,6 +20,11 @@ from homeassistant.util import dt as dt_util
 from .cloud_auth import (
     AUTH_MODE_WEB,
     async_authenticate_cloud,
+)
+from .identifiers import (
+    ENERGY_DATA_KEYS,
+    combined_energy_unique_id,
+    daily_energy_unique_id,
 )
 
 from .const import (
@@ -64,6 +71,12 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         self.auth = aiohttp.BasicAuth(self.username, self.password)
         # Login mode: legacy basic-auth (default) or web session cookie
         self._use_web_session = False
+        self.auth_mode: str | None = None
+
+        # Read-only health details used by diagnostic entities and downloads.
+        self.last_successful_update = None
+        self.last_update_duration_ms: float | None = None
+        self.last_update_error: str | None = None
 
         # Scan interval
         scan_interval_seconds = config_entry.options.get("scan_interval_seconds")
@@ -79,7 +92,7 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=f"kronoterm_coordinator_{config_entry.entry_id}",
-            update_method=self._async_update_data,
+            update_method=self._async_update_data_with_metrics,
             update_interval=interval,
         )
 
@@ -95,6 +108,25 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         self.loop4_installed = False
         self.tap_water_installed = False
         self.system_type = config_entry.data.get("system_type", "cloud")
+
+    async def _async_update_data_with_metrics(self) -> Dict[str, Any]:
+        """Run an update while recording non-sensitive health metrics."""
+        started = time.monotonic()
+        try:
+            data = await self._async_update_data()
+        except Exception as err:
+            self.last_update_duration_ms = round(
+                (time.monotonic() - started) * 1000, 1
+            )
+            self.last_update_error = type(err).__name__
+            raise
+
+        self.last_update_duration_ms = round(
+            (time.monotonic() - started) * 1000, 1
+        )
+        self.last_successful_update = dt_util.now()
+        self.last_update_error = None
+        return data
 
     async def async_initialize(self) -> None:
         """Initialize: Verify auth, then fetch info."""
@@ -120,6 +152,7 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
             raise ConfigEntryAuthFailed("Unable to authenticate with Kronoterm Cloud")
 
         self._use_web_session = mode == AUTH_MODE_WEB
+        self.auth_mode = mode
         self._session_valid = True
         _LOGGER.info("Kronoterm Cloud authentication succeeded using %s mode", mode)
 
@@ -152,16 +185,30 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
                     ) as response:
                         return await self._process_response(response, "POST", query_params)
                         
-            except (ClientResponseError, ClientError) as e:
-                _LOGGER.warning("%s attempt %d failed: %s", method.upper(), attempt_idx + 1, e)
-                if isinstance(e, ClientResponseError) and e.status in (401, 403):
+            except (
+                ClientResponseError,
+                ClientError,
+                asyncio.TimeoutError,
+                UpdateFailed,
+            ) as err:
+                _LOGGER.warning(
+                    "%s attempt %d/%d failed: %s",
+                    method.upper(),
+                    attempt_idx + 1,
+                    attempts,
+                    type(err).__name__,
+                )
+                if isinstance(err, ClientResponseError) and err.status in (401, 403):
                     _LOGGER.warning("Auth failure. Re-initializing connection.")
                     await self._perform_login()
                     continue
                 if attempt_idx < attempts - 1:
-                    await asyncio.sleep(RETRY_DELAY_BASE ** attempt_idx)
+                    delay = min(RETRY_DELAY_BASE * (2**attempt_idx), 10)
+                    await asyncio.sleep(delay + random.uniform(0, 0.25))
                 else:
-                    raise UpdateFailed(f"Max {method} retries reached for {query_params}: {e}")
+                    raise UpdateFailed(
+                        f"Max {method.upper()} retries reached for Cloud page"
+                    ) from err
         return None
 
     def _get_page_cookies(self, query_params: Dict[str, str]) -> Dict[str, str]:
@@ -173,8 +220,8 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         return cookies
 
     async def _process_response(self, response, method, query_params) -> Optional[Dict[str, Any]]:
-        if response.status == 401:
-             raise ClientResponseError(response.request_info, response.history, status=401, message="Unauthorized")
+        if response.status in (401, 403):
+             raise ClientResponseError(response.request_info, response.history, status=response.status, message="Unauthorized")
         if response.status != 200:
             raise UpdateFailed(f"HTTP {response.status} for {method} {query_params}")
         
@@ -208,6 +255,8 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         self._last_stats_sync_date = None
         self._energy_statistic_ids = None
         self._stats_metadata_reset = False
+        self.previous_day_energy: dict[str, float] = {}
+        self.previous_day_energy_date = None
 
     async def _fetch_consumption(self, day_offset: int = 0) -> Optional[Dict[str, Any]]:
         """Fetch daily consumption using year + day-of-year params."""
@@ -386,10 +435,16 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
     async def _send_set_request(self, query_key, form_data):
         try:
-            _LOGGER.info("Sending SET request: query_key=%s, form_data=%s, URL params=%s", 
-                         query_key, dict(form_data), self.api_queries_set[query_key])
+            _LOGGER.debug(
+                "Sending Kronoterm SET request: query_key=%s fields=%s",
+                query_key,
+                sorted(key for key, _value in form_data),
+            )
             result = await self._request_with_retries("POST", self.api_queries_set[query_key], form_data)
-            _LOGGER.info("SET request response: %s", result)
+            _LOGGER.debug(
+                "Kronoterm SET response result=%s",
+                result.get("result") if isinstance(result, dict) else None,
+            )
             if result and result.get("result") == "success":
                 await self.async_request_refresh()
                 return True
@@ -469,7 +524,21 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             _LOGGER.debug("No consumption data for previous day; skipping stats sync")
             return
 
-        await self._import_energy_statistics_for_date(today - timedelta(days=1), consumption)
+        target_date = today - timedelta(days=1)
+        trend = consumption.get("trend_consumption", {})
+        finalized: dict[str, float] = {}
+        for key in ENERGY_DATA_KEYS:
+            values = trend.get(key, [])
+            if values:
+                finalized[key] = float(values[-1])
+        if not finalized:
+            _LOGGER.debug("Previous-day energy response contained no values")
+            return
+        finalized["combined"] = sum(finalized.values())
+        self.previous_day_energy = finalized
+        self.previous_day_energy_date = target_date
+
+        await self._import_energy_statistics_for_date(target_date, consumption)
         self._last_stats_sync_date = today
         _LOGGER.info("Re-imported previous day energy statistics")
 
@@ -496,7 +565,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             target_date = target_date.date()
 
         trend = consumption.get("trend_consumption", {})
-        keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+        keys = list(ENERGY_DATA_KEYS)
         series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
         length = max((len(v) for v in series_map.values()), default=0)
         if length == 0:
@@ -558,14 +627,12 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         if self._energy_statistic_ids is not None:
             return self._energy_statistic_ids
 
-        keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+        keys = list(ENERGY_DATA_KEYS)
         key_to_unique = {
-            "CompHeating": f"{DOMAIN}_daily_CompHeating",
-            "CompTapWater": f"{DOMAIN}_daily_CompTapWater",
-            "CPLoops": f"{DOMAIN}_daily_CPLoops",
-            "CPAddSource": f"{DOMAIN}_daily_CPAddSource",
+            key: daily_energy_unique_id(self.config_entry.entry_id, key)
+            for key in keys
         }
-        combined_unique = f"{DOMAIN}_daily_combined_{'_'.join(keys)}"
+        combined_unique = combined_energy_unique_id(self.config_entry.entry_id, keys)
 
         registry = er.async_get(self.hass)
         result = {}
@@ -630,7 +697,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             consumption = await self._fetch_consumption_for_date(current)
             trend = consumption.get("trend_consumption") if consumption else None
             if trend:
-                keys = ["CompHeating", "CompTapWater", "CPLoops", "CPAddSource"]
+                keys = list(ENERGY_DATA_KEYS)
                 series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
                 length = max((len(v) for v in series_map.values()), default=0)
                 if length == 0:

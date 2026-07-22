@@ -351,6 +351,9 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
         self._attr_has_entity_name = True
         self._attr_translation_key = "update_interval"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_update_interval"
+        self._attr_native_min_value = (
+            5 if getattr(coordinator, "system_type", None) == "modbus" else 30
+        )
 
     @property
     def device_info(self):
@@ -363,20 +366,17 @@ class CoordinatorUpdateIntervalNumber(NumberEntity):
         return 300.0  # 5 minutes default (in seconds)
 
     async def async_set_native_value(self, value: float) -> None:
-        seconds = max(5, min(int(value), 600))  # Clamp between 5s and 600s
+        seconds = max(
+            int(self._attr_native_min_value), min(int(value), 600)
+        )
         _LOGGER.info("User set coordinator update interval to %s seconds", seconds)
 
-        from datetime import timedelta
-        self._coordinator.update_interval = timedelta(seconds=seconds)
-
         new_options = dict(self._coordinator.config_entry.options)
-        new_options["scan_interval_seconds"] = seconds  # Store in seconds now
-        # Keep old "scan_interval" for backwards compatibility (in minutes)
-        new_options["scan_interval"] = max(1, int(seconds / 60))
+        new_options["scan_interval_seconds"] = seconds
+        new_options.pop("scan_interval", None)
         self.hass.config_entries.async_update_entry(
             self._coordinator.config_entry, options=new_options
         )
-        await self._coordinator.async_request_refresh()
 
 
 # ---------------------------------------

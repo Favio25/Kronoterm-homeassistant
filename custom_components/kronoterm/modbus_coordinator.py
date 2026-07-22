@@ -8,6 +8,7 @@ Alternative to cloud API for local control.
 import logging
 import asyncio
 import json
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -18,6 +19,7 @@ from pymodbus.exceptions import ModbusException
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 # All register definitions now come from kronoterm.json via RegisterMap
@@ -25,7 +27,11 @@ from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .register_map import RegisterMap
 from .modbus_reads import ModbusReadMixin
 from .modbus_writes import ModbusWriteMixin
-from .value_utils import combine_u16_words, KronotermTcpPacketNormalizer
+from .value_utils import (
+    combine_u16_words,
+    documented_to_modbus_address,
+    KronotermTcpPacketNormalizer,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +69,9 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.client: Optional[AsyncModbusTcpClient] = None
         self._connected = False
         self._tcp_packet_normalizer = KronotermTcpPacketNormalizer()
+        self.last_successful_update = None
+        self.last_update_duration_ms: float | None = None
+        self.last_update_error: str | None = None
 
         # Register map will be loaded after auto-detect
         self.register_map: Optional[RegisterMap] = None
@@ -102,9 +111,28 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             hass,
             _LOGGER,
             name="kronoterm_modbus_coordinator",
-            update_method=self._async_update_data,
+            update_method=self._async_update_data_with_metrics,
             update_interval=interval,
         )
+
+    async def _async_update_data_with_metrics(self) -> Dict[str, Any]:
+        """Run a Modbus update while recording non-sensitive health metrics."""
+        started = time.monotonic()
+        try:
+            data = await self._async_update_data()
+        except Exception as err:
+            self.last_update_duration_ms = round(
+                (time.monotonic() - started) * 1000, 1
+            )
+            self.last_update_error = type(err).__name__
+            raise
+
+        self.last_update_duration_ms = round(
+            (time.monotonic() - started) * 1000, 1
+        )
+        self.last_successful_update = dt_util.now()
+        self.last_update_error = None
+        return data
 
     async def async_initialize(self) -> None:
         """Initialize Modbus connection and fetch device info."""
@@ -198,7 +226,11 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
 
             async def _read(address: int) -> Optional[int]:
                 try:
-                    result = await self.client.read_holding_registers(address - 1, count=1, device_id=self.unit_id)
+                    result = await self.client.read_holding_registers(
+                        documented_to_modbus_address(address),
+                        count=1,
+                        device_id=self.unit_id,
+                    )
                     if result.isError():
                         return None
                     return _to_signed(result.registers[0])
@@ -270,7 +302,11 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         try:
             # Read firmware version (address 5056) - not in JSON, read directly
             try:
-                result = await self.client.read_holding_registers(5056 - 1, count=1, device_id=self.unit_id)
+                result = await self.client.read_holding_registers(
+                    documented_to_modbus_address(5056),
+                    count=1,
+                    device_id=self.unit_id,
+                )
                 firmware_raw = result.registers[0] if not result.isError() else None
                 firmware = f"{firmware_raw}" if firmware_raw else "unknown"
             except Exception:
@@ -327,7 +363,6 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 raise UpdateFailed("Register map not loaded - cannot read registers")
             
             # Always use register_map (no fallback)
-            import time
             # Read both sensors AND control registers (switches need control register values)
             registers_to_read = self.register_map.get_sensors() + self.register_map.get_controls()
             _LOGGER.debug("Reading %d registers using batch reads", len(registers_to_read))
@@ -343,7 +378,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             for batch_start, batch_count, batch_regs in batches:
                 try:
                     # Read the entire batch in one Modbus request
-                    modbus_address = batch_start - 1  # Apply -1 offset
+                    modbus_address = documented_to_modbus_address(batch_start)
                     result = await self.client.read_holding_registers(
                         modbus_address, count=batch_count, device_id=self.unit_id
                     )
@@ -574,7 +609,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         """
         try:
             # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
-            modbus_address = address - 1
+            modbus_address = documented_to_modbus_address(address)
             result = await self.client.read_holding_registers(
                 modbus_address, count=1, device_id=self.unit_id
             )
@@ -610,7 +645,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         
         try:
             # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
-            modbus_address = address - 1
+            modbus_address = documented_to_modbus_address(address)
             
             # Convert signed to unsigned 16-bit if negative
             if value < 0:

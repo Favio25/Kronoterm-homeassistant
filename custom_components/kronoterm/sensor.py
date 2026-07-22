@@ -16,6 +16,7 @@ from homeassistant.components.sensor import (
 from .energy import (
     KronotermDailyEnergySensor,
     KronotermDailyEnergyCombinedSensor,
+    KronotermFinalizedYesterdayEnergySensor,
 )
 from .const import (
     DOMAIN,
@@ -35,6 +36,80 @@ except ImportError:
     RegisterDefinition = None
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class KronotermDiagnosticSensor(CoordinatorEntity, SensorEntity):
+    """Expose opt-in, non-sensitive connection diagnostics."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        device_info: Dict[str, Any],
+        kind: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._kind = kind
+        self._attr_translation_key = f"diagnostic_{kind}"
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_{DOMAIN}_diagnostic_{kind}"
+        )
+        self._attr_device_info = device_info
+
+        if kind == "connection_status":
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = ["initializing", "connected", "error"]
+        elif kind == "last_successful_update":
+            self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        elif kind == "response_time":
+            self._attr_device_class = SensorDeviceClass.DURATION
+            self._attr_native_unit_of_measurement = "s"
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def native_value(self):
+        """Return the selected coordinator diagnostic."""
+        if self._kind == "connection_status":
+            if getattr(self.coordinator, "last_update_success", False):
+                return "connected"
+            if getattr(self.coordinator, "last_update_error", None):
+                return "error"
+            return "initializing"
+
+        if self._kind == "transport":
+            connection_type = self.coordinator.config_entry.data.get(
+                "connection_type", "cloud"
+            )
+            if connection_type == "modbus":
+                transport = self.coordinator.config_entry.data.get("transport", "tcp")
+                return f"modbus_{transport}"
+            system_type = self.coordinator.config_entry.data.get("system_type", "cloud")
+            return "dhw_cloud" if system_type == "dhw" else "cloud"
+
+        if self._kind == "profile":
+            if hasattr(self.coordinator, "register_set"):
+                return getattr(self.coordinator, "register_set", "unknown")
+            return getattr(self.coordinator, "auth_mode", None) or "not_authenticated"
+
+        if self._kind == "last_successful_update":
+            return getattr(self.coordinator, "last_successful_update", None)
+
+        if self._kind == "response_time":
+            duration_ms = getattr(self.coordinator, "last_update_duration_ms", None)
+            return round(duration_ms / 1000, 3) if duration_ms is not None else None
+
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Return a sanitized error class for the status sensor."""
+        if self._kind != "connection_status":
+            return {}
+        error = getattr(self.coordinator, "last_update_error", None)
+        return {"last_error_type": error} if error else {}
 
 
 # -----------------------------------------------------------------------------
@@ -370,6 +445,19 @@ async def async_setup_entry(
         return False
 
     device_info = coordinator.shared_device_info
+
+    async_add_entities(
+        [
+            KronotermDiagnosticSensor(coordinator, device_info, kind)
+            for kind in (
+                "connection_status",
+                "transport",
+                "profile",
+                "last_successful_update",
+                "response_time",
+            )
+        ]
+    )
 
     # Use instance checks instead of hasattr or string checks if possible, or robust checks
     is_dhw = isinstance(coordinator, KronotermDHWCoordinator) or getattr(coordinator, "system_type", None) == "dhw"
@@ -714,15 +802,56 @@ async def _async_setup_cloud_entities(
         s._attr_device_class = SensorDeviceClass.ENERGY
         s._attr_state_class = SensorStateClass.TOTAL_INCREASING
 
-    all_entities = sensor_entities + enum_entities + json_entities + energy_sensors
+    finalized_energy_sensors = [
+        KronotermFinalizedYesterdayEnergySensor(
+            coordinator,
+            "energy_yesterday_heating",
+            device_info,
+            "CompHeating",
+        ),
+        KronotermFinalizedYesterdayEnergySensor(
+            coordinator,
+            "energy_yesterday_dhw",
+            device_info,
+            "CompTapWater",
+        ),
+        KronotermFinalizedYesterdayEnergySensor(
+            coordinator,
+            "energy_yesterday_circulation",
+            device_info,
+            "CPLoops",
+        ),
+        KronotermFinalizedYesterdayEnergySensor(
+            coordinator,
+            "energy_yesterday_heater",
+            device_info,
+            "CPAddSource",
+        ),
+        KronotermFinalizedYesterdayEnergySensor(
+            coordinator,
+            "energy_yesterday_combined",
+            device_info,
+            "combined",
+        ),
+    ]
+
+    all_entities = (
+        sensor_entities
+        + enum_entities
+        + json_entities
+        + energy_sensors
+        + finalized_energy_sensors
+    )
     if all_entities:
         async_add_entities(all_entities)
         _LOGGER.info(
-            "Added %d modbus, %d enum, %d JSON, %d energy sensors (total %d)",
+            "Added %d modbus, %d enum, %d JSON, %d energy sensors, "
+            "%d finalized energy sensors (total %d)",
             len(sensor_entities),
             len(enum_entities),
             len(json_entities),
             len(energy_sensors),
+            len(finalized_energy_sensors),
             len(all_entities),
         )
     else:

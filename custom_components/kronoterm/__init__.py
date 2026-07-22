@@ -8,10 +8,19 @@ from .const import CONFIG_ENTRY_VERSION, DOMAIN
 from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator
 from .modbus_coordinator import ModbusCoordinator
 from .config_flow_modbus import CONNECTION_TYPE_MODBUS
+from .identifiers import (
+    config_unique_id_from_data,
+    legacy_energy_unique_id_migrations,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number", "button", "text"]
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload an entry after its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Kronoterm component."""
@@ -56,6 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Forward the setup to the required platforms.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     _LOGGER.debug("Kronoterm integration set up successfully for entry %s", entry.entry_id)
     return True
 
@@ -81,12 +91,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate registry entries while preserving the oldest DHW entity."""
+    """Migrate entity identifiers without changing users' entity IDs."""
     if entry.version >= CONFIG_ENTRY_VERSION:
         return True
 
-    if entry.data.get("system_type") == "dhw":
-        registry = er.async_get(hass)
+    registry = er.async_get(hass)
+
+    if entry.version < 2 and entry.data.get("system_type") == "dhw":
         canonical_unique_id = f"{entry.entry_id}_{DOMAIN}_dhw_current_temperature"
         duplicate_unique_id = f"{entry.entry_id}_{DOMAIN}_dhw_boiler_temp"
         canonical_entity_id = registry.async_get_entity_id(
@@ -106,5 +117,51 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             _LOGGER.info("Migrated DHW boiler temperature entity to canonical unique ID")
 
-    hass.config_entries.async_update_entry(entry, version=CONFIG_ENTRY_VERSION)
+    if (
+        entry.version < 3
+        and entry.data.get("connection_type", "cloud") != CONNECTION_TYPE_MODBUS
+        and entry.data.get("system_type", "cloud") != "dhw"
+    ):
+        for old_unique_id, new_unique_id in legacy_energy_unique_id_migrations(
+            entry.entry_id
+        ).items():
+            old_entity_id = registry.async_get_entity_id(
+                "sensor", DOMAIN, old_unique_id
+            )
+            if not old_entity_id:
+                continue
+
+            old_entry = registry.async_get(old_entity_id)
+            if old_entry and old_entry.config_entry_id not in (None, entry.entry_id):
+                continue
+
+            new_entity_id = registry.async_get_entity_id(
+                "sensor", DOMAIN, new_unique_id
+            )
+            if new_entity_id and new_entity_id != old_entity_id:
+                registry.async_remove(old_entity_id)
+                continue
+
+            registry.async_update_entity(
+                old_entity_id,
+                new_unique_id=new_unique_id,
+            )
+            _LOGGER.info(
+                "Migrated energy entity %s to an entry-scoped unique ID",
+                old_entity_id,
+            )
+
+    update_kwargs = {"version": CONFIG_ENTRY_VERSION}
+    if entry.unique_id is None:
+        candidate_unique_id = config_unique_id_from_data(entry.data)
+        other_unique_ids = {
+            other.unique_id
+            for other in hass.config_entries.async_entries(DOMAIN)
+            if other.entry_id != entry.entry_id and other.unique_id is not None
+        }
+        if candidate_unique_id and candidate_unique_id not in other_unique_ids:
+            update_kwargs["unique_id"] = candidate_unique_id
+            _LOGGER.info("Assigned a stable unique ID to the config entry")
+
+    hass.config_entries.async_update_entry(entry, **update_kwargs)
     return True

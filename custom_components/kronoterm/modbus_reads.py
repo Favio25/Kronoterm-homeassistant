@@ -8,6 +8,8 @@ Extracted from modbus_coordinator.py for better organization.
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from .value_utils import documented_to_modbus_address
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -117,7 +119,7 @@ class ModbusReadMixin:
         
         try:
             # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
-            modbus_address = address - 1
+            modbus_address = documented_to_modbus_address(address)
             
             result = await self.client.read_holding_registers(
                 modbus_address, count=1, device_id=self.unit_id
@@ -158,7 +160,7 @@ class ModbusReadMixin:
         
         try:
             # Compensate for addressing mode difference (manual is 1-based, pymodbus is 0-based)
-            modbus_address = address - 1
+            modbus_address = documented_to_modbus_address(address)
             
             _LOGGER.info("Writing value %d to register %d (modbus address %d)", 
                         value, address, modbus_address)

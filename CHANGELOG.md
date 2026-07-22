@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-07-22 - v1.6.10
+
+### Added
+- Redacted Home Assistant diagnostics for Cloud and Modbus entries.
+- Disabled-by-default diagnostic sensors for connection status, transport, profile, last successful update, and response time.
+- Five Cloud sensors exposing Kronoterm's finalized energy totals for yesterday without rewriting historical entity states.
+- Offline regression tests and a GitHub Actions test workflow.
+
+### Fixed
+- Cloud daily-energy and calculated-power entity IDs are now scoped to their config entry, preventing collisions between accounts. Existing entity IDs are preserved by config-entry migration.
+- New Cloud and Modbus setup flows reject duplicate endpoints/accounts without storing usernames in unique IDs.
+- Options now match the configured transport: Modbus exposes only its polling interval, while Cloud credentials are validated before saving. Option changes reload the entry immediately.
+- Cloud authentication failures can start Home Assistant's reauthentication flow.
+- Modbus TCP validation now uses the same fixed-transaction-ID normalization and documented-address conversion as runtime polling.
+- Daily Cloud energy sensors now explicitly declare the energy device class.
+- Cloud request retries now cover transient client, timeout, and server failures with bounded exponential backoff and jitter.
+- Cloud write and diagnostics logging no longer exposes response payloads or submitted values.
+- Generated Python bytecode is no longer tracked in release sources.
+
 ## 2026-07-22 - v1.6.9
 
 ### Fixed

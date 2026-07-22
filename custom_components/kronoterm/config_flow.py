@@ -33,6 +33,7 @@ from .entity_cleanup import (
     enable_mode_specific_entities,
 )
 from .cloud_auth import async_authenticate_cloud
+from .identifiers import cloud_config_unique_id, modbus_config_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,6 +162,10 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Auth success, add connection type and create entry
                 user_input["connection_type"] = CONNECTION_TYPE_CLOUD
                 user_input["system_type"] = system_type  # Store system type (cloud/dhw)
+                await self.async_set_unique_id(
+                    cloud_config_unique_id(user_input[CONF_USERNAME], system_type)
+                )
+                self._abort_if_unique_id_configured()
                 
                 title = "Kronoterm Heat Pump (Cloud)"
                 if system_type == "dhw":
@@ -217,6 +222,15 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                await self.async_set_unique_id(
+                    modbus_config_unique_id(
+                        MODBUS_TRANSPORT_TCP,
+                        user_input[CONF_HOST],
+                        user_input.get(CONF_PORT, 502),
+                        user_input.get("unit_id", 20),
+                    )
+                )
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title="Kronoterm Heat Pump (Modbus)",
                     data=user_input,
@@ -241,6 +255,15 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
+                await self.async_set_unique_id(
+                    modbus_config_unique_id(
+                        MODBUS_TRANSPORT_RTU,
+                        user_input["serial_port"],
+                        0,
+                        user_input.get("unit_id", 20),
+                    )
+                )
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title="Kronoterm Heat Pump (Modbus)",
                     data=user_input,
@@ -307,12 +330,6 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if system_type == "dhw":
                     title = "Kronoterm DHW (Water Cloud)"
                 
-                self.hass.config_entries.async_update_entry(
-                    self.reconfig_entry,
-                    data=user_input,
-                    title=title
-                )
-                
                 # Disable Modbus-only entities, re-enable Cloud entities
                 await disable_mode_specific_entities(
                     self.hass, 
@@ -325,9 +342,14 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "cloud"
                 )
                 
-                # Reload the entry to apply changes
-                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
-                return self.async_abort(reason="reconfigure_successful")
+                return self.async_update_reload_and_abort(
+                    self.reconfig_entry,
+                    unique_id=cloud_config_unique_id(
+                        user_input[CONF_USERNAME], system_type
+                    ),
+                    data=user_input,
+                    title=title,
+                )
             else:
                 errors["base"] = error_code
 
@@ -378,12 +400,6 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
-                self.hass.config_entries.async_update_entry(
-                    self.reconfig_entry,
-                    data=user_input,
-                    title="Kronoterm Heat Pump (Modbus)"
-                )
-
                 await disable_mode_specific_entities(
                     self.hass,
                     self.reconfig_entry.entry_id,
@@ -395,8 +411,17 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "modbus"
                 )
 
-                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
-                return self.async_abort(reason="reconfigure_successful")
+                return self.async_update_reload_and_abort(
+                    self.reconfig_entry,
+                    unique_id=modbus_config_unique_id(
+                        MODBUS_TRANSPORT_TCP,
+                        user_input[CONF_HOST],
+                        user_input.get(CONF_PORT, 502),
+                        user_input.get("unit_id", 20),
+                    ),
+                    data=user_input,
+                    title="Kronoterm Heat Pump (Modbus)",
+                )
             errors["base"] = error_code
 
         current_data = self.reconfig_entry.data
@@ -417,12 +442,6 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             error_code = await validate_modbus_connection(user_input)
             if not error_code:
                 user_input["connection_type"] = CONNECTION_TYPE_MODBUS
-                self.hass.config_entries.async_update_entry(
-                    self.reconfig_entry,
-                    data=user_input,
-                    title="Kronoterm Heat Pump (Modbus)"
-                )
-
                 await disable_mode_specific_entities(
                     self.hass,
                     self.reconfig_entry.entry_id,
@@ -434,8 +453,17 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "modbus"
                 )
 
-                await self.hass.config_entries.async_reload(self.reconfig_entry.entry_id)
-                return self.async_abort(reason="reconfigure_successful")
+                return self.async_update_reload_and_abort(
+                    self.reconfig_entry,
+                    unique_id=modbus_config_unique_id(
+                        MODBUS_TRANSPORT_RTU,
+                        user_input["serial_port"],
+                        0,
+                        user_input.get("unit_id", 20),
+                    ),
+                    data=user_input,
+                    title="Kronoterm Heat Pump (Modbus)",
+                )
             errors["base"] = error_code
 
         current_data = self.reconfig_entry.data
@@ -453,6 +481,48 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this integration."""
         return KronotermOptionsFlowHandler()
 
+    async def async_step_reauth(self, entry_data: dict):
+        """Start Cloud credential renewal after an authentication failure."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input: dict | None = None):
+        """Validate replacement credentials and reload the Cloud entry."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        current_username = entry.data.get(CONF_USERNAME, "")
+        preferred_type = entry.data.get("system_type", "cloud")
+
+        if user_input is not None:
+            effective_data = dict(entry.data)
+            effective_data.update(user_input)
+            error_code, system_type = await validate_credentials(
+                effective_data, preferred_type
+            )
+            if not error_code and system_type:
+                effective_data["connection_type"] = CONNECTION_TYPE_CLOUD
+                effective_data["system_type"] = system_type
+                return self.async_update_reload_and_abort(
+                    entry,
+                    unique_id=cloud_config_unique_id(
+                        effective_data[CONF_USERNAME], system_type
+                    ),
+                    data=effective_data,
+                )
+            errors["base"] = error_code or "unknown"
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME, default=current_username
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
 
 class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
     """
@@ -464,42 +534,79 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
         """Handle the initial step of the options flow."""
         _LOGGER.debug("Starting options flow init step")
         errors: dict[str, str] = {}
-
-        if user_input is not None:
-            # Validate credentials, as they might have been changed
-            # We no longer pass self.hass
-            error_code, system_type = await validate_credentials(user_input)
-            
-            if not error_code and system_type:
-                _LOGGER.debug("Options saved: %s", sanitize_user_input(user_input))
-                # Update system_type in case it changed (e.g. diff cloud endpoint)
-                user_input["system_type"] = system_type
-                # Save the validated input (including any new credentials)
-                return self.async_create_entry(title="", data=user_input)
-            elif error_code:
-                _LOGGER.warning("Failed to save options: credentials invalid (%s)", error_code)
-                errors["base"] = error_code
-            else:
-                errors["base"] = "unknown"
-        
-        # Get current values from options, falling back to data (for credentials)
-        # or defaults (for other settings)
         current_options = self.config_entry.options
         current_data = self.config_entry.data
-        
-        username = current_options.get(CONF_USERNAME, current_data.get(CONF_USERNAME, ""))
-        password = current_options.get(CONF_PASSWORD, current_data.get(CONF_PASSWORD, ""))
-        scan_interval = current_options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+        connection_type = current_data.get(
+            "connection_type", CONNECTION_TYPE_CLOUD
+        )
+        legacy_minutes = current_options.get(
+            "scan_interval", DEFAULT_SCAN_INTERVAL
+        )
+        scan_interval_seconds = current_options.get(
+            "scan_interval_seconds", legacy_minutes * 60
+        )
 
-        # Build the schema with current values as defaults
-        options_schema = vol.Schema({
-            vol.Required(CONF_USERNAME, default=username): str,
-            vol.Required(CONF_PASSWORD, default=password): str,
-            vol.Optional(
-                "scan_interval",
-                default=scan_interval
-            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
-        })
+        if connection_type == CONNECTION_TYPE_MODBUS:
+            if user_input is not None:
+                options = dict(current_options)
+                options["scan_interval_seconds"] = user_input[
+                    "scan_interval_seconds"
+                ]
+                options.pop("scan_interval", None)
+                return self.async_create_entry(title="", data=options)
+
+            options_schema = vol.Schema(
+                {
+                    vol.Required(
+                        "scan_interval_seconds",
+                        default=scan_interval_seconds,
+                    ): vol.All(vol.Coerce(int), vol.Range(min=5, max=600)),
+                }
+            )
+        else:
+            username = current_options.get(
+                CONF_USERNAME, current_data.get(CONF_USERNAME, "")
+            )
+            if user_input is not None:
+                effective_data = dict(current_data)
+                effective_data.update(current_options)
+                effective_data[CONF_USERNAME] = user_input[CONF_USERNAME]
+                if user_input.get(CONF_PASSWORD):
+                    effective_data[CONF_PASSWORD] = user_input[CONF_PASSWORD]
+
+                preferred_type = current_data.get("system_type", "cloud")
+                error_code, system_type = await validate_credentials(
+                    effective_data, preferred_type
+                )
+                if not error_code and system_type:
+                    options = dict(current_options)
+                    options.update(
+                        {
+                            CONF_USERNAME: effective_data[CONF_USERNAME],
+                            CONF_PASSWORD: effective_data[CONF_PASSWORD],
+                            "scan_interval_seconds": user_input[
+                                "scan_interval_seconds"
+                            ],
+                        }
+                    )
+                    options.pop("scan_interval", None)
+                    _LOGGER.debug(
+                        "Cloud options saved: %s", sanitize_user_input(options)
+                    )
+                    return self.async_create_entry(title="", data=options)
+
+                errors["base"] = error_code or "unknown"
+
+            options_schema = vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME, default=username): str,
+                    vol.Optional(CONF_PASSWORD, default=""): str,
+                    vol.Required(
+                        "scan_interval_seconds",
+                        default=max(scan_interval_seconds, 30),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=30, max=3600)),
+                }
+            )
 
         return self.async_show_form(
             step_id="init", 

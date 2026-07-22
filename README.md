@@ -30,8 +30,10 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 - **Fast Polling**: Configurable update interval (5-600 seconds)
 - **Optimistic Updates**: Switches update instantly when toggled (Modbus mode)
 - **Energy Dashboard**: Full integration with Home Assistant energy tracking
+- **Finalized Daily Energy**: Yesterday's corrected Cloud totals are exposed as separate energy sensors
 - **Automatic Controller Detection**: TT3000/TT4000 detected and mapped automatically
 - **Connection Resilience**: Automatic retry with exponential backoff for cloud authentication
+- **Safe Diagnostics**: Downloadable redacted diagnostics plus optional connection-health sensors
 
 ## Compatibility
 
@@ -174,9 +176,21 @@ When toggling switches in Modbus mode, the UI updates **instantly** without wait
 
 ### Cloud Connection Resilience
 Automatic retry logic handles transient connection issues:
-- 3 retry attempts with exponential backoff (1.5s, 3s)
+- 3 retry attempts with bounded exponential backoff and jitter
 - Graceful handling of temporary network failures
 - Seamless fallback between authentication methods
+
+### Diagnostics and Connection Health
+From Settings -> Devices & Services -> Kronoterm, use **Download diagnostics**
+to collect a redacted snapshot. Passwords, usernames, hosts, serial paths, tokens,
+device identifiers, and Cloud response values are excluded. Five optional
+diagnostic entities are also available per config entry and are disabled by
+default.
+
+Cloud installations additionally expose finalized-yesterday heating, DHW,
+circulation, additional-heater, and combined energy sensors. These represent
+Kronoterm's corrected previous-day values; they do not attempt to backdate a
+Home Assistant entity state.
 
 ### Reconfigure Flow
 Switch between Cloud API and Modbus modes without losing entity history:
@@ -235,6 +249,7 @@ Contributions welcome! Please:
 - Home Assistant version
 - Integration version
 - Connection mode (Cloud API / Modbus)
+- The redacted diagnostics download, when available
 - Relevant log entries
 
 ## Credits

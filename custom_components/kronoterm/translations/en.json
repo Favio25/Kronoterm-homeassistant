@@ -24,6 +24,14 @@
         "cloud": "Heating heat pump",
         "dhw": "Sanitary water heat pump"
       },
+      "reauth_confirm": {
+        "title": "Reconnect Kronoterm Cloud",
+        "description": "Enter valid credentials for this Kronoterm Cloud connection.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      },
       "modbus": {
         "title": "Modbus TCP Configuration",
         "description": "Configure local Modbus TCP connection to your heat pump",
@@ -49,6 +57,7 @@
     },
     "abort": {
       "already_configured": "Device is already configured",
+      "reauth_successful": "Kronoterm Cloud credentials updated successfully",
       "reconfigure_successful": "Reconfiguration successful. Entities preserved."
     }
   },
@@ -60,7 +69,10 @@
         "data": {
           "username": "Username",
           "password": "Password",
-          "scan_interval": "Scan Interval (minutes)"
+          "scan_interval_seconds": "Scan interval (seconds)"
+        },
+        "data_description": {
+          "password": "Leave blank to keep the current Cloud password."
         }
       }
     },
@@ -256,6 +268,41 @@
       },
       "energy_combined": {
         "name": "Energy Combined (Daily)"
+      },
+      "energy_yesterday_heating": {
+        "name": "Energy Heating (Yesterday Finalized)"
+      },
+      "energy_yesterday_dhw": {
+        "name": "Energy DHW (Yesterday Finalized)"
+      },
+      "energy_yesterday_circulation": {
+        "name": "Energy Circulation (Yesterday Finalized)"
+      },
+      "energy_yesterday_heater": {
+        "name": "Energy Heater (Yesterday Finalized)"
+      },
+      "energy_yesterday_combined": {
+        "name": "Energy Combined (Yesterday Finalized)"
+      },
+      "diagnostic_connection_status": {
+        "name": "Connection Status",
+        "state": {
+          "initializing": "Initializing",
+          "connected": "Connected",
+          "error": "Error"
+        }
+      },
+      "diagnostic_transport": {
+        "name": "Connection Transport"
+      },
+      "diagnostic_profile": {
+        "name": "Connection Profile"
+      },
+      "diagnostic_last_successful_update": {
+        "name": "Last Successful Update"
+      },
+      "diagnostic_response_time": {
+        "name": "Response Time"
       },
       "calculated_current_power": {
         "name": "Calculated Current Power"

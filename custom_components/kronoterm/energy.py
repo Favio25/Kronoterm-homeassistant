@@ -1,9 +1,14 @@
 import logging
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.components.sensor import SensorEntity, SensorStateClass, SensorDeviceClass
 from homeassistant.util import dt as dt_util
-from .const import DOMAIN
+from .identifiers import (
+    calculated_power_unique_id,
+    combined_energy_unique_id,
+    daily_energy_unique_id,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,12 +39,15 @@ class KronotermDailyEnergySensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_has_entity_name = True
         self._attr_translation_key = name
-        self._attr_unique_id = f"{DOMAIN}_daily_{data_key}"
+        self._attr_unique_id = daily_energy_unique_id(
+            coordinator.config_entry.entry_id, data_key
+        )
         self._device_info = device_info
         self._data_key = data_key
 
         self._attr_native_unit_of_measurement = "kWh"
         self._attr_icon = "mdi:flash"
+        self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL
 
     @property
@@ -68,13 +76,15 @@ class KronotermDailyEnergyCombinedSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_has_entity_name = True
         self._attr_translation_key = name
-        joined_keys = "_".join(data_keys)
-        self._attr_unique_id = f"{DOMAIN}_daily_combined_{joined_keys}"
+        self._attr_unique_id = combined_energy_unique_id(
+            coordinator.config_entry.entry_id, data_keys
+        )
         self._device_info = device_info
         self._data_keys = data_keys
 
         self._attr_native_unit_of_measurement = "kWh"
         self._attr_icon = "mdi:counter"
+        self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL
 
     @property
@@ -102,8 +112,9 @@ class KronotermCalculatedCurrentPowerSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_has_entity_name = True
         self._attr_translation_key = name
-        joined_keys = "_".join(data_keys)
-        self._attr_unique_id = f"{DOMAIN}_calculated_power_{joined_keys}"
+        self._attr_unique_id = calculated_power_unique_id(
+            coordinator.config_entry.entry_id, data_keys
+        )
         self._device_info = device_info
         self._data_keys = data_keys
 
@@ -163,3 +174,47 @@ class KronotermCalculatedCurrentPowerSensor(CoordinatorEntity, SensorEntity):
         self._last_time = now
         self._last_date = now.date()
         self.async_write_ha_state()
+
+
+class KronotermFinalizedYesterdayEnergySensor(CoordinatorEntity, SensorEntity):
+    """Expose Kronoterm's finalized value for the previous calendar day."""
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        translation_key: str,
+        device_info: Dict[str, Any],
+        data_key: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_has_entity_name = True
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_kronoterm_yesterday_{data_key}"
+        )
+        self._attr_native_unit_of_measurement = "kWh"
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._device_info = device_info
+        self._data_key = data_key
+
+    @property
+    def device_info(self) -> Dict[str, Any]:
+        """Return the parent heat-pump device."""
+        return self._device_info
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return yesterday's value only when it belongs to yesterday."""
+        expected_date = dt_util.now().date() - timedelta(days=1)
+        if getattr(self.coordinator, "previous_day_energy_date", None) != expected_date:
+            return None
+        values = getattr(self.coordinator, "previous_day_energy", {})
+        value = values.get(self._data_key)
+        return round(float(value), 3) if value is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Expose the calendar date represented by this sensor."""
+        value_date = getattr(self.coordinator, "previous_day_energy_date", None)
+        return {"finalized_date": value_date.isoformat()} if value_date else {}

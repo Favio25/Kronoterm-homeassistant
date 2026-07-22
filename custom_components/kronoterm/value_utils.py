@@ -8,6 +8,13 @@ def combine_u16_words(high_word: int, low_word: int) -> int:
     return ((int(high_word) & UINT16_MASK) << 16) | (int(low_word) & UINT16_MASK)
 
 
+def documented_to_modbus_address(documented_address: int) -> int:
+    """Convert Kronoterm's one-based manual address to Modbus zero-based form."""
+    if documented_address < 1:
+        raise ValueError("Documented Modbus addresses must be positive")
+    return documented_address - 1
+
+
 class KronotermTcpPacketNormalizer:
     """Normalize the fixed transaction ID returned by Kronoterm TCP servers.
 

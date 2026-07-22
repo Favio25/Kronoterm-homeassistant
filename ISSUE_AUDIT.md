@@ -1,5 +1,27 @@
 # Kronoterm issue audit and v1.6.9 fix validation
 
+## v1.6.10 follow-up hardening
+
+Version 1.6.10 completes the safe follow-up work identified by this audit:
+
+- Energy and calculated-power unique IDs are config-entry scoped, with a
+  migration that preserves existing entity IDs while allowing multiple Cloud
+  accounts.
+- Setup flows prevent duplicate Cloud accounts and Modbus endpoints; account
+  identifiers are hashed so usernames are not stored in unique IDs.
+- Cloud reauthentication, transport-specific options, immediate option reloads,
+  redacted diagnostics, and disabled-by-default connection-health sensors were
+  added.
+- Modbus setup validation now uses the same one-based address conversion and
+  fixed-transaction-ID packet normalization as runtime polling.
+- Kronoterm's corrected previous-day totals are exposed as new current-state
+  sensors. Historical entity states are deliberately not rewritten.
+- Eighteen offline regression tests and an isolated Home Assistant 2026.7.3
+  startup verified both the Cloud and Modbus entries with no runtime errors.
+
+Cascade support and speculative register remapping remain deliberately deferred
+until representative hardware or payload data is available.
+
 Audit date: 2026-07-22
 
 Baseline: repository `main` at `4e4ff34`, integration version 1.6.7. The local

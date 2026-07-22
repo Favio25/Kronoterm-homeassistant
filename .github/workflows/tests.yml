@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile integration
+        run: python -m compileall -q custom_components tests
+      - name: Validate JSON metadata
+        run: >-
+          python -c "import json,pathlib;
+          [json.loads(p.read_text(encoding='utf-8'))
+          for p in pathlib.Path('custom_components/kronoterm').rglob('*.json')]"
+      - name: Run offline regression tests
+        run: python -m unittest discover -s tests -v

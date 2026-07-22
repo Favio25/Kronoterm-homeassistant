@@ -14,7 +14,11 @@ from homeassistant.core import callback
 
 from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient
 
-from .const import DOMAIN
+from .const import DHW_CURRENT_TEMP_ADDR, DOMAIN
+from .value_utils import (
+    KronotermTcpPacketNormalizer,
+    documented_to_modbus_address,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +47,7 @@ async def validate_modbus_connection(data: Dict[str, Any]) -> str | None:
     transport = data.get("transport", MODBUS_TRANSPORT_TCP)
     unit_id = data.get("unit_id", 20)
 
+    client = None
     try:
         if transport == MODBUS_TRANSPORT_RTU:
             port = data.get("serial_port")
@@ -69,18 +74,25 @@ async def validate_modbus_connection(data: Dict[str, Any]) -> str | None:
             host = data[CONF_HOST]
             port = data.get(CONF_PORT, 502)
             _LOGGER.debug("Validating Modbus TCP connection to %s:%s, unit %s", host, port, unit_id)
-            client = AsyncModbusTcpClient(host=host, port=port)
+            client = AsyncModbusTcpClient(
+                host=host,
+                port=port,
+                timeout=data.get("timeout", 1),
+                trace_packet=KronotermTcpPacketNormalizer(),
+            )
 
         connected = await client.connect()
         if not connected:
             _LOGGER.warning("Modbus connection failed (transport=%s)", transport)
-            client.close()
             return "cannot_connect"
 
         _LOGGER.debug("Connected successfully, testing read...")
         # Try to read a known register (outdoor temp at 2102)
-        result = await client.read_holding_registers(2102, count=1, device_id=unit_id)
-        client.close()
+        result = await client.read_holding_registers(
+            documented_to_modbus_address(DHW_CURRENT_TEMP_ADDR),
+            count=1,
+            device_id=unit_id,
+        )
 
         if result.isError():
             _LOGGER.warning("Modbus read test failed: %s", result)
@@ -91,9 +103,11 @@ async def validate_modbus_connection(data: Dict[str, Any]) -> str | None:
 
     except Exception as err:
         _LOGGER.error("Modbus validation error: %s", err)
-        import traceback
-        _LOGGER.error("Full traceback:\n%s", traceback.format_exc())
+        _LOGGER.debug("Modbus validation traceback", exc_info=True)
         return "unknown"
+    finally:
+        if client is not None:
+            client.close()
 
 
 def get_connection_type_schema() -> vol.Schema:
