@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-22 - v1.6.9
+
+### Fixed
+- SCOP now uses the controller's three-decimal scale (`5413` -> `5.413`) in Cloud and Modbus modes.
+- Electrical and thermal lifetime energy counters now combine both unsigned 16-bit words, use the correct labels, and apply the thermal counter's 0.1 kWh scale.
+- Explicit scales in the JSON register map are now honored for unitless values such as COP and SCOP.
+- Modbus TCP responses from Kronoterm controllers with a fixed transaction ID are normalized to the serialized pymodbus request ID, preventing polling from stalling after startup.
+- SCOP retains three decimal places in Home Assistant state values.
+
 ## 2026-03-17 — v1.6.4
 
 ### Added

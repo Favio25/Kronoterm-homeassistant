@@ -1,6 +1,7 @@
 from typing import NamedTuple, Dict, List, Set, Any, Optional
 
 DOMAIN = "kronoterm"
+CONFIG_ENTRY_VERSION = 2
 BASE_URL = "https://cloud.kronoterm.com/jsoncgi.php"
 BASE_URL_DHW = "https://cloud.kronoterm.com/dhws/jsoncgi.php"
 
@@ -149,6 +150,8 @@ class SensorDefinition(NamedTuple):
     icon: str
     scaling: float = 1.0
     diagnostic: bool = False
+    register32_low: Optional[int] = None
+    precision: int = 2
 
 class EnumSensorDefinition(NamedTuple):
     """A definition for a sensor with enumerated string values."""
@@ -179,7 +182,7 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 1.0, True),  # Cloud API: no scaling
     SensorDefinition(2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 1.0, True),  # Cloud API: no scaling
     SensorDefinition(2371, "cop_value", "", "mdi:chart-line", 0.01, True),
-    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 0.01, True),
+    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 0.001, True, None, 3),
     SensorDefinition(2155, "compressor_activations_heating", "", "mdi:counter", 1, True),
     SensorDefinition(2157, "activations_boiler", "", "mdi:counter", 1, True),
     SensorDefinition(2158, "activations_defrost", "", "mdi:snowflake-melt", 1, True),
@@ -199,8 +202,8 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),
     SensorDefinition(2129, "current_heating_cooling_power", "W", "mdi:lightning-bolt", 1.0),
     SensorDefinition(2329, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),
-    SensorDefinition(2362, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 1.0),
-    SensorDefinition(2364, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1.0),
+    SensorDefinition(2361, "electrical_energy_heating_dhw", "kWh", "mdi:meter-electric", 1.0, False, 2362),
+    SensorDefinition(2363, "heating_energy_heating_dhw", "kWh", "mdi:heat-wave", 0.1, False, 2364),
 
     # Sensors previously in "Additional constants"
     SensorDefinition(2107, "alternative_source_temperature", "°C", "mdi:thermometer", 0.1),

@@ -12,7 +12,13 @@ from homeassistant.components.recorder.statistics import async_import_statistics
 from homeassistant.components.recorder.models import StatisticMeanType
 from homeassistant.components.recorder import get_instance
 from homeassistant.helpers import entity_registry as er
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.util import dt as dt_util
+
+from .cloud_auth import (
+    AUTH_MODE_WEB,
+    async_authenticate_cloud,
+)
 
 from .const import (
     DOMAIN,
@@ -98,111 +104,26 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Kronoterm coordinator initialized successfully")
 
     async def _perform_login(self) -> None:
-        """Perform initial handshake (Menu=1) with auto-detect login."""
-        _LOGGER.debug("Performing initial handshake (Menu=1)...")
+        """Authenticate using the same confirmed flow as config validation."""
+        self._session_valid = False
+        mode = await async_authenticate_cloud(
+            self.session,
+            base_url=self.base_url,
+            menu_params=self.api_queries_get["menu"],
+            basic_headers=self._get_headers(use_web_session=False),
+            web_headers=self._get_headers(use_web_session=True),
+            username=self.username,
+            password=self.password,
+            attempts=3,
+        )
+        if mode is None:
+            raise ConfigEntryAuthFailed("Unable to authenticate with Kronoterm Cloud")
 
-        async def _handshake(use_auth: bool, max_retries: int = 3) -> bool:
-            query_params = self.api_queries_get["menu"]
-            for attempt in range(max_retries):
-                try:
-                    if attempt > 0:
-                        delay = 1.5 * attempt  # 1.5s, 3s
-                        _LOGGER.debug("Handshake retry %d/%d after %.1fs delay", attempt + 1, max_retries, delay)
-                        await asyncio.sleep(delay)
-                    
-                    _LOGGER.debug("Handshake attempt %d/%d: use_auth=%s, base_url=%s, username=%s", 
-                                  attempt + 1, max_retries, use_auth, self.base_url, self.username)
-                    async with self.session.get(
-                        self.base_url,
-                        auth=self.auth if use_auth else None,
-                        params=query_params,
-                        headers=self._get_headers(),
-                        timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-                    ) as response:
-                        _LOGGER.debug("Handshake response: status=%s", response.status)
-                        if response.status != 200:
-                            _LOGGER.error("Handshake failed. Status: %s", response.status)
-                            continue  # Retry
-                        try:
-                            data = await response.json()
-                            if "hp_id" in data:
-                                _LOGGER.info("Handshake successful (BasicAuth). Session primed for HP ID: %s", data.get("hp_id"))
-                                return True
-                            _LOGGER.warning("Handshake returned 200 but missing 'hp_id'. Response: %s", data)
-                            continue  # Retry
-                        except Exception as json_err:
-                            _LOGGER.warning("Handshake returned 200 but invalid JSON: %s", json_err)
-                            continue  # Retry
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        _LOGGER.debug("Handshake error (use_auth=%s, attempt %d/%d): %s (%s) - will retry", 
-                                      use_auth, attempt + 1, max_retries, type(e).__name__, e)
-                        continue  # Retry
-                    else:
-                        _LOGGER.debug("Handshake error (use_auth=%s, attempt %d/%d): %s (%s) - all retries exhausted", 
-                                      use_auth, attempt + 1, max_retries, type(e).__name__, e)
-            return False
+        self._use_web_session = mode == AUTH_MODE_WEB
+        self._session_valid = True
+        _LOGGER.info("Kronoterm Cloud authentication succeeded using %s mode", mode)
 
-        async def _web_login() -> bool:
-            # Derive login URL from base_url
-            if "/dhws/" in self.base_url:
-                login_url = "https://cloud.kronoterm.com/dhws/?login=1"
-            else:
-                login_url = "https://cloud.kronoterm.com/?login=1"
-            form = {"username": self.username, "password": self.password}
-            headers = {
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://cloud.kronoterm.com",
-                "Referer": "https://cloud.kronoterm.com/",
-                "User-Agent": "Mozilla/5.0",
-            }
-            try:
-                async with self.session.post(
-                    login_url,
-                    data=form,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
-                    allow_redirects=True,
-                ) as response:
-                    if response.status not in (200, 302):
-                        _LOGGER.error("Web login failed. Status: %s", response.status)
-                        return False
-            except Exception as e:
-                _LOGGER.error("Web login error: %s", e)
-                return False
-            # Expect PHPSESSID cookie in jar
-            cookies = self.session.cookie_jar.filter_cookies(login_url)
-            if not any("PHPSESSID" in k for k in cookies.keys()):
-                _LOGGER.warning("Web login did not set PHPSESSID cookie")
-            return True
-
-        try:
-            # First try legacy basic-auth handshake
-            _LOGGER.debug("Attempting BasicAuth handshake...")
-            if await _handshake(use_auth=True):
-                self._use_web_session = False
-                self._session_valid = True
-                _LOGGER.info("Using BasicAuth mode (phonegap headers)")
-                return
-            # Fallback to web-session login
-            _LOGGER.debug("BasicAuth failed, attempting web-session login...")
-            if await _web_login():
-                self._use_web_session = True
-                self._session_valid = True
-                _LOGGER.info("Using web-session mode (PHPSESSID cookie)")
-                # Try handshake without auth to confirm session
-                if await _handshake(use_auth=False):
-                    return
-                _LOGGER.warning("Web session created but handshake still failed")
-                return
-            self._session_valid = False
-            _LOGGER.error("Both BasicAuth and web-session login failed")
-        except Exception as e:
-            _LOGGER.error("Error during handshake: %s", e)
-            self._session_valid = False
-
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self, use_web_session: bool | None = None) -> Dict[str, str]:
         """Generate headers. Overridden by subclasses."""
         raise NotImplementedError
 
@@ -258,7 +179,12 @@ class KronotermBaseCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"HTTP {response.status} for {method} {query_params}")
         
         raw_text = await response.text()
-        _LOGGER.debug("Raw response %s %s: %s", method, query_params, raw_text)
+        _LOGGER.debug(
+            "Received Kronoterm response for %s %s (%d bytes)",
+            method,
+            query_params,
+            len(raw_text),
+        )
         
         try:
             data = json.loads(raw_text)
@@ -311,8 +237,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             _LOGGER.warning("Consumption response (no trend): %s", resp.get("desc"))
         return resp
 
-    def _get_headers(self) -> Dict[str, str]:
-        if getattr(self, "_use_web_session", False):
+    def _get_headers(self, use_web_session: bool | None = None) -> Dict[str, str]:
+        if use_web_session is None:
+            use_web_session = self._use_web_session
+        if use_web_session:
             return {
                 "Accept": "*/*",
                 "Accept-Language": "en-US,en;q=0.9",
@@ -381,26 +309,33 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             data["main"] = results[0] if not isinstance(results[0], Exception) else None
             data["shortcuts"] = results[1] if not isinstance(results[1], Exception) else None
 
-            # 2. Loops/DHW/Reservoir
+            # 2. Loops/DHW/Reservoir. These pages are optional depending on
+            # the installation, so one failure must not discard every result.
+            page_keys = (
+                "loop1",
+                "loop2",
+                "dhw",
+                "reservoir",
+                "loop3",
+                "loop4",
+                "main_settings",
+                "system_data",
+            )
+            loop_results = await asyncio.gather(
+                *(
+                    self._request_with_retries("GET", self.api_queries_get[key])
+                    for key in page_keys
+                ),
+                return_exceptions=True,
+            )
+            for key, result in zip(page_keys, loop_results):
+                if isinstance(result, Exception):
+                    _LOGGER.warning("Unable to fetch optional Cloud page %s: %s", key, result)
+                    data[key] = None
+                else:
+                    data[key] = result
+
             try:
-                loop_results = await asyncio.gather(
-                    self._request_with_retries("GET", self.api_queries_get["loop1"]),
-                    self._request_with_retries("GET", self.api_queries_get["loop2"]),
-                    self._request_with_retries("GET", self.api_queries_get["dhw"]),
-                    self._request_with_retries("GET", self.api_queries_get["reservoir"]),
-                    self._request_with_retries("GET", self.api_queries_get["loop3"]),
-                    self._request_with_retries("GET", self.api_queries_get["loop4"]),
-                    self._request_with_retries("GET", self.api_queries_get["main_settings"]),
-                    self._request_with_retries("GET", self.api_queries_get["system_data"]),
-                )
-                data["loop1"] = loop_results[0]
-                data["loop2"] = loop_results[1]
-                data["dhw"] = loop_results[2]
-                data["reservoir"] = loop_results[3]
-                data["loop3"] = loop_results[4]
-                data["loop4"] = loop_results[5]
-                data["main_settings"] = loop_results[6]
-                data["system_data"] = loop_results[7]
                 data["consumption"] = await self._fetch_consumption()
                 try:
                     consumption = data.get("consumption") or {}
@@ -413,13 +348,21 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                             consumption.get("desc"),
                         )
                         if "trend_consumption" not in consumption:
-                            _LOGGER.debug("Consumption raw payload: %s", consumption)
+                            _LOGGER.debug(
+                                "Consumption response has no trend; keys=%s desc=%s",
+                                list(consumption.keys()),
+                                consumption.get("desc"),
+                            )
                     else:
-                        _LOGGER.debug("Consumption payload type=%s value=%s", type(consumption), consumption)
+                        _LOGGER.debug(
+                            "Unexpected consumption payload type=%s",
+                            type(consumption).__name__,
+                        )
                 except Exception as log_err:
                     _LOGGER.debug("Failed to log consumption data: %s", log_err)
-            except Exception as e:
-                _LOGGER.error("Error fetching loops: %s", e)
+            except Exception as err:
+                _LOGGER.warning("Unable to fetch Cloud consumption data: %s", err)
+                data["consumption"] = None
             
             if self.data and "info" in self.data:
                 data["info"] = self.data["info"]
@@ -779,8 +722,10 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
         # Ensure we don't accidentally check flags that don't exist
         self.tap_water_installed = True 
 
-    def _get_headers(self) -> Dict[str, str]:
-        if getattr(self, "_use_web_session", False):
+    def _get_headers(self, use_web_session: bool | None = None) -> Dict[str, str]:
+        if use_web_session is None:
+            use_web_session = self._use_web_session
+        if use_web_session:
             return {
                 "Accept": "*/*",
                 "Accept-Language": "en-US,en;q=0.9",

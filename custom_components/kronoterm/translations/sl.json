@@ -121,7 +121,7 @@
         "name": "Cirkulacija sanitarne vode"
       },
       "additional_source": {
-        "name": "Dodatni vir"
+        "name": "Stanje dodatnega vira"
       },
       "thermostat_loop_1": {
         "name": "Termostat krog 1 aktiven"
@@ -677,7 +677,7 @@
         "name": "Rezervni vir (električni grelnik)"
       },
       "additional_source_switch": {
-        "name": "Dodatni vir"
+        "name": "Upravljanje dodatnega vira"
       }
     },
     "select": {
@@ -766,22 +766,22 @@
     },
     "climate": {
       "dhw_temperature": {
-        "name": "Temperatura tople sanitarne vode"
+        "name": "Termostat sanitarne vode"
       },
       "loop_1_temperature": {
-        "name": "Temperatura zanke 1"
+        "name": "Termostat zanke 1"
       },
       "loop_2_temperature": {
-        "name": "Temperatura zanke 2"
+        "name": "Termostat zanke 2"
       },
       "loop_3_temperature": {
-        "name": "Temperatura zanke 3"
+        "name": "Termostat zanke 3"
       },
       "loop_4_temperature": {
-        "name": "Temperatura zanke 4"
+        "name": "Termostat zanke 4"
       },
       "reservoir_temperature": {
-        "name": "Temperatura rezervoarja"
+        "name": "Termostat rezervoarja"
       }
     },
     "button": {

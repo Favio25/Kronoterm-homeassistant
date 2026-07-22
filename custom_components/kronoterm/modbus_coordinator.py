@@ -25,6 +25,7 @@ from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .register_map import RegisterMap
 from .modbus_reads import ModbusReadMixin
 from .modbus_writes import ModbusWriteMixin
+from .value_utils import combine_u16_words, KronotermTcpPacketNormalizer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         # Modbus client
         self.client: Optional[AsyncModbusTcpClient] = None
         self._connected = False
+        self._tcp_packet_normalizer = KronotermTcpPacketNormalizer()
 
         # Register map will be loaded after auto-detect
         self.register_map: Optional[RegisterMap] = None
@@ -129,6 +131,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 host=self.host,
                 port=self.port,
                 timeout=self.timeout,
+                trace_packet=self._tcp_packet_normalizer,
             )
         
         # Try to connect
@@ -372,17 +375,11 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                                            reg_def.name_en, batch_start, high_addr, high_offset, high_value, 
                                            low_addr, low_offset, low_value)
                             
-                            # Convert to signed integers
-                            if high_value >= 32768:
-                                high_value = high_value - 65536
-                            if low_value >= 32768:
-                                low_value = low_value - 65536
+                            # Counters are unsigned 32-bit values split into
+                            # conventional high and low Modbus words.
+                            raw_value = combine_u16_words(high_value, low_value)
                             
-                            # For Kronoterm: the actual value is in the LOW register!
-                            # The naming in the manual is backwards - "high" register is actually low word
-                            raw_value = low_value
-                            
-                            _LOGGER.debug("32-bit %s: final raw_value=%d (using LOW register)", reg_def.name_en, raw_value)
+                            _LOGGER.debug("32-bit %s: combined raw_value=%d", reg_def.name_en, raw_value)
                         else:
                             addr = reg_def.address
                             offset = addr - batch_start
@@ -393,7 +390,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                                 raw_value = raw_value - 65536
                             
                         # Check for error values
-                        if raw_value <= -500:
+                        if reg_def.type != "Value32" and raw_value <= -500:
                             continue
                         
                         register_values[reg_def.address] = (reg_def, raw_value)
@@ -408,6 +405,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 
                 # Process results
                 for reg_def, raw_value in register_values.values():
+                    precision = 3 if reg_def.name_en == "scop_value" else 2
                     # Process based on register type
                     if reg_def.type == "Enum":
                         value = raw_value
@@ -418,16 +416,13 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                     else:
                         # Scaled numeric value (Value or Value32)
                         if reg_def.scale and reg_def.scale != 1.0:
-                            value = round(raw_value * reg_def.scale, 2)
+                            value = round(raw_value * reg_def.scale, precision)
                         else:
                             value = raw_value
-                        # Ensure COP/SCOP scaling (defensive)
-                        if reg_def.name_en in ("cop_value", "scop_value") and (reg_def.scale in (None, 1.0)):
-                            value = round(raw_value * 0.01, 2)
                     
                     # Normalize floats to avoid precision noise
                     if isinstance(value, float):
-                        value = round(value, 2)
+                        value = round(value, precision)
 
                     # Store in data dict using register address as key
                     data[reg_def.address] = {

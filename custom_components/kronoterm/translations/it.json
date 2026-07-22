@@ -121,7 +121,7 @@
         "name": "Circolazione ACS"
       },
       "additional_source": {
-        "name": "Sorgente Aggiuntiva"
+        "name": "Stato fonte aggiuntiva"
       },
       "thermostat_loop_1": {
         "name": "Termostato Circuito 1 Attivo"
@@ -677,7 +677,7 @@
         "name": "Fonte di Riserva (Riscaldatore Elettrico)"
       },
       "additional_source_switch": {
-        "name": "Fonte Aggiuntiva"
+        "name": "Controllo fonte aggiuntiva"
       }
     },
     "select": {
@@ -766,22 +766,22 @@
     },
     "climate": {
       "dhw_temperature": {
-        "name": "Temperatura ACS"
+        "name": "Termostato ACS"
       },
       "loop_1_temperature": {
-        "name": "Temperatura Circuito 1"
+        "name": "Termostato circuito 1"
       },
       "loop_2_temperature": {
-        "name": "Temperatura Circuito 2"
+        "name": "Termostato circuito 2"
       },
       "loop_3_temperature": {
-        "name": "Temperatura Circuito 3"
+        "name": "Termostato circuito 3"
       },
       "loop_4_temperature": {
-        "name": "Temperatura Circuito 4"
+        "name": "Termostato circuito 4"
       },
       "reservoir_temperature": {
-        "name": "Temperatura del Serbatoio"
+        "name": "Termostato del serbatoio"
       }
     },
     "button": {

@@ -1,9 +1,10 @@
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.exceptions import ConfigEntryNotReady
-from .const import DOMAIN
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import entity_registry as er
+from .const import CONFIG_ENTRY_VERSION, DOMAIN
 from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator
 from .modbus_coordinator import ModbusCoordinator
 from .config_flow_modbus import CONNECTION_TYPE_MODBUS
@@ -11,7 +12,6 @@ from .config_flow_modbus import CONNECTION_TYPE_MODBUS
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number", "button", "text"]
-
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Kronoterm component."""
@@ -33,19 +33,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator = ModbusCoordinator(hass, entry)
     elif system_type == "dhw":
         _LOGGER.info("Setting up Kronoterm DHW (Water Cloud) connection")
-        # Create a new client session for DHW to ensure isolation
-        # We don't use the shared hass session to avoid cookie conflicts with main cloud
-        from homeassistant.helpers.aiohttp_client import async_create_clientsession
-        session = async_create_clientsession(hass, cookie_jar=None) # Default jar is fine if new session
+        session = async_create_clientsession(hass)
         coordinator = KronotermDHWCoordinator(hass, session, entry)
     else:
         _LOGGER.info("Setting up Kronoterm with Cloud API connection")
-        # Use Home Assistant's built-in client session for main cloud API
-        session = async_get_clientsession(hass)
+        # Each Cloud entry needs its own cookie jar. Sharing Home Assistant's
+        # global session lets one account overwrite another account's PHPSESSID.
+        session = async_create_clientsession(hass)
         coordinator = KronotermMainCoordinator(hass, session, entry)
 
     try:
         await coordinator.async_initialize()
+    except ConfigEntryAuthFailed:
+        raise
     except Exception as err:
         _LOGGER.error("Error initializing Kronoterm coordinator: %s", err, exc_info=True)
         raise ConfigEntryNotReady from err
@@ -78,3 +78,33 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("Kronoterm integration unloaded successfully for entry %s", entry.entry_id)
     
     return unload_ok
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate registry entries while preserving the oldest DHW entity."""
+    if entry.version >= CONFIG_ENTRY_VERSION:
+        return True
+
+    if entry.data.get("system_type") == "dhw":
+        registry = er.async_get(hass)
+        canonical_unique_id = f"{entry.entry_id}_{DOMAIN}_dhw_current_temperature"
+        duplicate_unique_id = f"{entry.entry_id}_{DOMAIN}_dhw_boiler_temp"
+        canonical_entity_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, canonical_unique_id
+        )
+        duplicate_entity_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, duplicate_unique_id
+        )
+
+        if duplicate_entity_id and canonical_entity_id:
+            registry.async_remove(duplicate_entity_id)
+            _LOGGER.info("Removed duplicate DHW boiler temperature registry entry")
+        elif duplicate_entity_id:
+            registry.async_update_entity(
+                duplicate_entity_id,
+                new_unique_id=canonical_unique_id,
+            )
+            _LOGGER.info("Migrated DHW boiler temperature entity to canonical unique ID")
+
+    hass.config_entries.async_update_entry(entry, version=CONFIG_ENTRY_VERSION)
+    return True

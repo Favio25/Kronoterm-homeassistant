@@ -26,6 +26,7 @@ from .const import (
 )
 from .entities import KronotermModbusBase
 from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator # Add this import
+from .value_utils import combine_u16_words
 
 # Import RegisterDefinition for type hints (may not exist if register_map not loaded)
 try:
@@ -63,11 +64,15 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         device_info: Dict[str, Any],
         scale: float = 1.0,
         icon: Optional[str] = None,
+        register32_low: Optional[int] = None,
+        precision: int = 2,
     ) -> None:
         super().__init__(coordinator, address, name, device_info)
         self._scale = scale
         self._unit = unit
         self._icon = icon
+        self._register32_low = register32_low
+        self._precision = precision
         # Use name-based unique_id to match Cloud API format (prevents duplicates on reconfigure)
         self._unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_{name}"
 
@@ -91,7 +96,7 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         val = float(raw_value)
         if self._scale != 1:
             val *= self._scale
-        return round(val, 2)
+        return round(val, self._precision)
 
     def _get_modbus_value_for(self, address: int) -> Optional[float]:
         for reg in self.modbus_data:
@@ -119,6 +124,14 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
         Note: Value filter ONLY applies to setpoint sensors (temperatures).
         Power/energy sensors can legitimately exceed 500.
         """
+        # Cloud exposes 32-bit counters as two adjacent raw Modbus words.
+        if self._register32_low is not None:
+            high_word = self._get_modbus_value_for(self._address)
+            low_word = self._get_modbus_value_for(self._register32_low)
+            if high_word is None or low_word is None:
+                return None
+            return self._process_value(combine_u16_words(high_word, low_word))
+
         # Check if this is a setpoint sensor that depends on operation mode
         if self._address in self.SETPOINT_TO_OPERATION_MODE:
             operation_mode_address = self.SETPOINT_TO_OPERATION_MODE[self._address]
@@ -420,20 +433,8 @@ async def _async_setup_dhw_entities(
 
     # Eco/Comfort offsets are exposed as number entities, not sensors
 
-    # GlobalOverview temps
-    entities.append(
-        KronotermJsonSensor(
-            coordinator,
-            device_info,
-            "dhw_boiler_temp",
-            "dhw_boiler_temperature",
-            ["main", "GlobalOverview", "boiler_temp"],
-            unit="°C",
-            icon="mdi:water-thermometer",
-            device_class=SensorDeviceClass.TEMPERATURE,
-            state_class=SensorStateClass.MEASUREMENT,
-        )
-    )
+    # GlobalOverview temps. boiler_temp is already exposed above as the
+    # canonical dhw_current_temperature entity.
     entities.append(
         KronotermJsonSensor(
             coordinator,
@@ -598,12 +599,15 @@ async def _async_setup_cloud_entities(
             device_info=device_info,
             scale=sensor_def.scaling,
             icon=sensor_def.icon,
+            register32_low=sensor_def.register32_low,
+            precision=sensor_def.precision,
         )
         # Prefer clean display for setpoints
         if sensor_def.key.endswith("_setpoint") or sensor_def.key.endswith("_current_setpoint"):
             ent._attr_suggested_display_precision = 1
         if sensor_def.key in ("cop_value", "scop_value"):
             ent._attr_state_class = SensorStateClass.MEASUREMENT
+            ent._attr_suggested_display_precision = sensor_def.precision
 
         if sensor_def.diagnostic:
             ent._attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -795,10 +799,14 @@ async def _async_setup_modbus_entities(
                     device_info=device_info,
                     scale=1.0,  # Coordinator already scaled the value
                     icon=_get_icon_for_register(reg_def),
+                    precision=3 if reg_def.name_en == "scop_value" else 2,
                 )
                 if reg_def.name_en in ("cop_value", "scop_value"):
                     entity._attr_state_class = SensorStateClass.MEASUREMENT
                     entity._attr_native_unit_of_measurement = ""
+                    entity._attr_suggested_display_precision = (
+                        3 if reg_def.name_en == "scop_value" else 2
+                    )
                 
                 # Apply device and state classes based on unit/type
                 # Explicit state_class for key sensors (avoid HA repairs)

@@ -62,7 +62,9 @@ class RegisterMap:
                 
                 # Parse unit and determine scale factor
                 unit_str = reg_data.get("unit")
-                unit, scale = self._parse_unit(unit_str)
+                unit, unit_scale = self._parse_unit(unit_str)
+                # Unitless registers can declare scaling explicitly.
+                scale = float(reg_data.get("scale", unit_scale))
                 
                 # Use name_en from JSON if provided, otherwise translate
                 name_en = reg_data.get("name_en")
