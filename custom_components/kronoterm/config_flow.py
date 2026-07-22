@@ -1,21 +1,19 @@
 import logging
-import asyncio
-import aiohttp  # Make sure aiohttp is imported at the top
+import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback, HomeAssistant
-# We no longer need async_get_clientsession
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD, CONF_HOST, CONF_PORT
 
 from .const import (
     DOMAIN, 
+    CONFIG_ENTRY_VERSION,
     BASE_URL, 
     BASE_URL_DHW,
     API_QUERIES_GET,
     API_QUERIES_GET_DHW,
     DEFAULT_SCAN_INTERVAL, 
-    REQUEST_TIMEOUT
 )
 
 from .config_flow_modbus import (
@@ -34,6 +32,7 @@ from .entity_cleanup import (
     disable_mode_specific_entities,
     enable_mode_specific_entities,
 )
+from .cloud_auth import async_authenticate_cloud
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,63 +56,46 @@ async def validate_credentials(data: dict, preferred_type: str = "auto") -> tupl
     """
     username = data[CONF_USERNAME]
     password = data[CONF_PASSWORD]
-    auth = aiohttp.BasicAuth(username, password)
-    
-    timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+    async def _try_endpoint(
+        base_url: str,
+        menu_params: dict[str, str],
+        phonegap_version: str,
+    ) -> bool:
+        basic_headers = {
+            "phonegap": phonegap_version,
+            "Accept": "*/*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": base_url,
+            "Origin": "https://cloud.kronoterm.com",
+        }
+        web_headers = {
+            "Accept": "*/*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": (
+                "https://cloud.kronoterm.com/dhws/?login=1"
+                if "/dhws/" in base_url
+                else "https://cloud.kronoterm.com/?login=1"
+            ),
+            "Origin": "https://cloud.kronoterm.com",
+            "User-Agent": "Mozilla/5.0",
+        }
+        async with aiohttp.ClientSession() as session:
+            mode = await async_authenticate_cloud(
+                session,
+                base_url=base_url,
+                menu_params=menu_params,
+                basic_headers=basic_headers,
+                web_headers=web_headers,
+                username=username,
+                password=password,
+            )
+        return mode is not None
 
     async def _try_main() -> bool:
-        _LOGGER.debug("Attempting connection to Main Cloud...")
-        headers_main = {
-            "phonegap": "1.5.0",
-            "X-Requested-With": "XMLHttpRequest",
-        }
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(
-                    BASE_URL, 
-                    auth=auth, 
-                    params=API_QUERIES_GET["menu"], 
-                    headers=headers_main,
-                    timeout=timeout
-                ) as response:
-                    if response.status == 200:
-                        try:
-                            data = await response.json()
-                            return "hp_id" in data
-                        except Exception:
-                            return False
-                    if response.status == 401:
-                        return False
-            except Exception as e:
-                _LOGGER.debug("Main Cloud connection failed: %s", e)
-        return False
+        return await _try_endpoint(BASE_URL, API_QUERIES_GET["menu"], "1.5.0")
 
     async def _try_dhw() -> bool:
-        _LOGGER.debug("Attempting connection to DHW Cloud...")
-        headers_dhw = {
-            "phonegap": "1.0.7",
-            "X-Requested-With": "XMLHttpRequest",
-        }
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(
-                    BASE_URL_DHW, 
-                    auth=auth, 
-                    params=API_QUERIES_GET_DHW["menu"], 
-                    headers=headers_dhw,
-                    timeout=timeout
-                ) as response:
-                    if response.status == 200:
-                        try:
-                            data = await response.json()
-                            return "hp_id" in data
-                        except Exception:
-                            return False
-                    if response.status == 401:
-                        return False
-            except Exception as e:
-                _LOGGER.debug("DHW Cloud connection failed: %s", e)
-        return False
+        return await _try_endpoint(BASE_URL_DHW, API_QUERIES_GET_DHW["menu"], "1.0.7")
 
     if preferred_type == "cloud":
         ok = await _try_main()
@@ -122,6 +104,10 @@ async def validate_credentials(data: dict, preferred_type: str = "auto") -> tupl
         ok = await _try_dhw()
         return (None, "dhw") if ok else ("invalid_auth", None)
 
+    if await _try_main():
+        return None, "cloud"
+    if await _try_dhw():
+        return None, "dhw"
     return "invalid_auth", None
 
 
@@ -130,7 +116,7 @@ class KronotermConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """
     Handles the configuration flow for the Kronoterm integration.
     """
-    VERSION = 1
+    VERSION = CONFIG_ENTRY_VERSION
 
     def __init__(self) -> None:
         """Initialize the config flow."""

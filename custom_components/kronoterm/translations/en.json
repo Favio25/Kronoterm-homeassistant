@@ -154,7 +154,7 @@
         "name": "Alternative Source Pump"
       },
       "additional_source": {
-        "name": "Additional Source"
+        "name": "Additional Source Status"
       },
       "thermostat_loop_1": {
         "name": "Thermostat Loop 1 Active"
@@ -755,7 +755,7 @@
         "name": "Reserve Source (Backup Heater)"
       },
       "additional_source_switch": {
-        "name": "Additional Source"
+        "name": "Additional Source Control"
       }
     },
     "select": {
@@ -844,22 +844,22 @@
     },
     "climate": {
       "dhw_temperature": {
-        "name": "DHW Temperature"
+        "name": "DHW Thermostat"
       },
       "loop_1_temperature": {
-        "name": "Loop 1 Temperature"
+        "name": "Loop 1 Thermostat"
       },
       "loop_2_temperature": {
-        "name": "Loop 2 Temperature"
+        "name": "Loop 2 Thermostat"
       },
       "loop_3_temperature": {
-        "name": "Loop 3 Temperature"
+        "name": "Loop 3 Thermostat"
       },
       "loop_4_temperature": {
-        "name": "Loop 4 Temperature"
+        "name": "Loop 4 Thermostat"
       },
       "reservoir_temperature": {
-        "name": "Reservoir Temperature"
+        "name": "Reservoir Thermostat"
       }
     },
     "button": {

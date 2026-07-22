@@ -121,7 +121,7 @@
         "name": "Umlauf Warmwasser"
       },
       "additional_source": {
-        "name": "Zusätzliche Quelle"
+        "name": "Status zusätzliche Quelle"
       },
       "thermostat_loop_1": {
         "name": "Thermostat Kreis 1 Aktiv"
@@ -677,7 +677,7 @@
         "name": "Reservequelle (Elektroheizung)"
       },
       "additional_source_switch": {
-        "name": "Zusätzliche Quelle"
+        "name": "Steuerung zusätzliche Quelle"
       }
     },
     "select": {
@@ -766,22 +766,22 @@
     },
     "climate": {
       "dhw_temperature": {
-        "name": "Warmwassertemperatur"
+        "name": "Warmwasser-Thermostat"
       },
       "loop_1_temperature": {
-        "name": "Loop 1 Temperatur"
+        "name": "Thermostat Heizkreis 1"
       },
       "loop_2_temperature": {
-        "name": "Loop 2 Temperatur"
+        "name": "Thermostat Heizkreis 2"
       },
       "loop_3_temperature": {
-        "name": "Loop 3 Temperatur"
+        "name": "Thermostat Heizkreis 3"
       },
       "loop_4_temperature": {
-        "name": "Loop 4 Temperatur"
+        "name": "Thermostat Heizkreis 4"
       },
       "reservoir_temperature": {
-        "name": "Speichertemperatur"
+        "name": "Speicher-Thermostat"
       }
     },
     "button": {
