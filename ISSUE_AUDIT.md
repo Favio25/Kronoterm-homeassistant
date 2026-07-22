@@ -1,8 +1,8 @@
 # Kronoterm issue audit and v1.6.9 fix validation
 
-## v1.6.10 follow-up hardening
+## v1.7.0 follow-up hardening
 
-Version 1.6.10 completes the safe follow-up work identified by this audit:
+Version 1.7.0 completes the safe follow-up work identified by this audit:
 
 - Energy and calculated-power unique IDs are config-entry scoped, with a
   migration that preserves existing entity IDs while allowing multiple Cloud

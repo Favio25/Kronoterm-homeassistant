@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-07-22 - v1.6.10
+## 2026-07-22 - v1.7.0
 
 ### Added
 - Redacted Home Assistant diagnostics for Cloud and Modbus entries.

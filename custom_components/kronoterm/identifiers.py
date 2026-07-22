@@ -79,7 +79,7 @@ def calculated_power_unique_id(
 
 
 def legacy_energy_unique_id_migrations(entry_id: str) -> dict[str, str]:
-    """Map pre-1.6.10 global energy IDs to entry-scoped IDs."""
+    """Map pre-1.7.0 global energy IDs to entry-scoped IDs."""
     migrations = {
         f"{DOMAIN}_daily_{key}": daily_energy_unique_id(entry_id, key)
         for key in ENERGY_DATA_KEYS

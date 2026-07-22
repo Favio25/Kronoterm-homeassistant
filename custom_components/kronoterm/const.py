@@ -1,7 +1,7 @@
 from typing import NamedTuple, Dict, List, Set, Any, Optional
 
 DOMAIN = "kronoterm"
-INTEGRATION_VERSION = "1.6.10"
+INTEGRATION_VERSION = "1.7.0"
 CONFIG_ENTRY_VERSION = 3
 BASE_URL = "https://cloud.kronoterm.com/jsoncgi.php"
 BASE_URL_DHW = "https://cloud.kronoterm.com/dhws/jsoncgi.php"

@@ -1,4 +1,4 @@
-"""Behavioral regression tests for the v1.6.10 hardening changes."""
+"""Behavioral regression tests for the v1.7.0 hardening changes."""
 
 from __future__ import annotations
 
