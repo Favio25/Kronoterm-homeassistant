@@ -9,7 +9,8 @@
     "sensor",
     "binary_sensor",
     "number",
-    "climate"
+    "climate",
+    "recorder"
   ],
   "documentation": "https://github.com/Favio25/kronoterm-homeassistant",
   "integration_type": "device",

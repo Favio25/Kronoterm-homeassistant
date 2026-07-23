@@ -10,6 +10,8 @@
   historical-to-live cumulative handover in both hourly and five-minute
   statistics, waits for the recorder to commit, and remains idempotent when
   pressed repeatedly.
+- Home Assistant validation now recognizes the recorder dependency and all
+  setup and reconfiguration steps use the supported translation structure.
 
 ## 2026-07-22 - v1.7.0
 
