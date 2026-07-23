@@ -134,14 +134,12 @@ def cumulative_energy_rows(
     return rows, totals
 
 
-def infer_previous_live_offset(
+def energy_handover_adjustment(
     historical_sum: float,
     first_live_sum: float | None,
 ) -> float:
-    """Infer whether a prior import offset is already present on live rows."""
-    if (
-        first_live_sum is not None
-        and first_live_sum >= historical_sum - ENERGY_VALUE_EPSILON
-    ):
-        return historical_sum
-    return 0.0
+    """Return the correction that joins the first live row to history."""
+    if first_live_sum is None:
+        return 0.0
+    adjustment = historical_sum - first_live_sum
+    return 0.0 if abs(adjustment) <= ENERGY_VALUE_EPSILON else adjustment

@@ -190,20 +190,27 @@ class EnergyHistoryTests(unittest.TestCase):
         ])
         self.assertEqual(day_values[date(2026, 1, 3)]["sensor.heating"], 3.0)
 
-    def test_previous_offset_is_inferred_without_double_application(self) -> None:
+    def test_handover_adjustment_joins_history_to_live_rows(self) -> None:
         history = load_component_module("energy_history")
 
-        self.assertEqual(history.infer_previous_live_offset(100.0, 3.0), 0.0)
-        self.assertEqual(history.infer_previous_live_offset(100.0, 100.0), 100.0)
-        self.assertEqual(history.infer_previous_live_offset(100.0, 105.0), 100.0)
-        self.assertEqual(history.infer_previous_live_offset(100.0, None), 0.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, 3.0), 97.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, 100.0), 0.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, 105.0), -5.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, None), 0.0)
 
     def test_coordinator_offsets_live_tables_and_waits_for_recorder(self) -> None:
         source = (COMPONENT / "coordinator.py").read_text(encoding="utf-8")
 
         self.assertIn("recorder.async_adjust_statistics(", source)
-        self.assertIn("await recorder.async_block_till_done()", source)
-        self.assertIn("_previous_energy_reimport_totals", source)
+        self.assertGreaterEqual(
+            source.count("await recorder.async_block_till_done()"),
+            2,
+        )
+        self.assertIn("_energy_handover_adjustments", source)
+        self.assertIn("post_import = await self._get_energy_statistics", source)
+        self.assertIn("start.date() == handover_date and is_midnight", source)
+        self.assertIn("first_live_start = start", source)
+        self.assertIn("recorder.async_adjust_statistics(\n                    entity_id,\n                    first_live_start,", source)
         self.assertIn("EMPTY_HISTORY_STOP_DAYS", source)
 
 

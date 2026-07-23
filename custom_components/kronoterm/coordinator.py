@@ -30,9 +30,9 @@ from .energy_history import (
     EMPTY_HISTORY_STOP_DAYS,
     MAX_HISTORY_DAYS,
     cumulative_energy_rows,
+    energy_handover_adjustment,
     energy_window_has_data,
     energy_window_length,
-    infer_previous_live_offset,
     merge_energy_window,
     normalize_energy_series,
     trim_history_to_first_energy,
@@ -742,32 +742,57 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
 
         return min(candidates) if candidates else dt_util.now().date()
 
-    def _previous_energy_reimport_totals(
+    def _energy_handover_adjustments(
         self,
         handover_date: date,
         existing: dict[str, list[dict[str, Any]]],
-    ) -> dict[str, float]:
-        """Infer offsets already applied at the historical/live boundary."""
-        previous: dict[str, float] = {}
+    ) -> dict[str, tuple[datetime, float]]:
+        """Calculate corrections at each entity's first actual live row."""
+        adjustments: dict[str, tuple[datetime, float]] = {}
         for entity_id, rows in existing.items():
             historical_sum = 0.0
             first_live_sum: float | None = None
+            first_live_start: datetime | None = None
             for row in rows:
                 start = self._statistics_start_as_local(row.get("start"))
                 if start is None:
                     continue
                 row_sum = float(row.get("sum") or 0.0)
-                if start.date() < handover_date:
+                is_midnight = (
+                    start.hour == 0
+                    and start.minute == 0
+                    and start.second == 0
+                    and start.microsecond == 0
+                )
+                if start.date() < handover_date or (
+                    start.date() == handover_date and is_midnight
+                ):
                     historical_sum = row_sum
-                elif first_live_sum is None:
+                elif start.date() >= handover_date and first_live_sum is None:
                     first_live_sum = row_sum
+                    first_live_start = start
                     break
 
-            previous[entity_id] = infer_previous_live_offset(
+            _LOGGER.debug(
+                "Energy boundary for %s: historical=%.6f, first_live=%s",
+                entity_id,
+                historical_sum,
+                (
+                    f"{first_live_sum:.6f}"
+                    if first_live_sum is not None
+                    else "missing"
+                ),
+            )
+            adjustment = energy_handover_adjustment(
                 historical_sum,
                 first_live_sum,
             )
-        return previous
+            if first_live_start is not None:
+                adjustments[entity_id] = (
+                    dt_util.as_utc(first_live_start),
+                    adjustment,
+                )
+        return adjustments
 
     async def reimport_all_energy_statistics(self) -> None:
         """Rebuild available energy history and join it to live statistics."""
@@ -842,14 +867,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             _LOGGER.warning("No non-zero Kronoterm energy history found")
             return
 
-        rows, totals = cumulative_energy_rows(
+        rows, _totals = cumulative_energy_rows(
             day_values,
             statistic_ids,
             handover_date,
-        )
-        previous_totals = self._previous_energy_reimport_totals(
-            handover_date,
-            existing,
         )
         recorder = get_instance(self.hass)
 
@@ -880,19 +901,35 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             }
             async_import_statistics(self.hass, metadata, imported_rows)
 
-        handover_start = dt_util.as_utc(
-            datetime.combine(
-                handover_date,
-                datetime.min.time(),
-                tzinfo=dt_util.DEFAULT_TIME_ZONE,
-            )
+        # Home Assistant may rewrite later sums while imported rows are merged.
+        # Wait for that work, inspect the resulting boundary, and only then join
+        # the live series to the final historical total. This is idempotent and
+        # also repairs offsets left by older versions of the integration.
+        await recorder.async_block_till_done()
+        post_import = await self._get_energy_statistics(statistic_ids)
+        adjustments = self._energy_handover_adjustments(
+            handover_date,
+            post_import,
         )
         for entity_id in statistic_ids:
-            adjustment = totals[entity_id] - previous_totals[entity_id]
+            correction = adjustments.get(entity_id)
+            if correction is None:
+                _LOGGER.debug(
+                    "No live statistics boundary found for %s",
+                    entity_id,
+                )
+                continue
+            first_live_start, adjustment = correction
+            _LOGGER.debug(
+                "Energy handover adjustment for %s at %s: %.6f kWh",
+                entity_id,
+                first_live_start,
+                adjustment,
+            )
             if abs(adjustment) > 1e-9:
                 recorder.async_adjust_statistics(
                     entity_id,
-                    handover_start,
+                    first_live_start,
                     adjustment,
                     "kWh",
                 )
