@@ -20,10 +20,6 @@
           "cloud_type": "Select Heat Pump Type"
         }
       },
-      "cloud_type": {
-        "cloud": "Heating heat pump",
-        "dhw": "Sanitary water heat pump"
-      },
       "reauth_confirm": {
         "title": "Reconnect Kronoterm Cloud",
         "description": "Enter valid credentials for this Kronoterm Cloud connection.",
@@ -32,20 +28,95 @@
           "password": "Password"
         }
       },
-      "modbus": {
+      "modbus_transport": {
+        "title": "Modbus Transport",
+        "description": "Choose how Home Assistant connects to your heat pump",
+        "data": {
+          "transport": "Transport"
+        }
+      },
+      "modbus_tcp": {
         "title": "Modbus TCP Configuration",
         "description": "Configure local Modbus TCP connection to your heat pump",
         "data": {
           "host": "IP Address",
           "port": "Port",
           "unit_id": "Modbus Unit ID",
-          "model": "Heat Pump Model"
+          "timeout": "Timeout"
         },
         "data_description": {
           "host": "IP address of your Kronoterm heat pump on local network",
           "port": "Modbus TCP port (default: 502)",
           "unit_id": "Modbus slave address (default: 20)",
-          "model": "Select your heat pump model for accurate energy calculation"
+          "timeout": "Connection timeout in seconds"
+        }
+      },
+      "modbus_rtu": {
+        "title": "Modbus RTU Configuration",
+        "description": "Configure a local Modbus RTU connection to your heat pump",
+        "data": {
+          "serial_port": "Serial Port",
+          "baudrate": "Baud Rate",
+          "bytesize": "Data Bits",
+          "parity": "Parity",
+          "stopbits": "Stop Bits",
+          "timeout": "Timeout",
+          "unit_id": "Modbus Unit ID"
+        }
+      },
+      "reconfigure_connection_type": {
+        "title": "Change Connection Type",
+        "description": "Current connection: {current_type}. Choose a new connection type; existing entities will be preserved.",
+        "data": {
+          "connection_type": "Connection Type"
+        }
+      },
+      "reconfigure_cloud": {
+        "title": "Cloud API Configuration",
+        "description": "Configure the cloud connection; existing entities will be preserved.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "cloud_type": "Heat Pump Type"
+        },
+        "data_description": {
+          "cloud_type": "Select Heat Pump Type"
+        }
+      },
+      "reconfigure_modbus_transport": {
+        "title": "Modbus Transport",
+        "description": "Choose the new Modbus transport; existing entities will be preserved.",
+        "data": {
+          "transport": "Transport"
+        }
+      },
+      "reconfigure_modbus_tcp": {
+        "title": "Modbus TCP Configuration",
+        "description": "Configure the local Modbus TCP connection; existing entities will be preserved.",
+        "data": {
+          "host": "IP Address",
+          "port": "Port",
+          "unit_id": "Modbus Unit ID",
+          "timeout": "Timeout"
+        },
+        "data_description": {
+          "host": "IP address of your Kronoterm heat pump on local network",
+          "port": "Modbus TCP port (default: 502)",
+          "unit_id": "Modbus slave address (default: 20)",
+          "timeout": "Connection timeout in seconds"
+        }
+      },
+      "reconfigure_modbus_rtu": {
+        "title": "Modbus RTU Configuration",
+        "description": "Configure the local Modbus RTU connection; existing entities will be preserved.",
+        "data": {
+          "serial_port": "Serial Port",
+          "baudrate": "Baud Rate",
+          "bytesize": "Data Bits",
+          "parity": "Parity",
+          "stopbits": "Stop Bits",
+          "timeout": "Timeout",
+          "unit_id": "Modbus Unit ID"
         }
       }
     },
@@ -80,51 +151,6 @@
       "cannot_connect": "Failed to connect to the device.",
       "invalid_auth": "Invalid username or password.",
       "unknown": "Unexpected error occurred."
-    }
-  },
-  "reconfigure": {
-    "step": {
-      "reconfigure_connection_type": {
-        "title": "Change Connection Type",
-        "description": "Current connection: {current_type}. Choose new connection type (entities will be preserved)",
-        "data": {
-          "connection_type": "Connection Type"
-        }
-      },
-      "reconfigure_cloud": {
-        "title": "Cloud API Configuration",
-        "description": "Configure cloud connection (entities will be preserved)",
-        "data": {
-          "username": "Username",
-          "password": "Password",
-          "cloud_type": "Heat Pump Type"
-        },
-        "data_description": {
-          "cloud_type": "Select Heat Pump Type"
-        }
-      },
-      "reconfigure_modbus": {
-        "title": "Modbus TCP Configuration",
-        "description": "Configure local Modbus connection (entities will be preserved)",
-        "data": {
-          "host": "IP Address",
-          "port": "Port",
-          "unit_id": "Modbus Unit ID",
-          "model": "Heat Pump Model"
-        },
-        "data_description": {
-          "host": "IP address of your Kronoterm heat pump on local network",
-          "port": "Modbus TCP port (default: 502)",
-          "unit_id": "Modbus slave address (default: 20)",
-          "model": "Select your heat pump model for accurate energy calculation"
-        }
-      }
-    },
-    "error": {
-      "cannot_connect": "Failed to connect to the device. Please check the connection details.",
-      "cannot_read": "Connected but failed to read data from device. Check unit ID.",
-      "invalid_auth": "Invalid username or password.",
-      "unknown": "Unexpected error occurred. Check logs for details."
     }
   },
   "entity": {

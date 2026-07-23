@@ -3,6 +3,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from .const import CONFIG_ENTRY_VERSION, DOMAIN
 from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator
@@ -16,6 +17,7 @@ from .identifiers import (
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor", "binary_sensor", "switch", "climate", "select", "number", "button", "text"]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
