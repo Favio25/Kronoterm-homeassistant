@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2026-07-23 - v1.7.1
+
 ### Fixed
 - Reimport Energy Statistics now stops after a year of empty Cloud history,
   removes synthetic leading zero days, batches recorder writes, preserves the
