@@ -142,7 +142,9 @@ ls /dev/tty* | grep -E "USB|AMA"
 ### Energy Monitoring
 ![Energy](images/energy.png)
 
-**Reimport warning:** Reimporting energy statistics clears existing statistics. Short‑term (hourly) bars may disappear until Home Assistant rebuilds them from recorder history.
+**Reimport behavior:** Reimporting energy statistics rebuilds the available Cloud
+history, joins it to the existing live series without a negative reset, and waits
+for Home Assistant's recorder to commit the result before reporting completion.
 
 [Example Dashboard YAML](dashboard.yaml)
 

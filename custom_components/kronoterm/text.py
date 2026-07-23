@@ -42,7 +42,8 @@ class KronotermEnergyReimportInfo(CoordinatorEntity, TextEntity):
         self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_energy_reimport_info"
         self._attr_device_info = coordinator.shared_device_info
         self._attr_native_value = (
-            "Reimport clears statistics. Hourly (short-term) stats may disappear until HA rebuilds them."
+            "Reimport rebuilds available cloud history and preserves the live "
+            "statistics handover."
         )
 
     async def async_set_value(self, value: str) -> None:
