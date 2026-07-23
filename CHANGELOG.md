@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+## 2026-07-23 - v1.7.1
+
+### Fixed
+- Reimport Energy Statistics now stops after a year of empty Cloud history,
+  removes synthetic leading zero days, batches recorder writes, preserves the
+  historical-to-live cumulative handover in both hourly and five-minute
+  statistics, waits for the recorder to commit, and remains idempotent when
+  pressed repeatedly.
+
 ## 2026-07-22 - v1.7.0
 
 ### Added

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+from datetime import date
 from pathlib import Path
 import sys
 import types
@@ -103,6 +104,114 @@ class IdentifierTests(unittest.TestCase):
             ),
             "modbus:tcp:10.0.0.42:502:20",
         )
+
+
+class EnergyHistoryTests(unittest.TestCase):
+    def test_zero_only_windows_are_not_treated_as_real_history(self) -> None:
+        history = load_component_module("energy_history")
+        series = history.normalize_energy_series(
+            {
+                "heating": [0, "0.0", None],
+                "dhw": [float("nan"), float("inf"), "bad"],
+            },
+            ("heating", "dhw"),
+        )
+
+        self.assertFalse(history.energy_window_has_data(series))
+        series["dhw"][-1] = 0.25
+        self.assertTrue(history.energy_window_has_data(series))
+
+    def test_import_trims_leading_zeros_and_keeps_monotonic_totals(self) -> None:
+        history = load_component_module("energy_history")
+        entity_ids = {
+            "heating": "sensor.heating",
+            "dhw": "sensor.dhw",
+            "combined": "sensor.combined",
+        }
+        day_values = {}
+        history.merge_energy_window(
+            day_values,
+            date(2026, 1, 4),
+            {
+                "heating": [0.0, 2.0, -1.0, 4.0],
+                "dhw": [0.0, 1.0, 0.5, 3.0],
+            },
+            entity_ids,
+            ("heating", "dhw"),
+        )
+
+        trimmed = history.trim_history_to_first_energy(day_values)
+        self.assertEqual(min(trimmed), date(2026, 1, 2))
+
+        rows, totals = history.cumulative_energy_rows(
+            trimmed,
+            entity_ids.values(),
+            date(2026, 1, 4),
+        )
+        self.assertEqual(
+            rows["sensor.heating"],
+            [(date(2026, 1, 2), 2.0), (date(2026, 1, 3), 2.0)],
+        )
+        self.assertEqual(totals["sensor.dhw"], 1.5)
+        self.assertEqual(totals["sensor.combined"], 3.0)
+        self.assertTrue(all(
+            current >= previous
+            for entity_rows in rows.values()
+            for previous, current in zip(
+                (value for _day, value in entity_rows),
+                (value for _day, value in entity_rows[1:]),
+            )
+        ))
+
+    def test_overlapping_cloud_windows_do_not_duplicate_days(self) -> None:
+        history = load_component_module("energy_history")
+        entity_ids = {"heating": "sensor.heating"}
+        day_values = {}
+        history.merge_energy_window(
+            day_values,
+            date(2026, 1, 4),
+            {"heating": [3.0, 4.0]},
+            entity_ids,
+            ("heating",),
+        )
+        history.merge_energy_window(
+            day_values,
+            date(2026, 1, 3),
+            {"heating": [1.0, 2.0, 99.0]},
+            entity_ids,
+            ("heating",),
+        )
+
+        self.assertEqual(sorted(day_values), [
+            date(2026, 1, 1),
+            date(2026, 1, 2),
+            date(2026, 1, 3),
+            date(2026, 1, 4),
+        ])
+        self.assertEqual(day_values[date(2026, 1, 3)]["sensor.heating"], 3.0)
+
+    def test_handover_adjustment_joins_history_to_live_rows(self) -> None:
+        history = load_component_module("energy_history")
+
+        self.assertEqual(history.energy_handover_adjustment(100.0, 3.0), 97.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, 100.0), 0.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, 105.0), -5.0)
+        self.assertEqual(history.energy_handover_adjustment(100.0, None), 0.0)
+
+    def test_coordinator_offsets_live_tables_and_waits_for_recorder(self) -> None:
+        source = (COMPONENT / "coordinator.py").read_text(encoding="utf-8")
+
+        self.assertIn("recorder.async_adjust_statistics(", source)
+        self.assertGreaterEqual(
+            source.count("await recorder.async_block_till_done()"),
+            2,
+        )
+        self.assertIn("_energy_handover_adjustments", source)
+        self.assertIn("post_import = await self._get_energy_statistics", source)
+        self.assertIn("start.date() == handover_date and is_midnight", source)
+        self.assertIn("first_live_start = start", source)
+        self.assertIn("recorder.async_adjust_statistics(\n                    entity_id,\n                    first_live_start,", source)
+        self.assertIn("EMPTY_HISTORY_STOP_DAYS", source)
 
 
 class ModbusAddressTests(unittest.TestCase):

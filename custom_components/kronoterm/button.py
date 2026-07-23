@@ -44,7 +44,10 @@ class KronotermReimportEnergyButton(CoordinatorEntity, ButtonEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
-            "warning": "Reimport clears statistics. Short-term (hourly) stats may disappear until HA rebuilds them.",
+            "warning": (
+                "Reimport rebuilds available cloud history and preserves the "
+                "live statistics handover."
+            ),
         }
 
     def __init__(self, coordinator: Any, entry: ConfigEntry) -> None:

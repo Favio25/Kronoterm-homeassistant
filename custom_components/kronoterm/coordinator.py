@@ -4,7 +4,7 @@ import aiohttp
 import json
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, time as datetime_time, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from aiohttp.client_exceptions import ClientError, ClientResponseError
@@ -25,6 +25,17 @@ from .identifiers import (
     ENERGY_DATA_KEYS,
     combined_energy_unique_id,
     daily_energy_unique_id,
+)
+from .energy_history import (
+    EMPTY_HISTORY_STOP_DAYS,
+    MAX_HISTORY_DAYS,
+    cumulative_energy_rows,
+    energy_handover_adjustment,
+    energy_window_has_data,
+    energy_window_length,
+    merge_energy_window,
+    normalize_energy_series,
+    trim_history_to_first_energy,
 )
 
 from .const import (
@@ -255,6 +266,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         self._last_stats_sync_date = None
         self._energy_statistic_ids = None
         self._stats_metadata_reset = False
+        self._energy_reimport_lock = asyncio.Lock()
         self.previous_day_energy: dict[str, float] = {}
         self.previous_day_energy_date = None
 
@@ -680,103 +692,258 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             return 0.0
         return float(rows[-1].get("sum") or 0.0)
 
+    async def _get_energy_statistics(
+        self,
+        entity_ids: set[str],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Return enough hourly statistics to locate the live-data handover."""
+        start = dt_util.utcnow() - timedelta(days=MAX_HISTORY_DAYS)
+
+        def _fetch():
+            return statistics_during_period(
+                self.hass,
+                start,
+                None,
+                entity_ids,
+                "hour",
+                None,
+                {"sum"},
+            )
+
+        recorder = get_instance(self.hass)
+        return await recorder.async_add_executor_job(_fetch)
+
+    @staticmethod
+    def _statistics_start_as_local(value: Any) -> datetime | None:
+        """Normalize a statistics start value and convert it to local time."""
+        if isinstance(value, (int, float)):
+            value = dt_util.utc_from_timestamp(value)
+        elif isinstance(value, str):
+            value = dt_util.parse_datetime(value)
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=dt_util.UTC)
+        return dt_util.as_local(value)
+
+    def _find_energy_handover_date(
+        self,
+        existing: dict[str, list[dict[str, Any]]],
+    ) -> date:
+        """Find the first day containing recorder-generated hourly rows."""
+        candidates: list[date] = []
+        for rows in existing.values():
+            for row in rows:
+                start = self._statistics_start_as_local(row.get("start"))
+                if start is None or start.time() == datetime_time.min:
+                    continue
+                candidates.append(start.date())
+                break
+
+        return min(candidates) if candidates else dt_util.now().date()
+
+    def _energy_handover_adjustments(
+        self,
+        handover_date: date,
+        existing: dict[str, list[dict[str, Any]]],
+    ) -> dict[str, tuple[datetime, float]]:
+        """Calculate corrections at each entity's first actual live row."""
+        adjustments: dict[str, tuple[datetime, float]] = {}
+        for entity_id, rows in existing.items():
+            historical_sum = 0.0
+            first_live_sum: float | None = None
+            first_live_start: datetime | None = None
+            for row in rows:
+                start = self._statistics_start_as_local(row.get("start"))
+                if start is None:
+                    continue
+                row_sum = float(row.get("sum") or 0.0)
+                is_midnight = (
+                    start.hour == 0
+                    and start.minute == 0
+                    and start.second == 0
+                    and start.microsecond == 0
+                )
+                if start.date() < handover_date or (
+                    start.date() == handover_date and is_midnight
+                ):
+                    historical_sum = row_sum
+                elif start.date() >= handover_date and first_live_sum is None:
+                    first_live_sum = row_sum
+                    first_live_start = start
+                    break
+
+            _LOGGER.debug(
+                "Energy boundary for %s: historical=%.6f, first_live=%s",
+                entity_id,
+                historical_sum,
+                (
+                    f"{first_live_sum:.6f}"
+                    if first_live_sum is not None
+                    else "missing"
+                ),
+            )
+            adjustment = energy_handover_adjustment(
+                historical_sum,
+                first_live_sum,
+            )
+            if first_live_start is not None:
+                adjustments[entity_id] = (
+                    dt_util.as_utc(first_live_start),
+                    adjustment,
+                )
+        return adjustments
+
     async def reimport_all_energy_statistics(self) -> None:
-        """Re-import all available energy statistics by walking backwards until no data."""
+        """Rebuild available energy history and join it to live statistics."""
+        async with self._energy_reimport_lock:
+            await self._reimport_all_energy_statistics()
+
+    async def _reimport_all_energy_statistics(self) -> None:
+        """Perform one bounded, monotonic, idempotent energy-history import."""
         entity_ids = await self._get_energy_statistic_entity_ids()
         if not entity_ids:
             _LOGGER.warning("No energy statistic entities found for reimport")
             return
 
-        current = dt_util.now().date() - timedelta(days=1)
-        max_days = 3650
-        empty_days = 0
-        last_imported = None
-        day_values: dict[datetime.date, dict[str, float]] = {}
+        statistic_ids = set(entity_ids.values())
+        existing = await self._get_energy_statistics(statistic_ids)
+        handover_date = self._find_energy_handover_date(existing)
+        current = min(
+            dt_util.now().date() - timedelta(days=1),
+            handover_date - timedelta(days=1),
+        )
+        remaining_days = MAX_HISTORY_DAYS
+        empty_history_days = 0
+        day_values: dict[date, dict[str, float]] = {}
 
-        while max_days > 0:
+        while remaining_days > 0:
             consumption = await self._fetch_consumption_for_date(current)
             trend = consumption.get("trend_consumption") if consumption else None
             if trend:
-                keys = list(ENERGY_DATA_KEYS)
-                series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
-                length = max((len(v) for v in series_map.values()), default=0)
-                if length == 0:
-                    empty_days += 1
-                else:
-                    window_start = current - timedelta(days=length - 1)
-                    for offset in range(length):
-                        day = window_start + timedelta(days=offset)
-                        if day in day_values:
-                            continue
-
-                        day_values[day] = {}
-                        for key, entity_id in entity_ids.items():
-                            if key == "combined":
-                                value = sum(
-                                    series_map.get(k, [0.0] * length)[offset]
-                                    if offset < len(series_map.get(k, [])) else 0.0
-                                    for k in keys
-                                )
-                            else:
-                                values = series_map.get(key, [])
-                                if offset >= len(values):
-                                    continue
-                                value = values[offset]
-
-                            day_values[day][entity_id] = value
-
-                    _LOGGER.info("Consumption window: %s → %s (len=%s)", window_start, window_start + timedelta(days=length - 1), length)
-                    last_imported = current
-                    empty_days = 0
+                series_map = normalize_energy_series(trend, ENERGY_DATA_KEYS)
+                length = energy_window_length(series_map)
+                if length:
+                    window = merge_energy_window(
+                        day_values,
+                        current,
+                        series_map,
+                        entity_ids,
+                        ENERGY_DATA_KEYS,
+                    )
+                    assert window is not None
+                    window_start, window_end = window
+                    has_energy = energy_window_has_data(series_map)
+                    _LOGGER.info(
+                        "Consumption window: %s -> %s (len=%s, energy=%s)",
+                        window_start,
+                        window_end,
+                        length,
+                        has_energy,
+                    )
+                    empty_history_days = (
+                        0 if has_energy else empty_history_days + length
+                    )
                     current = window_start - timedelta(days=1)
-                    max_days -= length
-                    continue
+                    remaining_days -= length
+                else:
+                    empty_history_days += 1
+                    current -= timedelta(days=1)
+                    remaining_days -= 1
             else:
-                _LOGGER.debug("No consumption data for %s (empty streak %s)", current, empty_days + 1)
-                empty_days += 1
+                empty_history_days += 1
+                current -= timedelta(days=1)
+                remaining_days -= 1
 
-            if empty_days >= 7:
-                _LOGGER.info("Stopping backward scan after %s consecutive empty days. Last imported: %s", empty_days, last_imported)
+            if empty_history_days >= EMPTY_HISTORY_STOP_DAYS:
+                _LOGGER.info(
+                    "Stopping backward scan after %s consecutive empty days",
+                    empty_history_days,
+                )
                 break
 
-            current -= timedelta(days=1)
-            max_days -= 1
+        day_values = trim_history_to_first_energy(day_values)
+        if not day_values:
+            _LOGGER.warning("No non-zero Kronoterm energy history found")
+            return
 
-        running_totals = {k: 0.0 for k in entity_ids.values()}
-        today = dt_util.now().date()
-        cutoff = today - timedelta(days=1)
-        _LOGGER.info("Importing up to day before yesterday. Today=%s, max_day=%s", today, max(day_values.keys()) if day_values else None)
-        for day in sorted(day_values.keys()):
-            if day >= cutoff:
-                continue
-            for entity_id, value in day_values[day].items():
-                running_totals[entity_id] += value
+        rows, _totals = cumulative_energy_rows(
+            day_values,
+            statistic_ids,
+            handover_date,
+        )
+        recorder = get_instance(self.hass)
+
+        for entity_id in statistic_ids:
+            imported_rows = []
+            for day, running_total in rows[entity_id]:
                 start_local = datetime.combine(
                     day,
                     datetime.min.time(),
                     tzinfo=dt_util.DEFAULT_TIME_ZONE,
                 )
-                start = dt_util.as_utc(start_local)
-                metadata = {
-                    "statistic_id": entity_id,
-                    "source": "recorder",
-                    "name": entity_id,
-                    "unit_of_measurement": "kWh",
-                    "unit_class": "energy",
-                    "has_sum": True,
-                    "has_mean": False,
-                    "mean_type": StatisticMeanType.NONE,
-                }
-                stats = [{
-                    "start": start,
-                    "state": running_totals[entity_id],
-                    "sum": running_totals[entity_id],
+                imported_rows.append({
+                    "start": dt_util.as_utc(start_local),
+                    "state": running_total,
+                    "sum": running_total,
                     "last_reset": None,
-                }]
-                async_import_statistics(self.hass, metadata, stats)
+                })
 
+            metadata = {
+                "statistic_id": entity_id,
+                "source": "recorder",
+                "name": entity_id,
+                "unit_of_measurement": "kWh",
+                "unit_class": "energy",
+                "has_sum": True,
+                "has_mean": False,
+                "mean_type": StatisticMeanType.NONE,
+            }
+            async_import_statistics(self.hass, metadata, imported_rows)
+
+        # Home Assistant may rewrite later sums while imported rows are merged.
+        # Wait for that work, inspect the resulting boundary, and only then join
+        # the live series to the final historical total. This is idempotent and
+        # also repairs offsets left by older versions of the integration.
+        await recorder.async_block_till_done()
+        post_import = await self._get_energy_statistics(statistic_ids)
+        adjustments = self._energy_handover_adjustments(
+            handover_date,
+            post_import,
+        )
+        for entity_id in statistic_ids:
+            correction = adjustments.get(entity_id)
+            if correction is None:
+                _LOGGER.debug(
+                    "No live statistics boundary found for %s",
+                    entity_id,
+                )
+                continue
+            first_live_start, adjustment = correction
+            _LOGGER.debug(
+                "Energy handover adjustment for %s at %s: %.6f kWh",
+                entity_id,
+                first_live_start,
+                adjustment,
+            )
+            if abs(adjustment) > 1e-9:
+                recorder.async_adjust_statistics(
+                    entity_id,
+                    first_live_start,
+                    adjustment,
+                    "kWh",
+                )
+
+        await recorder.async_block_till_done()
         self._last_stats_sync_date = dt_util.now().date()
-        _LOGGER.info("Re-imported energy statistics for all available history (backward scan)")
+        _LOGGER.info(
+            "Re-imported %s days of energy statistics (%s -> %s); "
+            "live handover=%s",
+            len(day_values),
+            min(day_values),
+            max(day_values),
+            handover_date,
+        )
 
 
 class KronotermDHWCoordinator(KronotermBaseCoordinator):
