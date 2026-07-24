@@ -782,6 +782,9 @@
       },
       "reservoir_temperature": {
         "name": "Termostat rezervoarja"
+      },
+      "pool_temperature": {
+        "name": "Termostat bazena"
       }
     },
     "button": {

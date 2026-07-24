@@ -692,10 +692,20 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         # Check if Reservoir is installed (has valid setpoint reading)
         reservoir_setpoint = data.get(2034, {}).get("value")
         self.reservoir_installed = reservoir_setpoint is not None and reservoir_setpoint > 0
-        
+
+        # Check if Pool is installed (has valid setpoint/temperature reading)
+        pool_setpoint = data.get(2080, {}).get("value")
+        pool_temp = data.get(2109, {}).get("value")
+        pool_enable = data.get(2020, {}).get("value")
+        self.pool_installed = (
+            (pool_setpoint is not None and pool_setpoint > 0)
+            or (pool_temp is not None and pool_temp > -50)
+            or bool(pool_enable)
+        )
+
         # Debug logging
-        _LOGGER.debug("Feature flags: loop2=%s, loop3=%s, loop4=%s, reservoir=%s (temps: %s, %s, %s, setpoint: %s)", 
-                       self.loop2_installed, self.loop3_installed, self.loop4_installed, self.reservoir_installed,
+        _LOGGER.debug("Feature flags: loop2=%s, loop3=%s, loop4=%s, reservoir=%s, pool=%s (temps: %s, %s, %s, setpoint: %s)",
+                       self.loop2_installed, self.loop3_installed, self.loop4_installed, self.reservoir_installed, self.pool_installed,
                        loop2_temp, loop3_temp, loop4_temp, reservoir_setpoint)
         
         # Check if additional source is installed

@@ -782,6 +782,9 @@
       },
       "reservoir_temperature": {
         "name": "Termostato del serbatoio"
+      },
+      "pool_temperature": {
+        "name": "Termostato piscina"
       }
     },
     "button": {

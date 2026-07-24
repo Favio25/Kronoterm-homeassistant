@@ -76,6 +76,11 @@ async def async_setup_entry(
         if coordinator.reservoir_installed:
             entities.append(KronotermModbusReservoirClimate(entry, coordinator))
             _LOGGER.debug("Reservoir installed, adding Modbus climate entity")
+
+        # Pool
+        if getattr(coordinator, "pool_installed", False):
+            entities.append(KronotermModbusPoolClimate(entry, coordinator))
+            _LOGGER.debug("Pool installed, adding Modbus climate entity")
     else:
         # Cloud API-based climate entities
         _LOGGER.info("Creating Cloud API-based climate entities")
@@ -100,7 +105,10 @@ async def async_setup_entry(
             if coordinator.reservoir_installed:
                 entities.append(KronotermReservoirClimate(entry, coordinator))
 
-    _LOGGER.debug("Created %d climate entities (%s mode)", 
+            if getattr(coordinator, "pool_installed", False):
+                entities.append(KronotermPoolClimate(entry, coordinator))
+
+    _LOGGER.debug("Created %d climate entities (%s mode)",
                    len(entities), "Modbus" if is_modbus else "Cloud API")
     async_add_entities(entities)
     return True
@@ -742,6 +750,74 @@ class KronotermReservoirClimate(KronotermJsonClimate):
             await self.coordinator.async_request_refresh()
 
 
+#
+#   Pool
+#
+class KronotermPoolClimate(KronotermJsonClimate):
+    """Climate entity for the swimming pool circuit."""
+
+    PRESET_MAP = {0: "OFF", 1: "ON", 2: "AUTO"}
+    PRESET_TO_VALUE = {v: k for k, v in PRESET_MAP.items()}
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            data_key="pool",
+            current_temp_json_key="pool_temp",
+            target_temp_json_key="circle_temp",
+            current_temp_section="TemperaturesAndConfig",
+            fallback_name="Pool Thermostat",
+            translation_key="pool_temperature",
+            unique_id_suffix="pool_climate",
+            min_temp=20,
+            max_temp=35,
+            page=10,
+            supports_cooling=False,
+        )
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        self._attr_preset_modes = list(self.PRESET_TO_VALUE.keys())
+
+    def _get_preset_value(self) -> Optional[int]:
+        data = self._json_data or {}
+        mode_blob = data.get("HeatingCircleData", {})
+        for key in ("mode", "operation_mode", "circle_mode", "loop_mode"):
+            raw = mode_blob.get(key)
+            if raw is None:
+                continue
+            try:
+                return int(float(raw))
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    @property
+    def current_temperature(self) -> float | None:
+        return super().current_temperature
+
+    @property
+    def target_temperature(self) -> float | None:
+        return super().target_temperature
+
+    @property
+    def preset_mode(self) -> str | None:
+        value = self._get_preset_value()
+        if value is None:
+            return None
+        return self.PRESET_MAP.get(value)
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        value = self.PRESET_TO_VALUE.get(preset_mode)
+        if value is None:
+            _LOGGER.warning("Unknown pool preset_mode: %s", preset_mode)
+            return
+        success = await self.coordinator.async_set_loop_mode_by_page(self._page, value)
+        if not success:
+            _LOGGER.error("Failed to set pool preset_mode=%s (page=%s)", preset_mode, self._page)
+        else:
+            await self.coordinator.async_request_refresh()
+
+
 # ===================================================================
 # MODBUS-BASED CLIMATE ENTITIES
 # ===================================================================
@@ -1125,5 +1201,27 @@ class KronotermModbusReservoirClimate(KronotermModbusBaseClimate):
             target_temp_address=2034,  # reservoir_current_setpoint
             write_temp_address=getattr(coordinator, "reservoir_write_temp_address", 2305),
             operation_mode_address=2035,  # reservoir_operation_mode
+            enable_preset=True,
+        )
+
+
+class KronotermModbusPoolClimate(KronotermModbusBaseClimate):
+    """Modbus-based climate entity for the swimming pool circuit."""
+
+    def __init__(self, entry: ConfigEntry, coordinator: DataUpdateCoordinator):
+        super().__init__(
+            entry=entry,
+            coordinator=coordinator,
+            fallback_name="Pool Thermostat",
+            translation_key="pool_temperature",
+            unique_id_suffix="pool_climate",
+            min_temp=20,
+            max_temp=35,
+            current_temp_address=2109,  # pool_temperature
+            thermostat_temp_address=None,  # No thermostat for pool
+            target_temp_address=2080,  # pool_current_setpoint
+            write_temp_address=2079,  # pool_setpoint
+            operation_mode_address=2081,  # pool_operation_mode
+            supports_cooling=False,  # pool only heats
             enable_preset=True,
         )

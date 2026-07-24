@@ -54,6 +54,7 @@ API_QUERIES_GET = {
     "loop3": {"TopPage": "1", "Subpage": "7"},
     "loop4": {"TopPage": "1", "Subpage": "8"},
     "dhw": {"TopPage": "1", "Subpage": "9"},
+    "pool": {"TopPage": "1", "Subpage": "10"},
     "consumption": {"TopPage": "4", "Subpage": "4", "Action": "4"},
     "main_settings": {"TopPage": "3", "Subpage": "11"},
     "system_data": {"TopPage": "1", "Subpage": "2"},
@@ -68,6 +69,7 @@ API_QUERIES_SET = {
     "loop3": {"TopPage": "1", "Subpage": "7", "Action": "1"},
     "loop4": {"TopPage": "1", "Subpage": "8", "Action": "1"},
     "dhw": {"TopPage": "1", "Subpage": "9", "Action": "1"},
+    "pool": {"TopPage": "1", "Subpage": "10", "Action": "1"},
     "main_settings": {"TopPage": "3", "Subpage": "11", "Action": "1"},
 }
 
@@ -94,6 +96,7 @@ PAGE_TO_SET_QUERY_KEY = {
     7: "loop3",
     8: "loop4",
     9: "dhw",
+    10: "pool",
 }
 
 # ----------------------------------------------------------------------------
