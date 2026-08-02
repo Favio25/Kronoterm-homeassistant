@@ -379,6 +379,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 "reservoir",
                 "loop3",
                 "loop4",
+                "pool",
                 "main_settings",
                 "system_data",
             )
@@ -1008,7 +1009,7 @@ class KronotermDHWCoordinator(KronotermBaseCoordinator):
             data["shortcuts"] = results[1] if not isinstance(results[1], Exception) else None
             
             # Nullify others to be safe
-            for key in ["loop1", "loop2", "dhw", "reservoir", "loop3", "loop4", "main_settings", "system_data", "info", "consumption"]:
+            for key in ["loop1", "loop2", "dhw", "reservoir", "loop3", "loop4", "pool", "main_settings", "system_data", "info", "consumption"]:
                 data[key] = None
                 
             return data

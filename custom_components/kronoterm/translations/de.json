@@ -782,6 +782,9 @@
       },
       "reservoir_temperature": {
         "name": "Speicher-Thermostat"
+      },
+      "pool_temperature": {
+        "name": "Pool-Thermostat"
       }
     },
     "button": {

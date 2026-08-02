@@ -30,6 +30,8 @@ from .modbus_writes import ModbusWriteMixin
 from .value_utils import (
     combine_u16_words,
     documented_to_modbus_address,
+    is_pool_setpoint_available,
+    is_pool_temperature_available,
     KronotermTcpPacketNormalizer,
 )
 
@@ -692,15 +694,35 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         # Check if Reservoir is installed (has valid setpoint reading)
         reservoir_setpoint = data.get(2034, {}).get("value")
         self.reservoir_installed = reservoir_setpoint is not None and reservoir_setpoint > 0
-        
+
+        # Check if Pool is installed (has valid setpoint/temperature reading)
+        pool_setpoint = data.get(2080, {}).get("value")
+        pool_temp = data.get(2109, {}).get("value")
+        pool_enable = data.get(2020, {}).get("value")
+        pool_operation_mode = data.get(2081, {}).get("value")
+        self.pool_installed = (
+            is_pool_setpoint_available(pool_setpoint)
+            or is_pool_temperature_available(pool_temp)
+            or self._is_enabled_control(pool_enable)
+            or self._is_enabled_control(pool_operation_mode)
+        )
+
         # Debug logging
-        _LOGGER.debug("Feature flags: loop2=%s, loop3=%s, loop4=%s, reservoir=%s (temps: %s, %s, %s, setpoint: %s)", 
-                       self.loop2_installed, self.loop3_installed, self.loop4_installed, self.reservoir_installed,
+        _LOGGER.debug("Feature flags: loop2=%s, loop3=%s, loop4=%s, reservoir=%s, pool=%s (temps: %s, %s, %s, setpoint: %s)",
+                       self.loop2_installed, self.loop3_installed, self.loop4_installed, self.reservoir_installed, self.pool_installed,
                        loop2_temp, loop3_temp, loop4_temp, reservoir_setpoint)
         
         # Check if additional source is installed
         add_source = data.get(2002, {}).get("raw", 0)
         self.additional_source_installed = bool(add_source)
+
+    @staticmethod
+    def _is_enabled_control(value: object) -> bool:
+        """Return True when a numeric control register is explicitly enabled."""
+        try:
+            return int(float(value)) > 0
+        except (TypeError, ValueError):
+            return False
 
     async def async_shutdown(self) -> None:
         """Close Modbus connection."""

@@ -933,6 +933,9 @@
       },
       "reservoir_temperature": {
         "name": "Reservoir Thermostat"
+      },
+      "pool_temperature": {
+        "name": "Pool Thermostat"
       }
     },
     "button": {

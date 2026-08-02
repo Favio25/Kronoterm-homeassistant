@@ -100,6 +100,7 @@ class ModbusWriteMixin:
             5: 2187,  # Loop 1 setpoint
             6: 2049,  # Loop 2 setpoint
             9: 2023,  # DHW setpoint
+            10: 2079, # Pool setpoint
         }
         
         register_address = page_to_register.get(page)
@@ -140,6 +141,8 @@ class ModbusWriteMixin:
             (8, "circle_comfort_offset"): 2078,  # Loop 4 comfort
             (9, "circle_eco_offset"): 2030,      # DHW eco
             (9, "circle_comfort_offset"): 2031,  # DHW comfort
+            (10, "circle_eco_offset"): 2086,     # Pool eco
+            (10, "circle_comfort_offset"): 2087, # Pool comfort
         }
         
         register_address = offset_map.get((page, param_name))
@@ -192,6 +195,7 @@ class ModbusWriteMixin:
             7: 2062,  # Loop 3
             8: 2072,  # Loop 4
             9: 2026,  # DHW operation
+            10: 2081, # Pool operation mode
         }
         
         register_address = page_to_register.get(page)

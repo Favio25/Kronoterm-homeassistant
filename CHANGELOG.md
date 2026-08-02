@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- Swimming-pool circuit support on both Cloud API and Modbus. The pool is
+  auto-detected and exposed as a climate entity (current temperature, target
+  setpoint, and Off/Normal/Schedule preset) plus eco/comfort offset numbers,
+  matching the existing heating loops and DHW. Pool setpoint, mode, and offset
+  changes are written back over both transports.
+
 ## 2026-07-23 - v1.7.1
 
 ### Fixed
