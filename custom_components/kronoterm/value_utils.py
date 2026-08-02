@@ -1,6 +1,7 @@
 """Helpers for decoding Kronoterm register values."""
 
 UINT16_MASK = 0xFFFF
+POOL_UNAVAILABLE_TEMPERATURES = {-60.0, -40.0, 0.0}
 
 
 def combine_u16_words(high_word: int, low_word: int) -> int:
@@ -13,6 +14,24 @@ def documented_to_modbus_address(documented_address: int) -> int:
     if documented_address < 1:
         raise ValueError("Documented Modbus addresses must be positive")
     return documented_address - 1
+
+
+def is_pool_temperature_available(value: object) -> bool:
+    """Return True when a pool temperature is a real reading, not a sentinel."""
+    try:
+        temperature = float(value)
+    except (TypeError, ValueError):
+        return False
+    return temperature not in POOL_UNAVAILABLE_TEMPERATURES and 0.0 < temperature < 60.0
+
+
+def is_pool_setpoint_available(value: object) -> bool:
+    """Return True when a pool setpoint is in the documented operating range."""
+    try:
+        setpoint = float(value)
+    except (TypeError, ValueError):
+        return False
+    return 19.9 <= setpoint <= 35.0
 
 
 class KronotermTcpPacketNormalizer:

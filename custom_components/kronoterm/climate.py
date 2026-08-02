@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import (
 
 # Import the Modbus addresses needed for Loop 1
 from .const import DOMAIN  # MODIFIED: Removed Loop1 specific addrs
+from .value_utils import is_pool_temperature_available
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1225,3 +1226,11 @@ class KronotermModbusPoolClimate(KronotermModbusBaseClimate):
             supports_cooling=False,  # pool only heats
             enable_preset=True,
         )
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Return pool temperature only when the register has a real reading."""
+        pool_temp = self._get_register_value(self._current_temp_address)
+        if not is_pool_temperature_available(pool_temp):
+            return None
+        return float(pool_temp)

@@ -30,6 +30,8 @@ from .modbus_writes import ModbusWriteMixin
 from .value_utils import (
     combine_u16_words,
     documented_to_modbus_address,
+    is_pool_setpoint_available,
+    is_pool_temperature_available,
     KronotermTcpPacketNormalizer,
 )
 
@@ -697,10 +699,12 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         pool_setpoint = data.get(2080, {}).get("value")
         pool_temp = data.get(2109, {}).get("value")
         pool_enable = data.get(2020, {}).get("value")
+        pool_operation_mode = data.get(2081, {}).get("value")
         self.pool_installed = (
-            (pool_setpoint is not None and pool_setpoint > 0)
-            or (pool_temp is not None and pool_temp > -50)
-            or bool(pool_enable)
+            is_pool_setpoint_available(pool_setpoint)
+            or is_pool_temperature_available(pool_temp)
+            or self._is_enabled_control(pool_enable)
+            or self._is_enabled_control(pool_operation_mode)
         )
 
         # Debug logging
@@ -711,6 +715,14 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         # Check if additional source is installed
         add_source = data.get(2002, {}).get("raw", 0)
         self.additional_source_installed = bool(add_source)
+
+    @staticmethod
+    def _is_enabled_control(value: object) -> bool:
+        """Return True when a numeric control register is explicitly enabled."""
+        try:
+            return int(float(value)) > 0
+        except (TypeError, ValueError):
+            return False
 
     async def async_shutdown(self) -> None:
         """Close Modbus connection."""

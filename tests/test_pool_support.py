@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 from pathlib import Path
+import textwrap
+from typing import Any, Dict
 import unittest
 
 
@@ -28,6 +31,80 @@ def class_method_source(filename: str, class_name: str, method_name: str) -> str
     raise AssertionError(f"Method {class_name}.{method_name} not found in {filename}")
 
 
+def load_value_utils():
+    spec = importlib.util.spec_from_file_location(
+        "kronoterm_value_utils", COMPONENT / "value_utils.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class DummyLogger:
+    def debug(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+def pool_flag_for_registers(registers: dict[int, Any]) -> bool:
+    """Execute ModbusCoordinator._update_feature_flags against test registers."""
+    value_utils = load_value_utils()
+    method = class_method_source(
+        "modbus_coordinator.py", "ModbusCoordinator", "_update_feature_flags"
+    )
+    control_method = class_method_source(
+        "modbus_coordinator.py", "ModbusCoordinator", "_is_enabled_control"
+    )
+    class_source = "class Subject:\n"
+    class_source += textwrap.indent(control_method, "    ")
+    class_source += "\n"
+    class_source += textwrap.indent(method, "    ")
+    namespace = {
+        "Any": Any,
+        "Dict": Dict,
+        "_LOGGER": DummyLogger(),
+        "is_pool_setpoint_available": value_utils.is_pool_setpoint_available,
+        "is_pool_temperature_available": value_utils.is_pool_temperature_available,
+    }
+    exec(class_source, namespace)
+    namespace["Subject"]._is_enabled_control = staticmethod(
+        namespace["Subject"]._is_enabled_control
+    )
+    subject = namespace["Subject"]()
+    data = {
+        address: {"value": value, "raw": value}
+        for address, value in registers.items()
+    }
+    subject._update_feature_flags(data)
+    return subject.pool_installed
+
+
+def modbus_pool_current_temperature(value: Any) -> float | None:
+    """Execute KronotermModbusPoolClimate.current_temperature for one register."""
+    value_utils = load_value_utils()
+    method = class_method_source(
+        "climate.py", "KronotermModbusPoolClimate", "current_temperature"
+    )
+    class_source = """class Subject:
+    def __init__(self, value):
+        self._value = value
+        self._current_temp_address = 2109
+
+    def _get_register_value(self, address):
+        return self._value
+
+"""
+    class_source += textwrap.indent(method, "    ")
+    namespace = {
+        "is_pool_temperature_available": value_utils.is_pool_temperature_available,
+    }
+    exec(class_source, namespace)
+    current_temperature = namespace["Subject"](value).current_temperature
+    if callable(current_temperature):
+        return current_temperature()
+    return current_temperature
+
+
 POOL_REGISTERS = {
     2079: "pool_setpoint",
     2080: "pool_current_setpoint",
@@ -40,13 +117,24 @@ POOL_REGISTERS = {
 
 class PoolLoopSupport(unittest.TestCase):
     def test_modbus_coordinator_detects_pool_installed(self) -> None:
-        """pool_installed is derived from live readings, not left hardcoded False."""
-        flags = class_method_source(
-            "modbus_coordinator.py", "ModbusCoordinator", "_update_feature_flags"
-        )
-        self.assertIn("self.pool_installed", flags)
-        self.assertIn("2080", flags)
-        self.assertIn("2109", flags)
+        """pool_installed is derived from live pool readings/controls."""
+        self.assertTrue(pool_flag_for_registers({2109: 12.5}))
+        self.assertTrue(pool_flag_for_registers({2080: 25.0}))
+        self.assertTrue(pool_flag_for_registers({2020: 1}))
+        self.assertTrue(pool_flag_for_registers({2081: 2}))
+
+    def test_modbus_pool_detection_ignores_unavailable_sentinels(self) -> None:
+        """Unavailable pool readings must not create phantom pool entities."""
+        for value in (None, -60.0, -40.0, 0.0, "unknown"):
+            with self.subTest(value=value):
+                self.assertFalse(pool_flag_for_registers({2109: value}))
+
+    def test_modbus_pool_climate_hides_unavailable_temperatures(self) -> None:
+        """The pool climate does not expose controller sentinel values."""
+        for value in (None, -60.0, -40.0, 0.0, "unknown"):
+            with self.subTest(value=value):
+                self.assertIsNone(modbus_pool_current_temperature(value))
+        self.assertEqual(modbus_pool_current_temperature(12.5), 12.5)
 
     def test_modbus_offset_write_maps_pool_page_ten(self) -> None:
         """Pool eco/comfort offsets write to their page-10 registers."""
