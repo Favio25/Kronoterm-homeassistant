@@ -33,6 +33,8 @@ from .value_utils import (
     is_pool_setpoint_available,
     is_pool_temperature_available,
     KronotermTcpPacketNormalizer,
+    PERFORMANCE_FACTOR_NAMES,
+    normalize_performance_factor,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -442,7 +444,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 
                 # Process results
                 for reg_def, raw_value in register_values.values():
-                    precision = 3 if reg_def.name_en == "scop_value" else 2
+                    precision = 2
                     # Process based on register type
                     if reg_def.type == "Enum":
                         value = raw_value
@@ -450,6 +452,10 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                         value = raw_value
                     elif reg_def.type in ("Status", "Control"):
                         value = raw_value
+                    elif reg_def.name_en in PERFORMANCE_FACTOR_NAMES:
+                        value = normalize_performance_factor(raw_value)
+                        if value is None:
+                            continue
                     else:
                         # Scaled numeric value (Value or Value32)
                         if reg_def.scale and reg_def.scale != 1.0:

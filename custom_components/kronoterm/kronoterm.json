@@ -2855,8 +2855,7 @@
       "access": "Read",
       "unit": null,
       "source": "Page 9, 20",
-      "name_en": "cop_value",
-      "scale": 0.01
+      "name_en": "cop_value"
     },
     {
       "address": 2372,
@@ -2865,8 +2864,7 @@
       "access": "Read",
       "unit": null,
       "source": "Page 9, 20",
-      "name_en": "scop_value",
-      "scale": 0.001
+      "name_en": "scop_value"
     }
   ]
 }

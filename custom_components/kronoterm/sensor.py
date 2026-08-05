@@ -27,7 +27,12 @@ from .const import (
 )
 from .entities import KronotermModbusBase
 from .coordinator import KronotermMainCoordinator, KronotermDHWCoordinator # Add this import
-from .value_utils import combine_u16_words
+from .value_utils import (
+    combine_u16_words,
+    is_measured_temperature_plausible,
+    normalize_performance_factor,
+    PERFORMANCE_FACTOR_NAMES,
+)
 
 # Import RegisterDefinition for type hints (may not exist if register_map not loaded)
 try:
@@ -168,6 +173,8 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
             raw_value = re.sub(r"[^\d\.\-]", "", raw_value)
         if raw_value == "":
             return None
+        if self._name_key in PERFORMANCE_FACTOR_NAMES:
+            return normalize_performance_factor(raw_value)
         val = float(raw_value)
         if self._scale != 1:
             val *= self._scale
@@ -241,8 +248,21 @@ class KronotermModbusRegSensor(KronotermModbusBase, SensorEntity):
                     return 0.0
                 return round(max(0.0, capacity / cop), 1)
 
-        # Normal processing for non-setpoint sensors (no value filter!)
-        return self._compute_value()
+        # Normal processing for non-setpoint sensors.
+        value = self._compute_value()
+        if (
+            value is not None
+            and self._unit == "°C"
+            and not is_measured_temperature_plausible(value)
+        ):
+            _LOGGER.debug(
+                "Ignoring implausible temperature %.2f°C for sensor %s (addr %s)",
+                value,
+                self._name_key,
+                self._address,
+            )
+            return None
+        return value
 
 
 class KronotermEnumSensor(KronotermModbusBase, SensorEntity):
@@ -928,14 +948,12 @@ async def _async_setup_modbus_entities(
                     device_info=device_info,
                     scale=1.0,  # Coordinator already scaled the value
                     icon=_get_icon_for_register(reg_def),
-                    precision=3 if reg_def.name_en == "scop_value" else 2,
+                    precision=2,
                 )
                 if reg_def.name_en in ("cop_value", "scop_value"):
                     entity._attr_state_class = SensorStateClass.MEASUREMENT
                     entity._attr_native_unit_of_measurement = ""
-                    entity._attr_suggested_display_precision = (
-                        3 if reg_def.name_en == "scop_value" else 2
-                    )
+                    entity._attr_suggested_display_precision = 2
                 
                 # Apply device and state classes based on unit/type
                 # Explicit state_class for key sensors (avoid HA repairs)

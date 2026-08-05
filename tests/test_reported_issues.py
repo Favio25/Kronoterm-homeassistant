@@ -141,7 +141,7 @@ class ReportedIssueRegressions(unittest.TestCase):
         self.assertIn('fallback_name="Loop 2 Thermostat"', climates)
         self.assertIn('fallback_name="DHW Thermostat"', climates)
 
-    def test_issue_52_energy_labels_and_scales_match_register_meaning(self) -> None:
+    def test_issue_52_energy_labels_match_register_meaning(self) -> None:
         """Electrical and thermal totals use the documented register pairs."""
         definitions = json.loads((COMPONENT / "kronoterm.json").read_text(encoding="utf-8"))
         registers = {item["address"]: item for item in definitions["registers"]}
@@ -152,8 +152,45 @@ class ReportedIssueRegressions(unittest.TestCase):
         self.assertEqual(registers[2363]["name_en"], "heating_energy_heating_dhw")
         self.assertEqual(registers[2363]["register32_low"], 2364)
         self.assertEqual(registers[2363]["unit"], "x 0.1 kWh")
-        self.assertEqual(registers[2371]["scale"], 0.01)
-        self.assertEqual(registers[2372]["scale"], 0.001)
+        self.assertNotIn("scale", registers[2371])
+        self.assertNotIn("scale", registers[2372])
+
+    def test_issue_60_cop_scop_scaling_is_dynamic(self) -> None:
+        """COP/SCOP values normalize across common controller encodings."""
+        spec = importlib.util.spec_from_file_location(
+            "kronoterm_value_utils", COMPONENT / "value_utils.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+
+        for raw in (4.63, 46.3, 463, 4630):
+            with self.subTest(raw=raw):
+                self.assertEqual(module.normalize_performance_factor(raw), 4.63)
+        self.assertEqual(module.normalize_performance_factor(0), 0.0)
+        self.assertIsNone(module.normalize_performance_factor(-1))
+
+        coordinator = class_method_source(
+            "modbus_coordinator.py", "ModbusCoordinator", "_async_update_data"
+        )
+        self.assertIn("normalize_performance_factor(raw_value)", coordinator)
+
+    def test_issue_59_modbus_temperature_spikes_are_rejected(self) -> None:
+        """Modbus temperature sensors ignore implausible one-off high samples."""
+        spec = importlib.util.spec_from_file_location(
+            "kronoterm_value_utils", COMPONENT / "value_utils.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+
+        self.assertTrue(module.is_measured_temperature_plausible(-40.0))
+        self.assertTrue(module.is_measured_temperature_plausible(35.0))
+        self.assertFalse(module.is_measured_temperature_plausible(204.8))
+
+        sensor = source("sensor.py")
+        self.assertIn("is_measured_temperature_plausible", sensor)
+        self.assertIn('self._unit == "°C"', sensor)
 
     def test_issue_52_value32_reader_combines_both_unsigned_words(self) -> None:
         """Live totals independently reproduce the controller's SCOP."""
