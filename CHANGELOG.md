@@ -2,12 +2,22 @@
 
 ## Unreleased
 
+## 2026-08-05 - v1.7.2
+
 ### Added
 - Swimming-pool circuit support on both Cloud API and Modbus. The pool is
   auto-detected and exposed as a climate entity (current temperature, target
   setpoint, and Off/Normal/Schedule preset) plus eco/comfort offset numbers,
   matching the existing heating loops and DHW. Pool setpoint, mode, and offset
   changes are written back over both transports.
+
+### Fixed
+- Modbus COP and SCOP values now normalize dynamically across common controller
+  encodings instead of relying on one hardcoded scale, fixing SCOP values shown
+  ten times too low on some heat pumps.
+- Implausible one-off Modbus temperature spikes, such as outside temperature
+  readings above the sane heat-pump range, are ignored so they do not pollute
+  Home Assistant graphs or statistics.
 
 ## 2026-07-23 - v1.7.1
 

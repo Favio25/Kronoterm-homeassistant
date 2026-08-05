@@ -1,7 +1,7 @@
 from typing import NamedTuple, Dict, List, Set, Any, Optional
 
 DOMAIN = "kronoterm"
-INTEGRATION_VERSION = "1.7.1"
+INTEGRATION_VERSION = "1.7.2"
 CONFIG_ENTRY_VERSION = 3
 BASE_URL = "https://cloud.kronoterm.com/jsoncgi.php"
 BASE_URL_DHW = "https://cloud.kronoterm.com/dhws/jsoncgi.php"
@@ -185,8 +185,8 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2101, "hp_inlet_temperature", "°C", "mdi:thermometer", 1.0, True),  # Cloud API: no scaling
     SensorDefinition(2105, "temperature_compressor_inlet", "°C", "mdi:thermometer", 1.0, True),  # Cloud API: no scaling
     SensorDefinition(2106, "temperature_compressor_outlet", "°C", "mdi:thermometer", 1.0, True),  # Cloud API: no scaling
-    SensorDefinition(2371, "cop_value", "", "mdi:chart-line", 0.01, True),
-    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 0.001, True, None, 3),
+    SensorDefinition(2371, "cop_value", "", "mdi:chart-line", 1.0, True),
+    SensorDefinition(2372, "scop_value", "", "mdi:chart-line", 1.0, True, None, 2),
     SensorDefinition(2155, "compressor_activations_heating", "", "mdi:counter", 1, True),
     SensorDefinition(2157, "activations_boiler", "", "mdi:counter", 1, True),
     SensorDefinition(2158, "activations_defrost", "", "mdi:snowflake-melt", 1, True),
