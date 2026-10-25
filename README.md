@@ -148,6 +148,31 @@ for Home Assistant's recorder to commit the result before reporting completion.
 
 [Example Dashboard YAML](dashboard.yaml)
 
+### Heat Pump Hydraulic Card
+[Heat Pump Hydraulic Card](https://github.com/Sturmi77/heatpump-hydraulic-card) (HACS) shows the heat pump as an animated hydraulic schematic: working function, compressor load, defrost, the DHW tank, the heating loops with their pumps, the room thermostat, live COP, energy tiles and a 24-hour timeline. Its `kronoterm` preset finds the entities of this integration by their translation keys, with the Cloud API and with Modbus, so no entity IDs are needed:
+
+```yaml
+type: custom:heatpump-hydraulic-card
+preset: kronoterm
+hc_count: 2            # number of heating loops
+hc_type: radiator      # loop 1: underfloor (default), radiator or column
+hc2_type: underfloor   # loop 2
+```
+
+A room sensor of another integration, for example a Shelly H&T for a loop without a Kronoterm thermostat, can be added as a tile:
+
+```yaml
+tiles:
+  - energy
+  - cop_live
+  - entity: sensor.attic_temperature
+    name: Attic
+```
+
+See the card's README for all options.
+
+![Heat Pump Hydraulic Card with the Kronoterm preset](images/heatpump-hydraulic-card.png)
+
 ## Key Differences: Cloud API vs Modbus
 
 | Feature | Cloud API | Modbus TCP | Modbus RTU |
