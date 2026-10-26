@@ -202,7 +202,7 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2161, "loop_2_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
     SensorDefinition(2162, "loop_3_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
     SensorDefinition(2163, "loop_4_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
-    SensorDefinition(2325, "heating_system_pressure", "bar", "mdi:gauge", 1.0),  # Cloud API: no scaling
+    SensorDefinition(2326, "heating_system_pressure", "bar", "mdi:gauge", 1.0),  # Cloud API: no scaling
     SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),
     SensorDefinition(2129, "current_heating_cooling_power", "W", "mdi:lightning-bolt", 1.0),
     SensorDefinition(2329, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),

@@ -155,6 +155,15 @@ class ReportedIssueRegressions(unittest.TestCase):
         self.assertNotIn("scale", registers[2371])
         self.assertNotIn("scale", registers[2372])
 
+    def test_issue_67_system_pressure_reads_measured_register(self) -> None:
+        """Pressure sensor uses 2326; the 2325 alarm setting has its own name."""
+        definitions = json.loads((COMPONENT / "kronoterm.json").read_text(encoding="utf-8"))
+        registers = {item["address"]: item for item in definitions["registers"]}
+        self.assertEqual(registers[2325]["name_en"], "system_pressure_setting")
+        self.assertEqual(registers[2326]["name_en"], "heating_system_pressure")
+        self.assertIn('SensorDefinition(2326, "heating_system_pressure"', source("const.py"))
+        self.assertNotIn('SensorDefinition(2325, "heating_system_pressure"', source("const.py"))
+
     def test_issue_60_cop_scop_scaling_is_dynamic(self) -> None:
         """COP/SCOP values normalize across common controller encodings."""
         spec = importlib.util.spec_from_file_location(
