@@ -990,7 +990,7 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
     if reg_def.address == 2327:  # hp_load - current heat pump load %
         return True
 
-    # Exception: heating_system_pressure_setting (2325) is exposed read-only so the alarm limit stays visible
+    # Exception: system_pressure_setting (2325) is exposed read-only so the alarm limit stays visible
     if reg_def.address == 2325:
         return True
 

@@ -552,8 +552,8 @@
       "solar_boiler_setpoint": {
         "name": "Nastavljena vrednost solarnega bojlerja"
       },
-      "heating_system_pressure_setting": {
-        "name": "Nastavitev tlaka ogrevalnega sistema"
+      "system_pressure_setting": {
+        "name": "Nastavitev sistemskega tlaka"
       },
       "current_heating_cooling_power": {
         "name": "Trenutna moč ogrevanja/hlajenja"

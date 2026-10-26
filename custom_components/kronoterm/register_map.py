@@ -391,7 +391,7 @@ class RegisterMap:
             "Status kompresorjev": "compressor_status",
             "Status kompresorja (Varovanje)": "compressor_protection_status",
             "Polnjenje ogrevalnega sistema": "system_filling",
-            "Nastavitev tlaka ogrevalnega sistema": "heating_system_pressure_setting",
+            "Nastavitev tlaka ogrevalnega sistema": "system_pressure_setting",
             "Tlak ogrevalnega sistema": "heating_system_pressure",
             "Trenutna obremenitev TČ": "hp_load",
             "Trenutna grelna/hladilna moč": "current_heating_cooling_power",
