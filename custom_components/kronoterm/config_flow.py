@@ -553,10 +553,15 @@ class KronotermOptionsFlowHandler(config_entries.OptionsFlow):
                     "scan_interval_seconds"
                 ]
                 options.pop("scan_interval", None)
+                options["thermal_energy_multiplier"] = user_input.get("thermal_energy_multiplier", "auto")
                 return self.async_create_entry(title="", data=options)
 
             options_schema = vol.Schema(
                 {
+                    vol.Optional(
+                        "thermal_energy_multiplier",
+                        default=current_options.get("thermal_energy_multiplier", "auto"),
+                    ): vol.In(["auto", "0.1", "1.0"]),
                     vol.Required(
                         "scan_interval_seconds",
                         default=scan_interval_seconds,

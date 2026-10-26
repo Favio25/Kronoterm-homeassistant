@@ -5,6 +5,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.components.persistent_notification import async_create
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -29,8 +30,27 @@ async def async_setup_entry(
     if system_type in ("dhw", "modbus"):
         return
 
-    _LOGGER.info("Adding Reimport Energy Statistics button for entry %s", entry.entry_id)
-    async_add_entities([KronotermReimportEnergyButton(coordinator, entry)])
+    async_add_entities([
+        KronotermReimportEnergyButton(coordinator, entry),
+        KronotermAcknowledgeAlarmButton(coordinator, entry),
+    ])
+
+
+class KronotermAcknowledgeAlarmButton(CoordinatorEntity, ButtonEntity):
+    """Acknowledge alarms on a main Cloud heat pump."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "acknowledge_alarm"
+    _attr_icon = "mdi:bell-check"
+
+    def __init__(self, coordinator: Any, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_{DOMAIN}_acknowledge_alarm"
+        self._attr_device_info = coordinator.shared_device_info
+
+    async def async_press(self) -> None:
+        if not await self.coordinator.async_acknowledge_alarm():
+            raise HomeAssistantError("Kronoterm alarm acknowledgement failed")
 
 
 class KronotermReimportEnergyButton(CoordinatorEntity, ButtonEntity):

@@ -429,13 +429,17 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
             if self.data and "info" in self.data:
                 data["info"] = self.data["info"]
                 
-            # Sync previous day's finalized energy statistics once per day
+            # Refresh finalized totals without overwriting recorder-owned statistics
             await self._sync_previous_day_statistics()
             return data
         except Exception as err:
             raise UpdateFailed(f"Main update failed: {err}") from err
 
     # Setter methods for Main Cloud (kept from original class)
+    async def async_acknowledge_alarm(self) -> bool:
+        """Acknowledge controller alarms through the main Cloud API."""
+        return await self._send_set_request("ack_alarm", [])
+
     async def _async_set_page_parameter(self, page: int, param_name: str, param_value: str) -> bool:
         query_key = PAGE_TO_SET_QUERY_KEY.get(page)
         if not query_key: return False
@@ -527,7 +531,7 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         return await self._async_set_shortcut(API_PARAM_KEYS["ADDITIONAL_SOURCE"], enable)
 
     async def _sync_previous_day_statistics(self) -> None:
-        """Re-import finalized daily energy statistics for yesterday after midnight."""
+        """Refresh yesterday's finalized sensors without rewriting live statistics."""
         today = dt_util.now().date()
         if self._last_stats_sync_date == today:
             return
@@ -551,9 +555,10 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         self.previous_day_energy = finalized
         self.previous_day_energy_date = target_date
 
-        await self._import_energy_statistics_for_date(target_date, consumption)
+        # Recorder owns the daily sensors' statistics. Writing a finalized
+        # daily total into midnight would conflict with its existing hourly rows.
         self._last_stats_sync_date = today
-        _LOGGER.info("Re-imported previous day energy statistics")
+        _LOGGER.debug("Refreshed previous-day finalized energy sensors")
 
     async def _fetch_consumption_for_date(self, target_date: datetime.date) -> Optional[Dict[str, Any]]:
         """Fetch consumption for a specific date."""
@@ -570,71 +575,6 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         except Exception as err:
             _LOGGER.debug("Consumption request failed for %s: %s", target_date, err)
             return None
-
-    async def _import_energy_statistics_for_date(self, target_date: datetime.date, consumption: Dict[str, Any]) -> None:
-        if isinstance(target_date, (int, float)):
-            target_date = dt_util.as_local(dt_util.utc_from_timestamp(target_date)).date()
-        elif isinstance(target_date, datetime):
-            target_date = target_date.date()
-
-        trend = consumption.get("trend_consumption", {})
-        keys = list(ENERGY_DATA_KEYS)
-        series_map = {k: [float(v) for v in trend.get(k, [])] for k in keys}
-        length = max((len(v) for v in series_map.values()), default=0)
-        if length == 0:
-            return
-
-        window_start = target_date - timedelta(days=length - 1)
-        index = (target_date - window_start).days
-
-        entity_ids = await self._get_energy_statistic_entity_ids()
-        if not entity_ids:
-            return
-
-        for key, entity_id in entity_ids.items():
-            if key != "combined" and key not in series_map:
-                continue
-
-            if key == "combined":
-                value = 0.0
-                for k in keys:
-                    values = series_map.get(k, [])
-                    if index < len(values):
-                        value += values[index]
-            else:
-                values = series_map.get(key, [])
-                if index >= len(values):
-                    continue
-                value = values[index]
-
-            last_sum = await self._get_last_statistics_sum(entity_id)
-            running_sum = last_sum + value
-
-            start_local = datetime.combine(
-                target_date,
-                datetime.min.time(),
-                tzinfo=dt_util.DEFAULT_TIME_ZONE,
-            )
-            start = dt_util.as_utc(start_local)
-            stats = [{
-                "start": start,
-                "state": running_sum,
-                "sum": running_sum,
-                "last_reset": None,
-            }]
-
-            metadata = {
-                "statistic_id": entity_id,
-                "source": "recorder",
-                "name": entity_id,
-                "unit_of_measurement": "kWh",
-                "unit_class": "energy",
-                "has_sum": True,
-                "has_mean": False,
-                "mean_type": StatisticMeanType.NONE,
-            }
-
-            async_import_statistics(self.hass, metadata, stats)
 
     async def _get_energy_statistic_entity_ids(self) -> Optional[Dict[str, str]]:
         if self._energy_statistic_ids is not None:
@@ -671,27 +611,6 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
         recorder = get_instance(self.hass)
         recorder.async_clear_statistics(list(entity_ids.values()))
         self._stats_metadata_reset = True
-
-    async def _get_last_statistics_sum(self, entity_id: str) -> float:
-        start_window = dt_util.utcnow() - timedelta(days=14)
-
-        def _fetch():
-            return statistics_during_period(
-                self.hass,
-                start_window,
-                None,
-                {entity_id},
-                "day",
-                None,
-                {"sum"},
-            )
-
-        recorder = get_instance(self.hass)
-        stats = await recorder.async_add_executor_job(_fetch)
-        rows = stats.get(entity_id, [])
-        if not rows:
-            return 0.0
-        return float(rows[-1].get("sum") or 0.0)
 
     async def _get_energy_statistics(
         self,

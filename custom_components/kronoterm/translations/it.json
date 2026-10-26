@@ -93,7 +93,11 @@
         "data": {
           "username": "Nome Utente",
           "password": "Password",
-          "scan_interval": "Intervallo di Scansione (minuti)"
+          "scan_interval": "Intervallo di Scansione (minuti)",
+          "thermal_energy_multiplier": "Moltiplicatore energia termica"
+        },
+        "data_description": {
+          "thermal_energy_multiplier": "auto rileva il fattore tramite SCOP; in alternativa scegliere 0.1 o 1.0. La modifica può influire sulle statistiche energetiche."
         }
       }
     },
@@ -790,6 +794,9 @@
     "button": {
       "reimport_energy_statistics": {
         "name": "Reimport Energy Statistics"
+      },
+      "acknowledge_alarm": {
+        "name": "Conferma allarme"
       }
     }
   }

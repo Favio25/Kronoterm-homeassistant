@@ -64,6 +64,32 @@ A comprehensive Home Assistant integration for Kronoterm heat pumps, supporting 
 
 ## Configuration
 
+### Automatic Modbus thermal energy scaling
+
+The integration selects a thermal energy multiplier of 0.1 or 1.0 by comparing
+thermal/electrical lifetime energy with SCOP. It requires three consecutive
+matching polls within 5%, at least 10 kWh of electrical energy, and a valid SCOP
+between 1 and 10. The choice is saved per config entry and connection and remains
+fixed across restarts and later counter resets. Changing the connection starts
+a new selection.
+
+Until a reliable choice is available, the thermal energy sensor reports no value;
+other sensors continue updating. Missing or inconsistent counters cannot produce
+a selection. This avoids publishing an assumed total before correcting it tenfold.
+In the integration's Configure options, choose `auto`, `0.1`, or `1.0` for
+**Thermal energy multiplier**. A manual choice works without SCOP and leaves
+the saved automatic choice intact. Returning to `auto` reuses that choice.
+Downloaded diagnostics include the mode, status, multiplier, pending candidate,
+and matching sample count under `thermal_energy_scaling`.
+On an existing installation previously using the wrong multiplier, the corrected
+lifetime reading will still change; existing recorded statistics are not repaired
+automatically. Cloud energy scaling is unchanged.
+
+An isolated Home Assistant runtime check is provided at
+`tools/runtime_scaling_check.py`. Run it with this checkout on `PYTHONPATH`
+inside a Home Assistant image. It uses a temporary configuration and mocked
+device requests to check sensors, disk persistence, options, and alarm handling.
+
 ### Cloud API Setup
 ![Cloud API Setup](images/form.png)
 

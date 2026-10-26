@@ -1,7 +1,7 @@
 from typing import NamedTuple, Dict, List, Set, Any, Optional
 
 DOMAIN = "kronoterm"
-INTEGRATION_VERSION = "1.7.2"
+INTEGRATION_VERSION = "1.7.3"
 CONFIG_ENTRY_VERSION = 3
 BASE_URL = "https://cloud.kronoterm.com/jsoncgi.php"
 BASE_URL_DHW = "https://cloud.kronoterm.com/dhws/jsoncgi.php"
@@ -62,6 +62,7 @@ API_QUERIES_GET = {
 
 # Queries for SETting data (sending commands, POST)
 API_QUERIES_SET = {
+    "ack_alarm": {"TopPage": "1", "Subpage": "11", "Action": "3"},
     "switch": {"TopPage": "1", "Subpage": "3", "Action": "1"},
     "reservoir": {"TopPage": "1", "Subpage": "4", "Action": "1"},
     "loop1": {"TopPage": "1", "Subpage": "5", "Action": "1"},
