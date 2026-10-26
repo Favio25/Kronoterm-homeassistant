@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.config_entries import ConfigEntry
+from types import MappingProxyType
 
 from custom_components.kronoterm.modbus_coordinator import ModbusCoordinator
 from custom_components.kronoterm.sensor import KronotermModbusRegSensor
@@ -29,9 +31,14 @@ def sample():
 async def main():
     with tempfile.TemporaryDirectory() as directory:
         hass = HomeAssistant(directory)
-        entry = SimpleNamespace(entry_id="runtime_scaling_test", data={
-            "connection_type": "modbus", "host": "mock.invalid", "unit_id": 20,
-        }, options={"scan_interval_seconds": 5}, pref_disable_polling=False)
+        def make_entry(options=None):
+            return ConfigEntry(entry_id="runtime_scaling_test", domain="kronoterm",
+                data={"connection_type": "modbus", "host": "mock.invalid", "unit_id": 20},
+                options=options or {}, version=3, minor_version=1, title="Runtime test",
+                source="user", unique_id=None, discovery_keys=MappingProxyType({}),
+                subentries_data=None)
+
+        entry = make_entry({"scan_interval_seconds": 5})
         coordinator = ModbusCoordinator(hass, entry)
         sensor = KronotermModbusRegSensor(coordinator, 2363,
             "heating_energy_heating_dhw", "kWh", {})
@@ -51,14 +58,13 @@ async def main():
         assert restarted.thermal_scale_diagnostics["status"] == "selected"
 
         # Manual override works with no SCOP and does not replace automatic storage.
-        entry.options = {"thermal_energy_multiplier": "0.1"}
-        manual = ModbusCoordinator(hass, entry)
+        manual = ModbusCoordinator(hass, make_entry({"thermal_energy_multiplier": "0.1"}))
         data = sample()
         del data[2372]
         await manual._async_select_thermal_scale(data)
         assert data[2363]["value"] == 60.8
         assert manual.thermal_scale_diagnostics["mode"] == "manual"
-        entry.options = {}
+        entry = make_entry()
         automatic = ModbusCoordinator(hass, entry)
         data = sample()
         await automatic._async_select_thermal_scale(data)
