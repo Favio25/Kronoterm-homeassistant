@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 2026-10-26 - v1.7.3
+
+### Added
+- Modbus options allow automatic thermal scaling or a manual 0.1/1.0 multiplier.
+  Downloaded diagnostics expose scaling status and confirmation progress.
+- Add an Acknowledge Alarm button for main Cloud heat pumps (#62).
+
+### Fixed
+- Automatically select and persist the Modbus thermal energy multiplier (0.1
+  or 1.0) after three consecutive energy-ratio matches within 5% of SCOP (#63).
+  Thermal energy stays unavailable until selection succeeds; a saved selection
+  is retained across restarts and counter resets.
+- Cloud heating system pressure now reads measured pressure from register 2326
+  instead of the pressure alarm setting at 2325 (#67).
+- Name Modbus register 2325 `system_pressure_setting`, keeping its identity
+  distinct from the measured pressure at register 2326 (#67).
+- Stop the automatic nightly Cloud energy import from overwriting midnight
+  recorder statistics, which could cause consumption spikes and double counting
+  (#64). Yesterday's finalized energy sensors still refresh. Existing damaged
+  statistics are not automatically repaired.
+
 ## 2026-08-05 - v1.7.2
 
 ### Added

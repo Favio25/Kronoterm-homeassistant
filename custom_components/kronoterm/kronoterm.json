@@ -2147,7 +2147,7 @@
       "access": "Read/Write",
       "unit": "x 0.1 bar",
       "source": "Page 9, 12",
-      "name_en": "heating_system_pressure"
+      "name_en": "system_pressure_setting"
     },
     {
       "address": 2326,

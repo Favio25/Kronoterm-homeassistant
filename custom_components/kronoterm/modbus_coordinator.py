@@ -17,6 +17,7 @@ from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.storage import Store
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.util import dt as dt_util
@@ -27,6 +28,7 @@ from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .register_map import RegisterMap
 from .modbus_reads import ModbusReadMixin
 from .modbus_writes import ModbusWriteMixin
+from .thermal_scaling import ThermalScaleSelector
 from .value_utils import (
     combine_u16_words,
     documented_to_modbus_address,
@@ -68,6 +70,11 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         self.unit_id = config_entry.data.get("unit_id", DEFAULT_UNIT_ID)
         self.model = config_entry.data.get("model", "unknown")
         self.system_type = "modbus"
+        self._thermal_scale_store = Store(hass, 1, f"{DOMAIN}.{config_entry.entry_id}.thermal_scale")
+        self._thermal_scale_selector = ThermalScaleSelector()
+        self._thermal_scale_loaded = False
+        self.thermal_scale_mode = config_entry.options.get("thermal_energy_multiplier", "auto")
+
 
         # Modbus client
         self.client: Optional[AsyncModbusTcpClient] = None
@@ -486,6 +493,8 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
                 _LOGGER.error("No data collected from Modbus - all register reads failed")
                 raise UpdateFailed("No data received from Modbus device")
             
+            await self._async_select_thermal_scale(data)
+
             # Update feature flags based on data
             self._update_feature_flags(data)
             
@@ -516,6 +525,64 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
         except Exception as err:
             _LOGGER.error("Unexpected error during Modbus update: %s", err)
             raise UpdateFailed(f"Update failed: {err}")
+
+    async def _async_select_thermal_scale(self, data: Dict[str, Any]) -> None:
+        """Select once before publishing a thermal total, then retain its scale."""
+        override = getattr(self, "thermal_scale_mode", "auto")
+        if override in ("0.1", "1.0"):
+            for info in data.values():
+                if info["name"] == "heating_energy_heating_dhw":
+                    info["value"] = round(info["raw"] * float(override), 2)
+            return
+        selector = self._thermal_scale_selector
+        endpoint = [self.transport, self.host, self.port, self.serial_port, self.unit_id]
+        if not self._thermal_scale_loaded:
+            saved = await self._thermal_scale_store.async_load()
+            if isinstance(saved, dict) and saved.get("endpoint") == endpoint:
+                selector = self._thermal_scale_selector = ThermalScaleSelector(saved.get("scale"))
+            self._thermal_scale_loaded = True
+
+        by_name = {info["name"]: info for info in data.values()}
+        thermal = by_name.get("heating_energy_heating_dhw")
+        if thermal is None:
+            # A failed thermal read breaks the run of matching samples.
+            selector.observe(None, None, None)
+            return
+        electrical = by_name.get("electrical_energy_heating_dhw", {})
+        scop = by_name.get("scop_value", {})
+        previous = selector.selected
+        selected = selector.observe(electrical.get("value"), thermal.get("raw"), scop.get("value"))
+        if selected is not None and previous is None:
+            try:
+                await self._thermal_scale_store.async_save({"scale": selected, "endpoint": endpoint})
+            except Exception:
+                # Do not expose a choice that would be lost on restart.
+                selector.selected = None
+                raise
+            _LOGGER.info("Selected thermal energy multiplier %s using lifetime SCOP", selected)
+        if selected is None:
+            # Avoid first publishing the wrong lifetime total and then jumping
+            # tenfold when enough samples arrive. Other registers remain usable.
+            for address in [address for address, info in data.items() if info is thermal]:
+                del data[address]
+            return
+        thermal["value"] = round(thermal["raw"] * selected, 2)
+
+    @property
+    def thermal_scale_diagnostics(self) -> Dict[str, Any]:
+        """Expose the decision without exposing connection details."""
+        mode = self.thermal_scale_mode
+        selector = self._thermal_scale_selector
+        manual = mode in ("0.1", "1.0")
+        return {
+            "mode": "manual" if manual else "auto",
+            "status": "selected" if manual or selector.selected is not None else "pending",
+            "multiplier": float(mode) if manual else selector.selected,
+            "candidate": None if manual else selector.candidate,
+            "matching_samples": 0 if manual else selector.samples if selector.candidate is not None else 0,
+            "required_samples": 3,
+            "relative_tolerance": 0.05,
+        }
 
     def _group_registers_into_batches(self, registers, max_gap=5, max_batch=100):
         """Group registers into consecutive batches for efficient Modbus reading.

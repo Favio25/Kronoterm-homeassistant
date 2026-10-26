@@ -9,6 +9,18 @@ permissions:
   contents: read
 
 jobs:
+  home-assistant-runtime:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/home-assistant/home-assistant:2026.10.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install integration dependency
+        run: uv pip install --system 'pymodbus>=3.5.0'
+      - name: Test Home Assistant runtime with mocked device I/O
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python tools/runtime_scaling_check.py
   offline-regressions:
     runs-on: ubuntu-latest
     steps:

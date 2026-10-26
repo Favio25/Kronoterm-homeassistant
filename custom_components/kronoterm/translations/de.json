@@ -93,7 +93,11 @@
         "data": {
           "username": "Benutzername",
           "password": "Passwort",
-          "scan_interval": "Aktualisierungsintervall (Minuten)"
+          "scan_interval": "Aktualisierungsintervall (Minuten)",
+          "thermal_energy_multiplier": "Multiplikator für Wärmeenergie"
+        },
+        "data_description": {
+          "thermal_energy_multiplier": "auto erkennt den Faktor mit SCOP; alternativ 0.1 oder 1.0 festlegen. Änderungen können die Energiestatistik beeinflussen."
         }
       }
     },
@@ -790,6 +794,9 @@
     "button": {
       "reimport_energy_statistics": {
         "name": "Reimport Energy Statistics"
+      },
+      "acknowledge_alarm": {
+        "name": "Alarm quittieren"
       }
     }
   }

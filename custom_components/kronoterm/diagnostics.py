@@ -117,6 +117,7 @@ async def async_get_config_entry_diagnostics(
             "unit_id": entry.data.get("unit_id"),
         }
         diagnostics["register_snapshot"] = _modbus_register_snapshot(data)
+        diagnostics["thermal_energy_scaling"] = getattr(coordinator, "thermal_scale_diagnostics", None)
     else:
         diagnostics["connection"] = {
             "type": "cloud",

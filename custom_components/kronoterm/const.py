@@ -1,7 +1,7 @@
 from typing import NamedTuple, Dict, List, Set, Any, Optional
 
 DOMAIN = "kronoterm"
-INTEGRATION_VERSION = "1.7.2"
+INTEGRATION_VERSION = "1.7.3"
 CONFIG_ENTRY_VERSION = 3
 BASE_URL = "https://cloud.kronoterm.com/jsoncgi.php"
 BASE_URL_DHW = "https://cloud.kronoterm.com/dhws/jsoncgi.php"
@@ -62,6 +62,7 @@ API_QUERIES_GET = {
 
 # Queries for SETting data (sending commands, POST)
 API_QUERIES_SET = {
+    "ack_alarm": {"TopPage": "1", "Subpage": "11", "Action": "3"},
     "switch": {"TopPage": "1", "Subpage": "3", "Action": "1"},
     "reservoir": {"TopPage": "1", "Subpage": "4", "Action": "1"},
     "loop1": {"TopPage": "1", "Subpage": "5", "Action": "1"},
@@ -202,7 +203,7 @@ SENSOR_DEFINITIONS: List[SensorDefinition] = [
     SensorDefinition(2161, "loop_2_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
     SensorDefinition(2162, "loop_3_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
     SensorDefinition(2163, "loop_4_thermostat_temperature", "°C", "mdi:thermostat", 1.0),  # Cloud API: no scaling
-    SensorDefinition(2325, "heating_system_pressure", "bar", "mdi:gauge", 1.0),  # Cloud API: no scaling
+    SensorDefinition(2326, "heating_system_pressure", "bar", "mdi:gauge", 1.0),  # Cloud API: no scaling
     SensorDefinition(2327, "hp_load", "%", "mdi:engine", 1.0),
     SensorDefinition(2129, "current_heating_cooling_power", "W", "mdi:lightning-bolt", 1.0),
     SensorDefinition(2329, "current_heating_cooling_capacity", "W", "mdi:lightning-bolt", 1.0),

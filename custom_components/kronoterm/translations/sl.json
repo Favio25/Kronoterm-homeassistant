@@ -93,7 +93,11 @@
         "data": {
           "username": "Uporabniško Ime",
           "password": "Geslo",
-          "scan_interval": "Interval Osveževanja (minute)"
+          "scan_interval": "Interval Osveževanja (minute)",
+          "thermal_energy_multiplier": "Množilnik toplotne energije"
+        },
+        "data_description": {
+          "thermal_energy_multiplier": "Izberite auto za zaznavanje s SCOP ali določite 0.1 oziroma 1.0. Sprememba lahko vpliva na statistiko energije."
         }
       }
     },
@@ -790,6 +794,9 @@
     "button": {
       "reimport_energy_statistics": {
         "name": "Reimport Energy Statistics"
+      },
+      "acknowledge_alarm": {
+        "name": "Potrdi alarm"
       }
     }
   }
