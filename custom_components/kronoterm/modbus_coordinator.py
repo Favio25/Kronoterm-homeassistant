@@ -122,6 +122,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             hass,
             _LOGGER,
             name="kronoterm_modbus_coordinator",
+            config_entry=config_entry,
             update_method=self._async_update_data_with_metrics,
             update_interval=interval,
         )
