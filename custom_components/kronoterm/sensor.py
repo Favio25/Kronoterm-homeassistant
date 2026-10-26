@@ -990,6 +990,10 @@ def _should_create_sensor(coordinator: DataUpdateCoordinator, reg_def: RegisterD
     if reg_def.address == 2327:  # hp_load - current heat pump load %
         return True
 
+    # Exception: system_pressure_setting (2325) is exposed read-only so the alarm limit stays visible
+    if reg_def.address == 2325:
+        return True
+
     # Skip ALL writable registers - they should be switch/number entities, not sensors
     if "Write" in reg_def.access:
         return False
@@ -1072,6 +1076,7 @@ def _is_diagnostic_sensor(reg_def: RegisterDefinition) -> bool:
         "opozorilo",
         "cop",
         "scop",
+        "pressure_setting",
     ]
     
     name_lower = reg_def.name_en.lower()

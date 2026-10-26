@@ -163,6 +163,8 @@ class ReportedIssueRegressions(unittest.TestCase):
         self.assertEqual(registers[2326]["name_en"], "heating_system_pressure")
         self.assertIn('SensorDefinition(2326, "heating_system_pressure"', source("const.py"))
         self.assertNotIn('SensorDefinition(2325, "heating_system_pressure"', source("const.py"))
+        self.assertIn('SensorDefinition(2325, "system_pressure_setting"', source("const.py"))
+        self.assertIn("reg_def.address == 2325", function_source("sensor.py", "_should_create_sensor"))
 
     def test_issue_60_cop_scop_scaling_is_dynamic(self) -> None:
         """COP/SCOP values normalize across common controller encodings."""
