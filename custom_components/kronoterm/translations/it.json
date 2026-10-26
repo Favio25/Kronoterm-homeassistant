@@ -552,8 +552,8 @@
       "solar_boiler_setpoint": {
         "name": "Setpoint caldaia solare"
       },
-      "system_pressure_setting": {
-        "name": "Impostazione pressione di sistema"
+      "heating_system_pressure_setting": {
+        "name": "Impostazione pressione del sistema di riscaldamento"
       },
       "current_heating_cooling_power": {
         "name": "Potenza riscaldamento/raffreddamento attuale"

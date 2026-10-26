@@ -741,8 +741,8 @@
       "solar_boiler_setpoint": {
         "name": "Solar Boiler Setpoint"
       },
-      "system_pressure_setting": {
-        "name": "System Pressure Setting"
+      "heating_system_pressure_setting": {
+        "name": "Heating System Pressure Setting"
       },
       "current_heating_cooling_power": {
         "name": "Current Heating/Cooling Power"
