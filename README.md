@@ -149,7 +149,7 @@ for Home Assistant's recorder to commit the result before reporting completion.
 [Example Dashboard YAML](dashboard.yaml)
 
 ### Heat Pump Hydraulic Card
-[Heat Pump Hydraulic Card](https://github.com/Sturmi77/heatpump-hydraulic-card) (HACS) shows the heat pump as an animated hydraulic schematic: working function, compressor load, defrost, the DHW tank, the heating loops with their pumps, the room thermostat, live COP, energy tiles and a 24-hour timeline. Its `kronoterm` preset finds the entities of this integration by their translation keys, with the Cloud API and with Modbus, so no entity IDs are needed:
+[Heat Pump Hydraulic Card](https://github.com/Sturmi77/heatpump-hydraulic-card) (HACS) shows the heat pump as an animated hydraulic schematic: working function, compressor load, defrost, the DHW tank, the heating loops with their pumps, the room thermostat, live COP, energy tiles and a 24-hour timeline. Its `kronoterm` preset (card version 0.12.0 or newer) finds the entities of this integration by their translation keys, with the Cloud API and with Modbus, so no entity IDs are needed:
 
 ```yaml
 type: custom:heatpump-hydraulic-card
@@ -159,14 +159,13 @@ hc_type: radiator      # loop 1: underfloor (default), radiator or column
 hc2_type: underfloor   # loop 2
 ```
 
-A room sensor of another integration, for example a Shelly H&T for a loop without a Kronoterm thermostat, can be added as a tile:
+With a Kronoterm room thermostat, loop 1 shows its room temperature and target in the house. A loop without one can show a room sensor of another integration, for example a Shelly H&T, in its status line under the heating surface:
 
 ```yaml
-tiles:
-  - energy
-  - cop_live
-  - entity: sensor.attic_temperature
-    name: Attic
+hc_name: Middle floor
+hc2_name: Attic
+entities:
+  hc2_room: sensor.attic_temperature   # room sensor of loop 2
 ```
 
 See the card's README for all options.
