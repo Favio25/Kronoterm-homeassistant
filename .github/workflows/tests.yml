@@ -21,6 +21,10 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python tools/runtime_scaling_check.py
+      - name: Review Cloud pressure sensor and repeated polling
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python tools/runtime_pressure_check.py
   offline-regressions:
     runs-on: ubuntu-latest
     steps:
