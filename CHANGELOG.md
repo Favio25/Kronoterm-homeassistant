@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+- Cloud heating system pressure now reports the measured value from the
+  payload's `CurrentFunctionData` block instead of a Modbus register (#67).
+  The Cloud API never publishes the measurement as a register, so the sensor
+  was stuck on the low-pressure alarm limit (for example 1.3 bar) while the
+  system was really at 2.5 bar. The register at 2326 is kept as a fallback for
+  controllers that do report it, and Modbus TCP is unchanged.
+- The Cloud system-overview page is refreshed on every poll instead of only at
+  startup, so the measured pressure tracks the heat pump instead of freezing on
+  the value read when the integration loaded.
+
 ## 2026-10-26 - v1.7.3
 
 ### Added

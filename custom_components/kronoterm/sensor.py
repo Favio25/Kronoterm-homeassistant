@@ -406,6 +406,83 @@ class KronotermJsonEnumSensor(CoordinatorEntity, SensorEntity):
             return None
 
 
+class KronotermCloudPressureSensor(CoordinatorEntity, SensorEntity):
+    """Measured heating-system pressure from the Cloud payload.
+
+    The Cloud API does not publish the measured pressure as a Modbus register;
+    it only reports the low-pressure alarm limit (2325) there. The live reading
+    lives in the ``CurrentFunctionData`` block of the system-overview page, so
+    read that first and only fall back to register 2326 when it is missing.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "heating_system_pressure"
+    _attr_native_unit_of_measurement = "bar"
+    _attr_device_class = SensorDeviceClass.PRESSURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:gauge"
+
+    # Pages that may carry CurrentFunctionData, live pages first.
+    _PAGE_KEYS = ("system_data", "main", "shortcuts", "main_settings", "info")
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        device_info: Dict[str, Any],
+        field: str = "heating_system_pressure",
+        unique_id_suffix: str = "heating_system_pressure",
+        fallback_address: Optional[int] = 2326,
+    ) -> None:
+        super().__init__(coordinator)
+        self._device_info = device_info
+        self._field = field
+        self._fallback_address = fallback_address
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{DOMAIN}_{unique_id_suffix}"
+
+    @property
+    def device_info(self) -> Dict[str, Any]:
+        return self._device_info
+
+    def _current_function_value(self) -> Optional[Any]:
+        """Return self._field from the first CurrentFunctionData block found."""
+        data = self.coordinator.data or {}
+        for page_key in self._PAGE_KEYS:
+            page = data.get(page_key)
+            if not isinstance(page, dict):
+                continue
+            block = page.get("CurrentFunctionData")
+            if isinstance(block, list):
+                block = block[0] if block else None
+            if isinstance(block, dict) and self._field in block:
+                return block[self._field]
+        return None
+
+    def _fallback_value(self) -> Optional[Any]:
+        if self._fallback_address is None:
+            return None
+        modbus = (self.coordinator.data or {}).get("main", {})
+        for item in modbus.get("ModbusReg", []) if isinstance(modbus, dict) else []:
+            if item.get("address") == self._fallback_address:
+                return item.get("value")
+        return None
+
+    @property
+    def native_value(self) -> Optional[float]:
+        raw = self._current_function_value()
+        if raw is None:
+            raw = self._fallback_value()
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            raw = re.sub(r"[^\d\.\-]", "", raw)
+            if raw == "":
+                return None
+        try:
+            return round(float(raw), 2)
+        except (TypeError, ValueError):
+            return None
+
+
 class KronotermCalculatedPowerFromCapacitySensor(CoordinatorEntity, SensorEntity):
     """Calculate electrical power from thermal capacity and COP (cloud)."""
 
@@ -760,6 +837,9 @@ async def _async_setup_cloud_entities(
 
     # JSON loop sensors (loop temperature readings)
     json_entities = []
+
+    # Measured heating-system pressure (CurrentFunctionData, not a Modbus register)
+    json_entities.append(KronotermCloudPressureSensor(coordinator, device_info))
     for i in range(1, 5):
         if getattr(coordinator, f"loop{i}_installed", False):
             json_entities.append(

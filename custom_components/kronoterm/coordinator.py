@@ -382,6 +382,9 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 "pool",
                 "main_settings",
                 "system_data",
+                # Refreshed every cycle: its CurrentFunctionData block holds
+                # the measured system pressure, which no register reports.
+                "info",
             )
             loop_results = await asyncio.gather(
                 *(
@@ -426,7 +429,8 @@ class KronotermMainCoordinator(KronotermBaseCoordinator):
                 _LOGGER.warning("Unable to fetch Cloud consumption data: %s", err)
                 data["consumption"] = None
             
-            if self.data and "info" in self.data:
+            # Keep the last good info page if this cycle's fetch failed.
+            if data.get("info") is None and self.data and self.data.get("info"):
                 data["info"] = self.data["info"]
                 
             # Refresh finalized totals without overwriting recorder-owned statistics
