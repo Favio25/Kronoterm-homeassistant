@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import (
 
 # Import the Modbus addresses needed for Loop 1
 from .const import DOMAIN  # MODIFIED: Removed Loop1 specific addrs
-from .value_utils import is_pool_temperature_available
+from .value_utils import is_measured_temperature_plausible, is_pool_temperature_available
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -698,9 +698,9 @@ class KronotermReservoirClimate(KronotermJsonClimate):
             entry=entry,
             coordinator=coordinator,
             data_key="reservoir",
-            current_temp_json_key="circle_calc_temp",
+            current_temp_json_key="reservoir_temp",
             target_temp_json_key="circle_temp",
-            current_temp_section="HeatingCircleData",
+            current_temp_section="TemperaturesAndConfig",
             fallback_name="Reservoir Thermostat",
             translation_key="reservoir_temperature",
             unique_id_suffix="reservoir_climate",
@@ -726,7 +726,12 @@ class KronotermReservoirClimate(KronotermJsonClimate):
 
     @property
     def current_temperature(self) -> float | None:
-        return super().current_temperature
+        """Return the measured reservoir temperature, never a calculated setpoint."""
+        temperature = super().current_temperature
+        if (temperature is None or temperature <= -60.0
+                or not is_measured_temperature_plausible(temperature)):
+            return None
+        return temperature
 
     @property
     def target_temperature(self) -> float | None:

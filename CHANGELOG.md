@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2026-11-25 - v1.7.4
+
+### Fixed
+- Use PyModbus's default RTU framing during Modbus setup and startup so recent
+  PyModbus versions can initialize the serial client (#74).
+- Read the measured Cloud reservoir temperature when available. Missing or
+  invalid readings, including 500°C, appear as unknown (#71).
+
 ## 2026-10-26 - v1.7.3
 
 ### Added
