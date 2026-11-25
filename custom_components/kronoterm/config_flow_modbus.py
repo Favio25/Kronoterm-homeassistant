@@ -63,7 +63,6 @@ async def validate_modbus_connection(data: Dict[str, Any]) -> str | None:
             )
             client = AsyncModbusSerialClient(
                 port=port,
-                method="rtu",
                 baudrate=baudrate,
                 bytesize=bytesize,
                 parity=parity,
