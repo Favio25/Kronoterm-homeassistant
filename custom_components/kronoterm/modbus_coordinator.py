@@ -77,7 +77,7 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
 
 
         # Modbus client
-        self.client: Optional[AsyncModbusTcpClient] = None
+        self.client: AsyncModbusTcpClient | AsyncModbusSerialClient | None = None
         self._connected = False
         self._tcp_packet_normalizer = KronotermTcpPacketNormalizer()
         self.last_successful_update = None
@@ -156,7 +156,6 @@ class ModbusCoordinator(ModbusReadMixin, ModbusWriteMixin, DataUpdateCoordinator
             )
             self.client = AsyncModbusSerialClient(
                 port=self.serial_port,
-                method="rtu",
                 baudrate=self.baudrate,
                 bytesize=self.bytesize,
                 parity=self.parity,
